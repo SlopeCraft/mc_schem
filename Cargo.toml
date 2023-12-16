@@ -6,4 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-strum = { version = "0.21.0", features = ["derive","strum_macros"] }
+strum = { version = "0.25.0", features = ["derive","strum_macros"] }
+hematite-nbt = "0.5.2"
+ndarray = "0.15.6"

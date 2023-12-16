@@ -1,6 +1,5 @@
 use strum::{Display, EnumString};
 use std::collections::BTreeMap;
-use crate::block::BlockIdParseError::InvalidCharacter;
 
 #[derive(Debug)]
 pub struct Block {
@@ -36,7 +35,7 @@ fn check_blockid_characters(blkid:&str) ->Result<(),BlockIdParseError> {
         if other_valid_chars.contains(&ch) {
             continue;
         }
-        return Err(InvalidCharacter);
+        return Err(BlockIdParseError::InvalidCharacter);
     }
     return Ok(());
 }
@@ -113,7 +112,7 @@ pub fn parse_block_id(full_id: &str) -> Result<(&str, &str, &str), BlockIdParseE
         None => {}
     }
 
-    let mut id = "";
+    let id;
     let id_begin_idx = match colon_loc_opt {
         Some(col_loc) => col_loc + 1,
         None => 0,

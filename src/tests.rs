@@ -1,6 +1,5 @@
 
 use crate::block::Block;
-use std::process::abort;
 
 #[test]
 fn block_id_parse() {

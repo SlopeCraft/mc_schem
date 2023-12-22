@@ -9,3 +9,4 @@ edition = "2021"
 strum = { version = "0.25.0", features = ["derive","strum_macros"] }
 hematite-nbt = "0.5.2"
 ndarray = "0.15.6"
+compress = {version="0.2.1", features = ["zlib"]}

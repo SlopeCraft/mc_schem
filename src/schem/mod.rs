@@ -3,6 +3,7 @@ mod world_edit13;
 mod litematica;
 
 mod vanilla_structure;
+mod mc_version;
 
 mod schem {
     use std::collections::HashMap;
@@ -11,6 +12,8 @@ mod schem {
     use nbt;
     use nbt::Blob;
     use crate::schem::schem::MetaData::Litematica;
+    use schem::mc_version;
+    use crate::schem;
 
     pub struct BlockEntity {
         pub tags: nbt::Blob,
@@ -167,7 +170,7 @@ mod schem {
     impl Schematic {
         pub fn new() -> Schematic {
             return Schematic {
-                data_version: 0,
+                data_version: mc_version::DataVersion::new() as i32,
                 metadata: Litematica(LitematicaMetaData::new()),
                 regions: Vec::new(),
                 enclosing_size: [1, 1, 1],

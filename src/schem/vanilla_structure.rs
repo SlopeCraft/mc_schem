@@ -19,6 +19,7 @@ mod vanilla_structure {
             }
 
             let result = schem::Schematic::new();
+            return Ok(result);
         }
     }
 }

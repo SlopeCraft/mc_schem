@@ -47,10 +47,10 @@ mod schem {
     #[derive(Debug)]
     pub struct Region {
         pub name: String,
-        array: Array3<u16>,
+        pub array: Array3<u16>,
         //XYZ
         pub palette: Vec<Block>,
-        block_entities: HashMap<[i64; 3], BlockEntity>,
+        pub block_entities: HashMap<[i64; 3], BlockEntity>,
         pub entities: Vec<Entity>,
 
         pub offset: [i64; 3],

@@ -5,7 +5,7 @@ mod vanilla_structure {
     use crate::schem::schem::{MetaData, Schematic, VanillaStructureMetaData};
     use nbt;
     use nbt::{Blob, Map, Value};
-    use nbt::Value::{Compound, Int};
+    use nbt::Value::{Compound, Int, List};
     use crate::block::Block;
 
     #[derive(Debug)]
@@ -39,6 +39,19 @@ mod vanilla_structure {
         pub error: String,
     }
 
+    #[derive(Debug)]
+    pub struct BlockIndexOutOfRangeDetail {
+        pub tag_path: String,
+        pub index: i32,
+        pub range: [i32; 2],
+    }
+
+    #[derive(Debug)]
+    pub struct BlockPosOutOfRangeDetail {
+        pub tag_path: String,
+        pub pos: [i32; 3],
+        pub range: [i32; 3],
+    }
 
     #[derive(Debug)]
     pub enum VanillaStructureLoadError {
@@ -47,7 +60,10 @@ mod vanilla_structure {
         InvalidValue(TagValueInvalidDetail),
         TagMissing(String),
         InvalidBlockId(String),
-        InvalidBlockProperty(TagValueInvalidDetail)
+        InvalidBlockProperty(TagValueInvalidDetail),
+        PaletteTooLong(usize),
+        BlockIndexOutOfRange(BlockIndexOutOfRangeDetail),
+        BlockPosOutOfRange(BlockPosOutOfRangeDetail),
     }
 
     fn parse_size_tag(nbt: &Blob) -> Result<[i64; 3], VanillaStructureLoadError> {
@@ -70,7 +86,7 @@ mod vanilla_structure {
                     tag_path: String::from("/size"),
                     error: format!("The length should be 3, but found {}", size_list.len()),
                 }
-            ))
+            ));
         }
         let mut size: [i64; 3] = [0, 0, 0];
         for idx in 0..3 {
@@ -92,7 +108,7 @@ mod vanilla_structure {
                         expected_type: Value::Int(0).id(),
                         found_type: size_i.id(),
                     }
-                ))
+                ));
             }
         }
         return Ok(size);
@@ -151,6 +167,88 @@ mod vanilla_structure {
         }
 
         return Ok(blk);
+    }
+
+    fn parse_array_item(item: &Value, tag_path: &str, palette_size: i32, region_size: [i32; 3]) -> Result<(i32, [i32; 3]), VanillaStructureLoadError> {
+        let map;
+        if let Compound(map_) = item {
+            map = map_;
+        } else {
+            return Err(VanillaStructureLoadError::TagTypeMismatch(
+                TagTypeMismatchDetail::new(
+                    tag_path, Compound(Map::new()), item,
+                )));
+        }
+
+        // parse state
+        let state: i32;
+        if let Some(state_tag) = map.get("state") {
+            if let Value::Int(state_val) = state_tag {
+                state = *state_val;
+            } else {
+                return Err(VanillaStructureLoadError::TagTypeMismatch(TagTypeMismatchDetail::new(
+                    &*format!("{}/state", tag_path), Int(0), state_tag,
+                )));
+            }
+        } else {
+            return Err(VanillaStructureLoadError::TagMissing(format!("{}/state", tag_path)));
+        }
+        if state < 0 || state >= palette_size {
+            return Err(VanillaStructureLoadError::BlockIndexOutOfRange(
+                BlockIndexOutOfRangeDetail {
+                    tag_path: format!("{}/state", tag_path),
+                    index: state,
+                    range: [0, palette_size],
+                }));
+        }
+
+        let pos_list;
+        if let Some(pos_tag) = map.get("pos") {
+            if let Value::List(pos_list_temp) = pos_tag {
+                pos_list = pos_list_temp;
+            } else {
+                return Err(VanillaStructureLoadError::TagTypeMismatch(TagTypeMismatchDetail::new(
+                    &*format!("{}/pos", tag_path),
+                    Value::List(vec![]),
+                    pos_tag,
+                )));
+            }
+        } else {
+            return Err(VanillaStructureLoadError::TagMissing(format!("{}/pos", tag_path)));
+        }
+
+        if pos_list.len() != 3 {
+            return Err(VanillaStructureLoadError::InvalidValue(TagValueInvalidDetail {
+                tag_path: format!("{}/pos", tag_path),
+                error: format!("The length of pos should be 3, but found {}", pos_list.len()),
+            }));
+        }
+
+        let mut pos: [i32; 3] = [0, 0, 0];
+        for idx in 0..3 {
+            if let Int(coord) = pos_list[idx] {
+                pos[idx] = coord;
+            } else {
+                return Err(VanillaStructureLoadError::TagTypeMismatch(
+                    TagTypeMismatchDetail::new(
+                        &*format!("{}/pos[{}]", tag_path, idx),
+                        Int(0),
+                        &pos_list[idx],
+                    )));
+            }
+        }
+        for idx in 0..3 {
+            if pos[idx] < 0 || pos[idx] >= region_size[idx] {
+                return Err(VanillaStructureLoadError::BlockPosOutOfRange(
+                    BlockPosOutOfRangeDetail {
+                        tag_path: format!("{}/pos[{}]", tag_path, idx),
+                        pos,
+                        range: region_size,
+                    }));
+            }
+        }
+
+        return Ok((state, pos));
     }
 
     impl Schematic {
@@ -230,6 +328,63 @@ mod vanilla_structure {
                 }
             }
 
+            if region.palette.len() >= 65536 {
+                return Err(VanillaStructureLoadError::PaletteTooLong(region.palette.len()));
+            }
+            // adding structure void and compute structure void index
+            let structure_void_idx: u16;
+            {
+                let mut svi = region.palette.len() as u16;
+                for (idx, blk) in region.palette.iter().enumerate() {
+                    if blk.is_structure_void() {
+                        svi = idx as u16;
+                        break;
+                    }
+                }
+                if svi as usize >= region.palette.len() {
+                    region.palette.push(Block::structure_void());
+                }
+                structure_void_idx = svi;
+            }
+
+            // fill region with structure void
+            region.array.fill(structure_void_idx);
+
+            // fill in blocks
+            {
+                let blocks_tag;
+                if let Some(tag) = nbt.get("blocks") {
+                    blocks_tag = tag;
+                } else {
+                    return Err(VanillaStructureLoadError::TagMissing(String::from("/blocks")));
+                }
+                let blocks_list;
+                if let Value::List(list_temp) = blocks_tag {
+                    blocks_list = list_temp;
+                } else {
+                    return Err(VanillaStructureLoadError::TagTypeMismatch(TagTypeMismatchDetail::new(
+                        "/blocks",
+                        List(vec![]),
+                        blocks_tag,
+                    )));
+                }
+
+                for (idx, blk_item) in blocks_list.iter().enumerate() {
+                    let blk_item = parse_array_item(blk_item,
+                                                    &*format!("/blocks[{}]", idx),
+                                                    region.palette.len() as i32,
+                                                    [region_size[0] as i32, region_size[1] as i32, region_size[2] as i32]);
+                    let state;
+                    let pos;
+                    match blk_item {
+                        Ok(unwrapped_tmp) => (state, pos) = unwrapped_tmp,
+                        Err(e) => return Err(e),
+                    }
+
+                    let pos_ndarr = [pos[0] as usize, pos[1] as usize, pos[2] as usize];
+                    region.array[pos_ndarr] = state as u16;
+                }
+            }
 
             schem.regions.push(region);
             return Ok(schem);

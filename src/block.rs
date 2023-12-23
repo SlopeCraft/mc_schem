@@ -1,5 +1,6 @@
 use strum::{Display, EnumString};
 use std::collections::BTreeMap;
+use std::iter::Map;
 
 #[derive(Debug)]
 pub struct Block {
@@ -248,6 +249,7 @@ impl Block {
 
         return Ok(blk);
     }
+
     pub fn attribute_str(&self) -> String {
         let mut result: String = String::new();
         for (k, v) in &self.attributes {
@@ -267,5 +269,35 @@ impl Block {
             let attrib_str = self.attribute_str();
             format!("{}:{}[{}]", self.namespace.as_str(), self.id.as_str(), attrib_str)
         };
+    }
+
+    pub fn is_structure_void(&self) -> bool {
+        if self.namespace != "minecraft" {
+            return false;
+        }
+        if self.id != "structure_void" {
+            return false;
+        }
+        if !self.attributes.is_empty() {
+            return false;
+        }
+
+        return true;
+    }
+
+    pub fn air() -> Block {
+        return Block {
+            namespace: String::from("minecraft"),
+            id: String::from("air"),
+            attributes: BTreeMap::new(),
+        }
+    }
+
+    pub fn structure_void() -> Block {
+        return Block {
+            namespace: String::from("minecraft"),
+            id: String::from("structure_void"),
+            attributes: BTreeMap::new(),
+        }
     }
 }

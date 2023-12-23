@@ -7,6 +7,7 @@ mod mc_version;
 
 mod schem {
     use std::collections::HashMap;
+    use std::fmt::format;
     use ndarray::Array3;
     use crate::block::Block;
     use nbt;
@@ -15,6 +16,7 @@ mod schem {
     use schem::mc_version;
     use crate::schem;
 
+    #[derive(Debug)]
     pub struct BlockEntity {
         pub tags: nbt::Blob,
     }
@@ -27,6 +29,7 @@ mod schem {
         }
     }
 
+    #[derive(Debug)]
     pub struct Entity {
         pub tags: nbt::Blob,
         pub position: [f32; 3],
@@ -41,6 +44,7 @@ mod schem {
         }
     }
 
+    #[derive(Debug)]
     pub struct Region {
         pub name: String,
         array: Array3<u16>,
@@ -64,10 +68,21 @@ mod schem {
             };
         }
 
+        pub fn reshape(&mut self, size: [i64; 3]) {
+            let mut usz: [usize; 3] = [0, 0, 0];
+            for idx in 0..3 {
+                let sz = size[idx];
+                if sz < 0 {
+                    panic!("Try resizing with negative size [{},{},{}]", size[0], size[1], size[2]);
+                }
+                usz[idx] = sz as usize;
+            }
+            self.array = Array3::zeros(usz);
+        }
         pub fn shape(&self) -> [i64; 3] {
             let shape = self.array.shape();
             if shape.len() != 3 {
-                panic!("Invalid array dimensions: shoule be 3 but now it is {}", shape.len());
+                panic!("Invalid array dimensions: should be 3 but now it is {}", shape.len());
             }
             return [shape[0] as i64, shape[1] as i64, shape[2] as i64];
         }
@@ -94,6 +109,7 @@ mod schem {
         }
     }
 
+    #[derive(Debug)]
     pub struct LitematicaMetaData {
         pub version: i32,
 
@@ -119,6 +135,7 @@ mod schem {
         }
     }
 
+    #[derive(Debug)]
     pub struct WE12MetaData {}
 
     impl WE12MetaData {
@@ -127,6 +144,7 @@ mod schem {
         }
     }
 
+    #[derive(Debug)]
     pub struct WE13MetaData {
         pub version: i32,
         pub we_offset: [i32; 3],
@@ -143,6 +161,7 @@ mod schem {
         }
     }
 
+    #[derive(Debug)]
     pub struct VanillaStructureMetaData {}
 
     impl VanillaStructureMetaData {
@@ -151,6 +170,7 @@ mod schem {
         }
     }
 
+    #[derive(Debug)]
     pub enum MetaData {
         Litematica(LitematicaMetaData),
         WE12(WE12MetaData),
@@ -158,6 +178,7 @@ mod schem {
         VanillaStructure(VanillaStructureMetaData),
     }
 
+    #[derive(Debug)]
     pub struct Schematic {
         pub data_version: i32,
 
@@ -166,6 +187,7 @@ mod schem {
         pub regions: Vec<Region>,
         pub enclosing_size: [i64; 3],
     }
+
 
     impl Schematic {
         pub fn new() -> Schematic {

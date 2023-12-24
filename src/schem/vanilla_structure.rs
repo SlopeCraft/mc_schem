@@ -3,7 +3,7 @@ mod vanilla_structure {
     //use compress::zlib;
     use crate::schem::schem::{BlockEntity, Entity, MetaData, Schematic, VanillaStructureMetaData};
     use nbt;
-    use nbt::{Blob, Map, Value};
+    use nbt::{Map, Value};
     use crate::block::Block;
 
     #[derive(Debug)]
@@ -106,19 +106,8 @@ mod vanilla_structure {
     }
 
 
-    fn parse_size_tag(nbt: &Blob) -> Result<[i64; 3], VanillaStructureLoadError> {
-        let size_list;
-        if let Some(size_tag) = nbt.get("/size") {
-            if let Value::List(size_list_) = size_tag {
-                size_list = size_list_;
-            } else {
-                return Err(VanillaStructureLoadError::TagTypeMismatch(
-                    TagTypeMismatchDetail::new("/size", Value::List(vec![Value::Int(0)]), size_tag)
-                ));
-            }
-        } else {
-            return Err(VanillaStructureLoadError::TagMissing(String::from("/size")));
-        }
+    fn parse_size_tag(nbt: &Map<String, Value>) -> Result<[i64; 3], VanillaStructureLoadError> {
+        let size_list = unwrap_opt_tag!(nbt.get("size"),List,vec![],"/size");
 
         if size_list.len() != 3 {
             return Err(VanillaStructureLoadError::InvalidValue(
@@ -130,26 +119,16 @@ mod vanilla_structure {
         }
         let mut size: [i64; 3] = [0, 0, 0];
         for idx in 0..3 {
-            let size_i = &size_list[idx];
-            if let Value::Int(sz) = size_i {
-                if *sz <= 0 {
-                    return Err(VanillaStructureLoadError::InvalidValue(
-                        TagValueInvalidDetail {
-                            tag_path: format!("/size[{}]", idx),
-                            error: format!("Expected non-negative number, but found {}", sz),
-                        }
-                    ));
-                }
-                size[idx] = *sz as i64;
-            } else {
-                return Err(VanillaStructureLoadError::TagTypeMismatch(
-                    TagTypeMismatchDetail {
+            let sz = *unwrap_tag!(&size_list[idx],Int,0,&*format!("/size[{}]", idx));
+            if sz <= 0 {
+                return Err(VanillaStructureLoadError::InvalidValue(
+                    TagValueInvalidDetail {
                         tag_path: format!("/size[{}]", idx),
-                        expected_type: Value::Int(0).id(),
-                        found_type: size_i.id(),
+                        error: format!("Expected non-negative number, but found {}", sz),
                     }
                 ));
             }
+            size[idx] = sz as i64;
         }
         return Ok(size);
     }
@@ -355,8 +334,8 @@ mod vanilla_structure {
 
     impl Schematic {
         pub fn from_vanilla_structure(src: &mut dyn std::io::Read) -> Result<Schematic, VanillaStructureLoadError> {
-            let loaded_opt: Result<Blob, nbt::Error> = nbt::from_gzip_reader(src);
-            let nbt: Blob;
+            let loaded_opt: Result<Map<String, Value>, nbt::Error> = nbt::from_reader(src);
+            let nbt;
             match loaded_opt {
                 Ok(loaded_nbt) => nbt = loaded_nbt,
                 Err(err) => return Err(VanillaStructureLoadError::NBTReadError(err)),

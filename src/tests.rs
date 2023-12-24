@@ -1,5 +1,9 @@
 
 use crate::block::Block;
+use crate::schem;
+use std::{env, fs};
+use std::io::Read;
+
 
 #[test]
 fn block_id_parse() {
@@ -58,5 +62,33 @@ fn block_id_parse() {
                 );
             }
         }
+    }
+}
+
+#[test]
+fn load_vanilla_structure() {
+    println!("Current dir: {}", env::current_dir().unwrap().to_string_lossy());
+
+    //let filename = "./test_files/vanilla_structure/test01.nbt";
+    let filename = "./test_files/vanilla_structure/test01.nbt";
+
+    let file_opt = fs::File::open(filename);
+    let file;
+    match file_opt {
+        Ok(f) => file = f,
+        Err(e) => panic!("Failed to open {} because {}", filename, e),
+    }
+
+    let mut src = flate2::read::GzDecoder::new(file);
+    // let mut bytes = Vec::new();
+    // let bytes = src.read_to_end(&mut bytes).unwrap();
+    //
+    // println!("Decompressed {} bytes", bytes);
+    //
+    // return;
+    let parse_result = schem::Schematic::from_vanilla_structure(&mut src);
+
+    if let Err(err) = parse_result {
+        panic!("Failed to parse vanilla structure, detail: {:?}", err);
     }
 }

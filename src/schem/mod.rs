@@ -7,39 +7,39 @@ mod mc_version;
 
 mod schem {
     use std::collections::HashMap;
-    use std::fmt::format;
     use ndarray::Array3;
     use crate::block::Block;
     use nbt;
-    use nbt::Blob;
     use crate::schem::schem::MetaData::Litematica;
     use schem::mc_version;
     use crate::schem;
 
     #[derive(Debug)]
     pub struct BlockEntity {
-        pub tags: nbt::Blob,
+        pub tags: nbt::Map<String, nbt::Value>,
     }
 
     impl BlockEntity {
         pub fn new() -> BlockEntity {
             return BlockEntity {
-                tags: nbt::Blob::new(),
+                tags: nbt::Map::new(),
             };
         }
     }
 
     #[derive(Debug)]
     pub struct Entity {
-        pub tags: nbt::Blob,
-        pub position: [f32; 3],
+        pub tags: nbt::Map<String, nbt::Value>,
+        pub position: [f64; 3],
+        pub block_pos: [i32; 3],
     }
 
     impl Entity {
         pub fn new() -> Entity {
             return Entity {
-                tags: nbt::Blob::new(),
+                tags: nbt::Map::new(),
                 position: [0.0, 0.0, 0.0],
+                block_pos: [0, 0, 0],
             };
         }
     }

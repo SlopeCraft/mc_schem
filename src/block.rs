@@ -1,6 +1,5 @@
 use strum::{Display, EnumString};
 use std::collections::BTreeMap;
-use std::iter::Map;
 
 #[derive(Debug)]
 pub struct Block {

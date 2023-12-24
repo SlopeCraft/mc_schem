@@ -1,11 +1,9 @@
 mod vanilla_structure {
-    use std::fmt::format;
     use crate::schem::schem;
     //use compress::zlib;
-    use crate::schem::schem::{MetaData, Schematic, VanillaStructureMetaData};
+    use crate::schem::schem::{Entity, MetaData, Schematic, VanillaStructureMetaData};
     use nbt;
     use nbt::{Blob, Map, Value};
-    use nbt::Value::{Compound, Int, List};
     use crate::block::Block;
 
     #[derive(Debug)]
@@ -65,6 +63,36 @@ mod vanilla_structure {
         BlockIndexOutOfRange(BlockIndexOutOfRangeDetail),
         BlockPosOutOfRange(BlockPosOutOfRangeDetail),
     }
+
+    macro_rules! unwrap_opt_tag {
+        ($value_opt:expr,$expected_type:ident,$expected_default_ctor:expr,$tag_path:expr) => {
+            if let Some(value)=$value_opt {
+                if let Value::$expected_type(unwrapped)=value {
+                    unwrapped
+                }else {
+                    return Err(VanillaStructureLoadError::TagTypeMismatch(
+                        TagTypeMismatchDetail::new($tag_path,Value::$expected_type($expected_default_ctor),value)
+                    ));
+                }
+            } else {
+                return Err(VanillaStructureLoadError::TagMissing(String::from($tag_path)));
+            }
+        };
+    }
+
+
+    macro_rules! unwrap_tag {
+        ($value:expr,$expected_type:ident,$expected_default_ctor:expr,$tag_path:expr) => {
+                if let Value::$expected_type(unwrapped)=$value {
+                    unwrapped
+                }else {
+                    return Err(VanillaStructureLoadError::TagTypeMismatch(
+                        TagTypeMismatchDetail::new($tag_path,Value::$expected_type($expected_default_ctor),$value)
+                    ));
+                }
+        };
+    }
+
 
     fn parse_size_tag(nbt: &Blob) -> Result<[i64; 3], VanillaStructureLoadError> {
         let size_list;
@@ -171,12 +199,12 @@ mod vanilla_structure {
 
     fn parse_array_item(item: &Value, tag_path: &str, palette_size: i32, region_size: [i32; 3]) -> Result<(i32, [i32; 3]), VanillaStructureLoadError> {
         let map;
-        if let Compound(map_) = item {
+        if let Value::Compound(map_) = item {
             map = map_;
         } else {
             return Err(VanillaStructureLoadError::TagTypeMismatch(
                 TagTypeMismatchDetail::new(
-                    tag_path, Compound(Map::new()), item,
+                    tag_path, Value::Compound(Map::new()), item,
                 )));
         }
 
@@ -187,7 +215,7 @@ mod vanilla_structure {
                 state = *state_val;
             } else {
                 return Err(VanillaStructureLoadError::TagTypeMismatch(TagTypeMismatchDetail::new(
-                    &*format!("{}/state", tag_path), Int(0), state_tag,
+                    &*format!("{}/state", tag_path), Value::Int(0), state_tag,
                 )));
             }
         } else {
@@ -226,13 +254,13 @@ mod vanilla_structure {
 
         let mut pos: [i32; 3] = [0, 0, 0];
         for idx in 0..3 {
-            if let Int(coord) = pos_list[idx] {
+            if let Value::Int(coord) = pos_list[idx] {
                 pos[idx] = coord;
             } else {
                 return Err(VanillaStructureLoadError::TagTypeMismatch(
                     TagTypeMismatchDetail::new(
                         &*format!("{}/pos[{}]", tag_path, idx),
-                        Int(0),
+                        Value::Int(0),
                         &pos_list[idx],
                     )));
             }
@@ -249,6 +277,56 @@ mod vanilla_structure {
         }
 
         return Ok((state, pos));
+    }
+
+    fn parse_entity(tag: &Value, tag_path: &str) -> Result<Entity, VanillaStructureLoadError> {
+        let compound = unwrap_tag!(tag,Compound,Map::new(),tag_path);
+
+        let mut entity = Entity::new();
+        // parse blockPos
+        {
+            let block_pos = unwrap_opt_tag!(compound.get("blockPos"),List,vec![],&*format!("{}/blockPos",tag_path));
+            if block_pos.len() != 3 {
+                return Err(VanillaStructureLoadError::InvalidValue(
+                    TagValueInvalidDetail {
+                        tag_path: format!("{}/blockPos", tag_path),
+                        error: format!("blockPos should have 3 elements, but found {}", block_pos.len()),
+                    }
+                ));
+            }
+
+            for idx in 0..3 {
+                entity.block_pos[idx] = *unwrap_opt_tag!(block_pos.get(idx),
+                    Int,0,
+                    &*format!("{}/blockPos[{}]",tag_path,idx));
+            }
+        }
+        // parse pos
+        {
+            let pos = unwrap_opt_tag!(compound.get("pos"),List,vec![],&*format!("{}/pos",tag_path));
+            if pos.len() != 3 {
+                return Err(VanillaStructureLoadError::InvalidValue(
+                    TagValueInvalidDetail {
+                        tag_path: format!("{}/pos", tag_path),
+                        error: format!("blockPos should have 3 elements, but found {}", pos.len()),
+                    }
+                ));
+            }
+
+            for idx in 0..3 {
+                entity.position[idx] = *unwrap_opt_tag!(pos.get(idx),
+                    Double,0.0,
+                    &*format!("{}/pos[{}]",tag_path,idx));
+            }
+        }
+
+        // parse nbt
+        {
+            let nbt = unwrap_opt_tag!(compound.get("nbt"),
+                Compound,Map::new(),&*format!("{}/nbt",tag_path));
+            entity.tags = nbt.clone();
+        }
+        return Ok(entity);
     }
 
     impl Schematic {
@@ -272,17 +350,8 @@ mod vanilla_structure {
             {
                 region.offset = [0, 0, 0];
                 region.name.clear();
-            }
-            {
-                if let Some(dv) = nbt.get("/DataVersion") {
-                    if let Value::Int(dv) = dv {
-                        schem.data_version = *dv;
-                    } else {
-                        return Err(VanillaStructureLoadError::TagTypeMismatch(TagTypeMismatchDetail::new("/DataVersion", Int(0), dv)));
-                    }
-                } else {
-                    return Err(VanillaStructureLoadError::TagMissing(String::from("/DataVersion")));
-                }
+
+                schem.data_version = *unwrap_opt_tag!(nbt.get("DataVersion"),Int,0,"/DataVersion");
             }
 
             // set up size
@@ -322,7 +391,7 @@ mod vanilla_structure {
                         }
                     } else {
                         return Err(VanillaStructureLoadError::TagTypeMismatch(
-                            TagTypeMismatchDetail::new(&tag_path, Compound(Map::new()), blk_tag)
+                            TagTypeMismatchDetail::new(&tag_path, Value::Compound(Map::new()), blk_tag)
                         ));
                     }
                 }
@@ -364,7 +433,7 @@ mod vanilla_structure {
                 } else {
                     return Err(VanillaStructureLoadError::TagTypeMismatch(TagTypeMismatchDetail::new(
                         "/blocks",
-                        List(vec![]),
+                        Value::List(vec![]),
                         blocks_tag,
                     )));
                 }
@@ -383,6 +452,20 @@ mod vanilla_structure {
 
                     let pos_ndarr = [pos[0] as usize, pos[1] as usize, pos[2] as usize];
                     region.array[pos_ndarr] = state as u16;
+                }
+            }
+
+            // fill in entities
+            {
+                // unwrap the list
+                let entity_list = unwrap_opt_tag!(nbt.get("entities"),List,vec![],"/entities");
+                for (idx, entity_tag) in entity_list.iter().enumerate() {
+                    let tag_path = format!("/entities[{}]", idx);
+                    let parsed_entity = parse_entity(entity_tag, &tag_path);
+                    match parsed_entity {
+                        Ok(e) => region.entities.push(e),
+                        Err(e) => return Err(e),
+                    }
                 }
             }
 

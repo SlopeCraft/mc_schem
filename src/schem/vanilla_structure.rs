@@ -1,7 +1,7 @@
 mod vanilla_structure {
     use crate::schem::schem;
     //use compress::zlib;
-    use crate::schem::schem::{Entity, MetaData, Schematic, VanillaStructureMetaData};
+    use crate::schem::schem::{BlockEntity, Entity, MetaData, Schematic, VanillaStructureMetaData};
     use nbt;
     use nbt::{Blob, Map, Value};
     use crate::block::Block;
@@ -62,6 +62,18 @@ mod vanilla_structure {
         PaletteTooLong(usize),
         BlockIndexOutOfRange(BlockIndexOutOfRangeDetail),
         BlockPosOutOfRange(BlockPosOutOfRangeDetail),
+    }
+
+    struct VanillaStructureLoadOption {
+        pub keep_structure_void: bool,
+    }
+
+    impl VanillaStructureLoadOption {
+        pub fn default() -> VanillaStructureLoadOption {
+            return VanillaStructureLoadOption {
+                keep_structure_void: false
+            }
+        }
     }
 
     macro_rules! unwrap_opt_tag {
@@ -197,7 +209,7 @@ mod vanilla_structure {
         return Ok(blk);
     }
 
-    fn parse_array_item(item: &Value, tag_path: &str, palette_size: i32, region_size: [i32; 3]) -> Result<(i32, [i32; 3]), VanillaStructureLoadError> {
+    fn parse_array_item(item: &Value, tag_path: &str, palette_size: i32, region_size: [i32; 3]) -> Result<(i32, [i32; 3], Option<BlockEntity>), VanillaStructureLoadError> {
         let map;
         if let Value::Compound(map_) = item {
             map = map_;
@@ -276,7 +288,18 @@ mod vanilla_structure {
             }
         }
 
-        return Ok((state, pos));
+        let nbt_comp;
+        match map.get("nbt") {
+            Some(nbt_comp_tmp) => nbt_comp = nbt_comp_tmp,
+            None => return Ok((state, pos, None)),
+        }
+
+        let nbt_comp = unwrap_tag!(nbt_comp,Compound,Map::new(),&*format!("{}/nbt",tag_path));
+        let block_entity = BlockEntity {
+            tags: nbt_comp.clone(),
+        };
+
+        return Ok((state, pos, Some(block_entity)));
     }
 
     fn parse_entity(tag: &Value, tag_path: &str) -> Result<Entity, VanillaStructureLoadError> {
@@ -328,6 +351,7 @@ mod vanilla_structure {
         }
         return Ok(entity);
     }
+
 
     impl Schematic {
         pub fn from_vanilla_structure(src: &mut dyn std::io::Read) -> Result<Schematic, VanillaStructureLoadError> {
@@ -445,13 +469,18 @@ mod vanilla_structure {
                                                     [region_size[0] as i32, region_size[1] as i32, region_size[2] as i32]);
                     let state;
                     let pos;
+                    let block_entity_opt;
                     match blk_item {
-                        Ok(unwrapped_tmp) => (state, pos) = unwrapped_tmp,
+                        Ok(unwrapped_tmp) => (state, pos, block_entity_opt) = unwrapped_tmp,
                         Err(e) => return Err(e),
                     }
 
                     let pos_ndarr = [pos[0] as usize, pos[1] as usize, pos[2] as usize];
                     region.array[pos_ndarr] = state as u16;
+
+                    if let Some(block_entity) = block_entity_opt {
+                        region.block_entities.insert([pos[0] as i64, pos[1] as i64, pos[2] as i64], block_entity);
+                    }
                 }
             }
 

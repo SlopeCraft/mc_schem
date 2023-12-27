@@ -1,9 +1,10 @@
 mod vanilla_structure {
-    use crate::schem::schem;
+    use std::collections::HashMap;
+    use crate::schem::{id_of_nbt_tag, schem};
     //use compress::zlib;
     use crate::schem::schem::{BlockEntity, Entity, MetaData, Schematic, VanillaStructureMetaData};
-    use nbt;
-    use nbt::{Map, Value};
+    use fastnbt;
+    use fastnbt::{Value};
     use crate::block::Block;
 
     #[derive(Debug)]
@@ -21,8 +22,8 @@ mod vanilla_structure {
                 found_type: 255,
             };
 
-            result.expected_type = expected.id();
-            result.found_type = found.id();
+            result.expected_type = id_of_nbt_tag(&expected);
+            result.found_type = id_of_nbt_tag(found);
 
 
             assert_ne!(result.expected_type, result.found_type);
@@ -53,7 +54,7 @@ mod vanilla_structure {
 
     #[derive(Debug)]
     pub enum VanillaStructureLoadError {
-        NBTReadError(nbt::Error),
+        NBTReadError(fastnbt::error::Error),
         TagTypeMismatch(TagTypeMismatchDetail),
         InvalidValue(TagValueInvalidDetail),
         TagMissing(String),
@@ -106,7 +107,7 @@ mod vanilla_structure {
     }
 
 
-    fn parse_size_tag(nbt: &Map<String, Value>) -> Result<[i64; 3], VanillaStructureLoadError> {
+    fn parse_size_tag(nbt: &HashMap<String, Value>) -> Result<[i64; 3], VanillaStructureLoadError> {
         let size_list = unwrap_opt_tag!(nbt.get("size"),List,vec![],"/size");
 
         if size_list.len() != 3 {
@@ -133,7 +134,7 @@ mod vanilla_structure {
         return Ok(size);
     }
 
-    fn parse_block(nbt: &Map<String, Value>, tag_path: &str) -> Result<Block, VanillaStructureLoadError> {
+    fn parse_block(nbt: &HashMap<String, Value>, tag_path: &str) -> Result<Block, VanillaStructureLoadError> {
         let mut blk = Block::new();
         if let Some(name_tag) = nbt.get("Name") {
             if let Value::String(id) = name_tag {
@@ -162,7 +163,7 @@ mod vanilla_structure {
                 return Err(VanillaStructureLoadError::TagTypeMismatch(
                     TagTypeMismatchDetail::new(
                         &*format!("{}/Properties", tag_path),
-                        Value::Compound(Map::new()),
+                        Value::Compound(HashMap::new()),
                         prop_tag,
                     )
                 ));
@@ -195,7 +196,7 @@ mod vanilla_structure {
         } else {
             return Err(VanillaStructureLoadError::TagTypeMismatch(
                 TagTypeMismatchDetail::new(
-                    tag_path, Value::Compound(Map::new()), item,
+                    tag_path, Value::Compound(HashMap::new()), item,
                 )));
         }
 
@@ -273,7 +274,7 @@ mod vanilla_structure {
             None => return Ok((state, pos, None)),
         }
 
-        let nbt_comp = unwrap_tag!(nbt_comp,Compound,Map::new(),&*format!("{}/nbt",tag_path));
+        let nbt_comp = unwrap_tag!(nbt_comp,Compound,HashMap::new(),&*format!("{}/nbt",tag_path));
         let block_entity = BlockEntity {
             tags: nbt_comp.clone(),
         };
@@ -282,7 +283,7 @@ mod vanilla_structure {
     }
 
     fn parse_entity(tag: &Value, tag_path: &str) -> Result<Entity, VanillaStructureLoadError> {
-        let compound = unwrap_tag!(tag,Compound,Map::new(),tag_path);
+        let compound = unwrap_tag!(tag,Compound,HashMap::new(),tag_path);
 
         let mut entity = Entity::new();
         // parse blockPos
@@ -325,7 +326,7 @@ mod vanilla_structure {
         // parse nbt
         {
             let nbt = unwrap_opt_tag!(compound.get("nbt"),
-                Compound,Map::new(),&*format!("{}/nbt",tag_path));
+                Compound,HashMap::new(),&*format!("{}/nbt",tag_path));
             entity.tags = nbt.clone();
         }
         return Ok(entity);
@@ -334,7 +335,7 @@ mod vanilla_structure {
 
     impl Schematic {
         pub fn from_vanilla_structure(src: &mut dyn std::io::Read) -> Result<Schematic, VanillaStructureLoadError> {
-            let loaded_opt: Result<Map<String, Value>, nbt::Error> = nbt::from_reader(src);
+            let loaded_opt: Result<HashMap<String, Value>, fastnbt::error::Error> = fastnbt::from_reader(src);
             let nbt;
             match loaded_opt {
                 Ok(loaded_nbt) => nbt = loaded_nbt,
@@ -367,20 +368,7 @@ mod vanilla_structure {
 
             //parse block palette
             {
-                let palette_list;
-                if let Some(palette_tag) = nbt.get("properties") {
-                    if let Value::List(plist_tmp) = palette_tag {
-                        palette_list = plist_tmp;
-                    } else {
-                        return Err(VanillaStructureLoadError::TagTypeMismatch(
-                            TagTypeMismatchDetail::new("/palette", Value::List(vec![]), palette_tag)
-                        ));
-                    }
-                } else {
-                    return Err(VanillaStructureLoadError::TagMissing(
-                        String::from("/palette")
-                    ));
-                }
+                let palette_list = unwrap_opt_tag!(nbt.get("palette"),List,vec![],"/palette");
 
                 region.palette.reserve(palette_list.len());
 
@@ -394,7 +382,7 @@ mod vanilla_structure {
                         }
                     } else {
                         return Err(VanillaStructureLoadError::TagTypeMismatch(
-                            TagTypeMismatchDetail::new(&tag_path, Value::Compound(Map::new()), blk_tag)
+                            TagTypeMismatchDetail::new(&tag_path, Value::Compound(HashMap::new()), blk_tag)
                         ));
                     }
                 }

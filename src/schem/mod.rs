@@ -9,27 +9,27 @@ mod mc_version;
 use std::collections::HashMap;
 use ndarray::Array3;
 use crate::block::Block;
-use nbt;
+use fastnbt;
 use crate::schem::schem::MetaData::Litematica;
 //use schem::mc_version;
 use crate::schem;
 
 #[derive(Debug)]
 pub struct BlockEntity {
-    pub tags: nbt::Map<String, nbt::Value>,
+    pub tags: HashMap<String, fastnbt::Value>,
 }
 
 impl BlockEntity {
     pub fn new() -> BlockEntity {
         return BlockEntity {
-            tags: nbt::Map::new(),
+            tags: HashMap::new(),
         };
     }
 }
 
 #[derive(Debug)]
 pub struct Entity {
-    pub tags: nbt::Map<String, nbt::Value>,
+    pub tags: HashMap<String, fastnbt::Value>,
     pub position: [f64; 3],
     pub block_pos: [i32; 3],
 }
@@ -37,7 +37,7 @@ pub struct Entity {
 impl Entity {
     pub fn new() -> Entity {
         return Entity {
-            tags: nbt::Map::new(),
+            tags: HashMap::new(),
             position: [0.0, 0.0, 0.0],
             block_pos: [0, 0, 0],
         };
@@ -199,4 +199,20 @@ impl Schematic {
         };
     }
 }
-//}
+
+pub fn id_of_nbt_tag(tag: &fastnbt::Value) -> u8 {
+    return match tag {
+        fastnbt::Value::Byte(_) => 1,
+        fastnbt::Value::Short(_) => 2,
+        fastnbt::Value::Int(_) => 3,
+        fastnbt::Value::Long(_) => 4,
+        fastnbt::Value::Float(_) => 5,
+        fastnbt::Value::Double(_) => 6,
+        fastnbt::Value::ByteArray(_) => 7,
+        fastnbt::Value::String(_) => 8,
+        fastnbt::Value::List(_) => 9,
+        fastnbt::Value::Compound(_) => 10,
+        fastnbt::Value::IntArray(_) => 11,
+        fastnbt::Value::LongArray(_) => 12,
+    }
+}

@@ -2,7 +2,11 @@
 use crate::block::Block;
 use crate::schem;
 use std::{env, fs};
+use std::any::Any;
+use std::collections::HashMap;
 use std::io::Read;
+use fastnbt;
+use fastnbt::Value;
 
 
 #[test]
@@ -79,7 +83,18 @@ fn load_vanilla_structure() {
         Err(e) => panic!("Failed to open {} because {}", filename, e),
     }
 
+
     let mut src = flate2::read::GzDecoder::new(file);
+
+    // let nbt: Result<HashMap<String, Value>, fastnbt::error::Error> = fastnbt::from_reader(&mut src);
+    // let nbt = nbt.unwrap();
+    // let dv = nbt.get("DataVersion").unwrap();
+    // if let fastnbt::Value::Int(i) = dv {
+    //     println!("DataVersion = {} i32", i);
+    // } else {
+    //     panic!("Type of DataVersion mismatch, it is {:?}", dv);
+    // }
+
     // let mut bytes = Vec::new();
     // let bytes = src.read_to_end(&mut bytes).unwrap();
     //

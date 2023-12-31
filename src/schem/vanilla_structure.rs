@@ -136,83 +136,38 @@ mod vanilla_structure {
 
     fn parse_block(nbt: &HashMap<String, Value>, tag_path: &str) -> Result<Block, VanillaStructureLoadError> {
         let mut blk = Block::new();
-        if let Some(name_tag) = nbt.get("Name") {
-            if let Value::String(id) = name_tag {
-                let id_parse = Block::from_id(id);
 
-                match id_parse {
-                    Ok(blk_temp) => blk = blk_temp,
-                    _ => return Err(VanillaStructureLoadError::InvalidBlockId(String::from(id))),
-                }
-            } else {
-                return Err(VanillaStructureLoadError::TagTypeMismatch(
-                    TagTypeMismatchDetail::new(&*format!("{}/Name", tag_path),
-                                               Value::String(String::new()), name_tag)
-                ));
-            }
-        } else {
-            return Err(VanillaStructureLoadError::TagMissing(format!("{}/Name", tag_path)));
+        let id = unwrap_opt_tag!(nbt.get("Name"),String,String::new(),&*format!("{}/Name", tag_path));
+        let id_parse = Block::from_id(id);
+
+        match id_parse {
+            Ok(blk_temp) => blk = blk_temp,
+            _ => return Err(VanillaStructureLoadError::InvalidBlockId(String::from(id))),
         }
 
         let prop_comp;
         // unwrap the properties map
         if let Some(prop_tag) = nbt.get("Properties") {
-            if let Value::Compound(prop_list_temp) = prop_tag {
-                prop_comp = prop_list_temp;
-            } else {
-                return Err(VanillaStructureLoadError::TagTypeMismatch(
-                    TagTypeMismatchDetail::new(
-                        &*format!("{}/Properties", tag_path),
-                        Value::Compound(HashMap::new()),
-                        prop_tag,
-                    )
-                ));
-            }
+            prop_comp = unwrap_tag!(prop_tag,Compound,HashMap::new(),&*format!("{}/Properties", tag_path));
         } else {
             return Ok(blk);
         }
 
         // parse properties
         for (key, tag) in prop_comp {
-            if let Value::String(value) = tag {
-                blk.attributes.insert(key.to_string(), value.to_string());
-            } else {
-                return Err(VanillaStructureLoadError::TagTypeMismatch(
-                    TagTypeMismatchDetail::new(
-                        &*format!("{}/Properties/{}", tag_path, key),
-                        Value::String(String::new()),
-                        tag,
-                    )));
-            }
+            let value = unwrap_tag!(tag,String,String::new(),&*format!("{}/Properties/{}", tag_path, key));
+            blk.attributes.insert(key.to_string(), value.to_string());
+
         }
 
         return Ok(blk);
     }
 
     fn parse_array_item(item: &Value, tag_path: &str, palette_size: i32, region_size: [i32; 3]) -> Result<(i32, [i32; 3], Option<BlockEntity>), VanillaStructureLoadError> {
-        let map;
-        if let Value::Compound(map_) = item {
-            map = map_;
-        } else {
-            return Err(VanillaStructureLoadError::TagTypeMismatch(
-                TagTypeMismatchDetail::new(
-                    tag_path, Value::Compound(HashMap::new()), item,
-                )));
-        }
+        let map = unwrap_tag!(item,Compound,HashMap::new(),tag_path);
 
         // parse state
-        let state: i32;
-        if let Some(state_tag) = map.get("state") {
-            if let Value::Int(state_val) = state_tag {
-                state = *state_val;
-            } else {
-                return Err(VanillaStructureLoadError::TagTypeMismatch(TagTypeMismatchDetail::new(
-                    &*format!("{}/state", tag_path), Value::Int(0), state_tag,
-                )));
-            }
-        } else {
-            return Err(VanillaStructureLoadError::TagMissing(format!("{}/state", tag_path)));
-        }
+        let state: i32 = *unwrap_opt_tag!(map.get("state"),Int,0,&*format!("{}/state", tag_path));
         if state < 0 || state >= palette_size {
             return Err(VanillaStructureLoadError::BlockIndexOutOfRange(
                 BlockIndexOutOfRangeDetail {
@@ -222,20 +177,7 @@ mod vanilla_structure {
                 }));
         }
 
-        let pos_list;
-        if let Some(pos_tag) = map.get("pos") {
-            if let Value::List(pos_list_temp) = pos_tag {
-                pos_list = pos_list_temp;
-            } else {
-                return Err(VanillaStructureLoadError::TagTypeMismatch(TagTypeMismatchDetail::new(
-                    &*format!("{}/pos", tag_path),
-                    Value::List(vec![]),
-                    pos_tag,
-                )));
-            }
-        } else {
-            return Err(VanillaStructureLoadError::TagMissing(format!("{}/pos", tag_path)));
-        }
+        let pos_list = unwrap_opt_tag!(map.get("pos"),List,vec![],&*format!("{}/pos", tag_path));
 
         if pos_list.len() != 3 {
             return Err(VanillaStructureLoadError::InvalidValue(TagValueInvalidDetail {
@@ -246,16 +188,7 @@ mod vanilla_structure {
 
         let mut pos: [i32; 3] = [0, 0, 0];
         for idx in 0..3 {
-            if let Value::Int(coord) = pos_list[idx] {
-                pos[idx] = coord;
-            } else {
-                return Err(VanillaStructureLoadError::TagTypeMismatch(
-                    TagTypeMismatchDetail::new(
-                        &*format!("{}/pos[{}]", tag_path, idx),
-                        Value::Int(0),
-                        &pos_list[idx],
-                    )));
-            }
+            pos[idx] = *unwrap_tag!(&pos_list[idx],Int,0,&*format!("{}/pos[{}]", tag_path, idx));
         }
         for idx in 0..3 {
             if pos[idx] < 0 || pos[idx] >= region_size[idx] {
@@ -374,16 +307,12 @@ mod vanilla_structure {
 
                 for (idx, blk_tag) in palette_list.iter().enumerate() {
                     let tag_path = format!("/palette[{}]", idx);
-                    if let Value::Compound(blk_comp) = blk_tag {
-                        let blk = parse_block(blk_comp, &tag_path);
-                        match blk {
-                            Err(err) => return Err(err),
-                            Ok(blk) => region.palette.push(blk),
-                        }
-                    } else {
-                        return Err(VanillaStructureLoadError::TagTypeMismatch(
-                            TagTypeMismatchDetail::new(&tag_path, Value::Compound(HashMap::new()), blk_tag)
-                        ));
+
+                    let blk_comp = unwrap_tag!(blk_tag,Compound,HashMap::new(),&tag_path);
+                    let blk = parse_block(blk_comp, &tag_path);
+                    match blk {
+                        Err(err) => return Err(err),
+                        Ok(blk) => region.palette.push(blk),
                     }
                 }
             }
@@ -412,22 +341,7 @@ mod vanilla_structure {
 
             // fill in blocks
             {
-                let blocks_tag;
-                if let Some(tag) = nbt.get("blocks") {
-                    blocks_tag = tag;
-                } else {
-                    return Err(VanillaStructureLoadError::TagMissing(String::from("/blocks")));
-                }
-                let blocks_list;
-                if let Value::List(list_temp) = blocks_tag {
-                    blocks_list = list_temp;
-                } else {
-                    return Err(VanillaStructureLoadError::TagTypeMismatch(TagTypeMismatchDetail::new(
-                        "/blocks",
-                        Value::List(vec![]),
-                        blocks_tag,
-                    )));
-                }
+                let blocks_list = unwrap_opt_tag!(nbt.get("blocks"),List,vec![],"/blocks");
 
                 for (idx, blk_item) in blocks_list.iter().enumerate() {
                     let blk_item = parse_array_item(blk_item,

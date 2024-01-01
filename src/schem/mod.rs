@@ -13,6 +13,7 @@ use fastnbt;
 use crate::schem::schem::MetaData::Litematica;
 //use schem::mc_version;
 use crate::schem;
+use crate::error;
 
 #[derive(Debug)]
 pub struct BlockEntity {

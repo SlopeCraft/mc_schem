@@ -8,7 +8,7 @@ mod mc_version;
 //mod schem {
 use std::collections::HashMap;
 use ndarray::Array3;
-use crate::block::Block;
+use crate::block::{Block, CommonBlock};
 use fastnbt;
 use crate::schem::schem::MetaData::Litematica;
 //use schem::mc_version;
@@ -190,6 +190,12 @@ pub struct Schematic {
 }
 
 
+// enum SchemFormat {
+//     Litematica,
+//     WorldEdit12,
+//     WorldEdit13,
+//     VanillaStructure,
+// }
 impl Schematic {
     pub fn new() -> Schematic {
         return Schematic {
@@ -215,5 +221,30 @@ pub fn id_of_nbt_tag(tag: &fastnbt::Value) -> u8 {
         fastnbt::Value::Compound(_) => 10,
         fastnbt::Value::IntArray(_) => 11,
         fastnbt::Value::LongArray(_) => 12,
+    }
+}
+
+
+pub struct VanillaStructureLoadOption {
+    pub background_block: CommonBlock,
+}
+
+impl VanillaStructureLoadOption {
+    pub fn default() -> VanillaStructureLoadOption {
+        return VanillaStructureLoadOption {
+            background_block: CommonBlock::StructureVoid
+        }
+    }
+}
+
+pub struct VanillaStructureSaveOption {
+    pub keep_air: bool,
+}
+
+impl VanillaStructureSaveOption {
+    pub fn default() -> VanillaStructureSaveOption {
+        return VanillaStructureSaveOption {
+            keep_air: true
+        }
     }
 }

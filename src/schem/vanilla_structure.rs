@@ -1,26 +1,13 @@
 mod vanilla_structure {
     use std::collections::HashMap;
-    use crate::schem::{id_of_nbt_tag, schem};
+    use crate::schem::{id_of_nbt_tag, schem, VanillaStructureLoadOption};
     //use compress::zlib;
     use crate::schem::schem::{BlockEntity, Entity, MetaData, Schematic, VanillaStructureMetaData};
     use fastnbt;
     use fastnbt::{Value};
-    use crate::block::Block;
-    use crate::error::{LoadError};
+    use crate::block::{Block, CommonBlock};
+    use crate::error::{LoadError, WriteError};
     use crate::{unwrap_tag, unwrap_opt_tag};
-
-
-    struct VanillaStructureLoadOption {
-        pub keep_structure_void: bool,
-    }
-
-    impl VanillaStructureLoadOption {
-        pub fn default() -> VanillaStructureLoadOption {
-            return VanillaStructureLoadOption {
-                keep_structure_void: false
-            }
-        }
-    }
 
 
     fn parse_size_tag(nbt: &HashMap<String, Value>) -> Result<[i64; 3], LoadError> {
@@ -176,7 +163,8 @@ mod vanilla_structure {
 
 
     impl Schematic {
-        pub fn from_vanilla_structure(src: &mut dyn std::io::Read) -> Result<Schematic, LoadError> {
+        pub fn from_vanilla_structure(src: &mut dyn std::io::Read, option: &VanillaStructureLoadOption)
+                                      -> Result<Schematic, LoadError> {
             let loaded_opt: Result<HashMap<String, Value>, fastnbt::error::Error> = fastnbt::from_reader(src);
             let nbt;
             match loaded_opt {
@@ -229,24 +217,24 @@ mod vanilla_structure {
             if region.palette.len() >= 65536 {
                 return Err(LoadError::PaletteTooLong(region.palette.len()));
             }
-            // adding structure void and compute structure void index
-            let structure_void_idx: u16;
+            let default_blk_idx: u16;
             {
-                let mut svi = region.palette.len() as u16;
+                let mut di = region.palette.len();
+                let default_blk = option.background_block.to_block();
                 for (idx, blk) in region.palette.iter().enumerate() {
-                    if blk.is_structure_void() {
-                        svi = idx as u16;
+                    if blk == &default_blk {
+                        di = idx;
                         break;
                     }
                 }
-                if svi as usize >= region.palette.len() {
-                    region.palette.push(Block::structure_void());
+                if di == region.palette.len() {
+                    region.palette.push(default_blk);
                 }
-                structure_void_idx = svi;
+                default_blk_idx = di as u16;
             }
 
             // fill region with structure void
-            region.array.fill(structure_void_idx);
+            region.array.fill(default_blk_idx);
 
             // fill in blocks
             {
@@ -290,6 +278,69 @@ mod vanilla_structure {
 
             schem.regions.push(region);
             return Ok(schem);
+        }
+    }
+
+    fn block_entity_to_nbt(be: &BlockEntity) -> HashMap<String, fastnbt::Value> {
+        return be.tags.clone();
+    }
+
+    fn block_to_nbt(pos: [i32; 3], state: i32, be: &Option<&BlockEntity>) -> HashMap<String, fastnbt::Value> {
+        let mut result: HashMap<String, fastnbt::Value> = HashMap::new();
+        result.insert(String::from("state"), Value::Int(state));
+        {
+            let mut pos_vec = Vec::with_capacity(3);
+            for sz in pos {
+                pos_vec.push(Value::Int(sz));
+            }
+            result.insert(String::from("pos"), Value::List(pos_vec));
+        }
+
+        if let Some(be) = be {
+            result.insert(String::from("nbt"), Value::Compound(block_entity_to_nbt(be)));
+        }
+
+        return result;
+    }
+
+    impl Schematic {
+        pub fn to_nbt_vanilla_structure(&self) -> Result<HashMap<String, fastnbt::Value>, WriteError> {
+            let mut nbt: HashMap<String, fastnbt::Value> = HashMap::new();
+
+            {
+                let mut size = Vec::with_capacity(3);
+                for dim in 0..3 {
+                    size.push(Value::Int(self.regions[0].shape()[dim] as i32));
+                }
+                nbt.insert(String::from("size"), Value::List(size));
+            }
+
+            {
+                for x in 0..self.regions[0].shape()[0] as i32 {
+                    for y in 0..self.regions[0].shape()[1] as i32 {
+                        for z in 0..self.regions[0].shape()[2] as i32 {
+                            let pos = [x, y, z];
+                        }
+                    }
+                }
+            }
+
+            return Ok(nbt);
+        }
+
+        pub fn save_vanilla_structure(&self, dst: &mut dyn std::io::Write) -> Result<(), WriteError> {
+            let nbt;
+            match self.to_nbt_vanilla_structure() {
+                Ok(nbt_) => nbt = nbt_,
+                Err(e) => return Err(e),
+            }
+
+
+            let res: Result<(), fastnbt::error::Error> = fastnbt::to_writer(dst, &nbt);
+            return match res {
+                Err(err) => Err(WriteError::NBTWriteError(err)),
+                _ => Ok(())
+            }
         }
     }
 }

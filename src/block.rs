@@ -8,6 +8,7 @@ pub struct Block {
     pub attributes: BTreeMap<String, String>,
 }
 
+
 #[derive(Debug,EnumString,Display,PartialEq,Copy,Clone)]
 pub enum BlockIdParseError {
     TooManyColons,
@@ -297,6 +298,21 @@ impl Block {
             namespace: String::from("minecraft"),
             id: String::from("structure_void"),
             attributes: BTreeMap::new(),
+        }
+    }
+}
+
+#[repr(u8)]
+pub enum CommonBlock {
+    Air,
+    StructureVoid,
+}
+
+impl CommonBlock {
+    pub fn to_block(&self) -> Block {
+        return match self {
+            CommonBlock::Air => Block::air(),
+            CommonBlock::StructureVoid => Block::structure_void(),
         }
     }
 }

@@ -71,6 +71,7 @@ fn block_id_parse() {
 
 #[test]
 fn load_vanilla_structure() {
+    use crate::schem::VanillaStructureLoadOption;
     println!("Current dir: {}", env::current_dir().unwrap().to_string_lossy());
 
     //let filename = "./test_files/vanilla_structure/test01.nbt";
@@ -101,7 +102,8 @@ fn load_vanilla_structure() {
     // println!("Decompressed {} bytes", bytes);
     //
     // return;
-    let parse_result = schem::Schematic::from_vanilla_structure(&mut src);
+    let parse_result = schem::Schematic::from_vanilla_structure(&mut src,
+                                                                &VanillaStructureLoadOption::default());
 
     if let Err(err) = parse_result {
         panic!("Failed to parse vanilla structure, detail: {:?}", err);

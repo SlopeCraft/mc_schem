@@ -87,3 +87,18 @@ macro_rules! unwrap_tag {
                 }
         };
     }
+
+pub enum WriteError {
+    NBTWriteError(fastnbt::error::Error),
+    NegativeSize { size: [i32; 3], region_name: String },
+}
+
+impl Display for WriteError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        return match self {
+            WriteError::NBTWriteError(err) => write!(f, "Failed to write nbt, detail: {}", err),
+            WriteError::NegativeSize { size, region_name }
+            => write!(f, "region \"{}\" has negative size: [{}, {}, {}]", region_name, size[0], size[1], size[2]),
+        }
+    }
+}

@@ -1,5 +1,6 @@
 use strum::{Display, EnumString};
 use std::collections::BTreeMap;
+use std::hash::{Hash, Hasher};
 
 #[derive(Debug)]
 pub struct Block {
@@ -302,11 +303,23 @@ impl Block {
     }
 }
 
+impl Hash for Block {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.namespace.hash(state);
+        self.id.hash(state);
+        for (key, val) in &self.attributes {
+            key.hash(state);
+            val.hash(state);
+        }
+    }
+}
+
 #[repr(u8)]
 pub enum CommonBlock {
     Air,
     StructureVoid,
 }
+
 
 impl CommonBlock {
     pub fn to_block(&self) -> Block {

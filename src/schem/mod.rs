@@ -5,8 +5,11 @@ mod litematica;
 mod vanilla_structure;
 mod mc_version;
 
+use std::cmp::max;
+use std::collections::hash_map::DefaultHasher;
 //mod schem {
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 use ndarray::Array3;
 use crate::block::{Block, CommonBlock};
 use fastnbt;
@@ -51,10 +54,10 @@ pub struct Region {
     pub array: Array3<u16>,
     //XYZ
     pub palette: Vec<Block>,
-    pub block_entities: HashMap<[i64; 3], BlockEntity>,
+    pub block_entities: HashMap<[i32; 3], BlockEntity>,
     pub entities: Vec<Entity>,
 
-    pub offset: [i64; 3],
+    pub offset: [i32; 3],
 }
 
 impl Region {
@@ -69,7 +72,7 @@ impl Region {
         };
     }
 
-    pub fn reshape(&mut self, size: [i64; 3]) {
+    pub fn reshape(&mut self, size: [i32; 3]) {
         let mut usz: [usize; 3] = [0, 0, 0];
         for idx in 0..3 {
             let sz = size[idx];
@@ -80,14 +83,14 @@ impl Region {
         }
         self.array = Array3::zeros(usz);
     }
-    pub fn shape(&self) -> [i64; 3] {
+    pub fn shape(&self) -> [i32; 3] {
         let shape = self.array.shape();
         if shape.len() != 3 {
             panic!("Invalid array dimensions: should be 3 but now it is {}", shape.len());
         }
-        return [shape[0] as i64, shape[1] as i64, shape[2] as i64];
+        return [shape[0] as i32, shape[1] as i32, shape[2] as i32];
     }
-    pub fn contains_coord(&self, coord: [i64; 3]) -> bool {
+    pub fn contains_coord(&self, coord: [i32; 3]) -> bool {
         for dim in 0..3 {
             if coord[dim] >= 0 && coord[dim] <= self.shape()[dim] {
                 continue;
@@ -96,17 +99,41 @@ impl Region {
         }
         return true;
     }
-    pub fn block_at(&self, coord: [i64; 3]) -> Option<&Block> {
-        if !self.contains_coord(coord) {
+    pub fn block_at(&self, r_pos: [i32; 3]) -> Option<&Block> {
+        return if let Some(pid) = self.block_index_at(r_pos) {
+            Some(&self.palette[pid as usize])
+        } else {
+            None
+        }
+    }
+
+    pub fn block_index_at(&self, r_pos: [i32; 3]) -> Option<u16> {
+        if !self.contains_coord(r_pos) {
             return None;
         }
 
-        let x = coord[0] as usize;
-        let y = coord[1] as usize;
-        let z = coord[2] as usize;
+        let x = r_pos[0] as usize;
+        let y = r_pos[1] as usize;
+        let z = r_pos[2] as usize;
 
         let pid = self.array[[x, y, z]] as usize;
-        return Some(&self.palette[pid]);
+        return Some(pid as u16);
+    }
+
+    pub fn block_info_at(&self, r_pos: [i32; 3]) -> Option<(u16, &Block, Option<&BlockEntity>)> {
+        return if let Some(pid) = self.block_index_at(r_pos) {
+            Some((pid, &self.palette[pid as usize], self.block_entities.get(&r_pos)))
+        } else {
+            None
+        }
+    }
+
+    pub fn global_pos_to_relative_pos(&self, g_pos: [i32; 3]) -> [i32; 3] {
+        return [
+            g_pos[0] - self.offset[0],
+            g_pos[1] - self.offset[1],
+            g_pos[2] - self.offset[2],
+        ]
     }
 }
 
@@ -204,6 +231,124 @@ impl Schematic {
             regions: Vec::new(),
             enclosing_size: [1, 1, 1],
         };
+    }
+
+    pub fn block_indices_at(&self, g_pos: [i32; 3]) -> Vec<u16> {
+        let mut result = Vec::with_capacity(self.regions.len());
+        for reg in &self.regions {
+            let cur_pos = reg.global_pos_to_relative_pos(g_pos);
+            if let Some(blk) = reg.block_index_at(cur_pos) {
+                result.push(blk);
+            }
+        }
+        return result;
+    }
+
+    pub fn blocks_at(&self, pos: [i32; 3]) -> Vec<&Block> {
+        let mut result = Vec::with_capacity(self.regions.len());
+        for reg in &self.regions {
+            let cur_pos = reg.global_pos_to_relative_pos(pos);
+            if let Some(blk) = reg.block_at(cur_pos) {
+                result.push(blk);
+            }
+        }
+        return result;
+    }
+
+    pub fn block_entities_at(&self, pos: [i32; 3]) -> Vec<&BlockEntity> {
+        let mut result = Vec::with_capacity(self.regions.len());
+        for reg in &self.regions {
+            let cur_pos = reg.global_pos_to_relative_pos(pos);
+            if let Some(blk) = reg.block_entities.get(&cur_pos) {
+                result.push(blk);
+            }
+        }
+        return result;
+    }
+
+
+    pub fn first_block_index_at(&self, pos: [i32; 3]) -> Option<u16> {
+        if self.regions.is_empty() {
+            return None;
+        }
+        let reg = &self.regions[0];
+        return reg.block_index_at(
+            reg.global_pos_to_relative_pos(pos));
+    }
+    pub fn first_block_at(&self, pos: [i32; 3]) -> Option<&Block> {
+        if self.regions.is_empty() {
+            return None;
+        }
+        let reg = &self.regions[0];
+        return reg.block_at(reg.global_pos_to_relative_pos(pos));
+    }
+    pub fn first_block_entity_at(&self, pos: [i32; 3]) -> Option<&BlockEntity> {
+        if self.regions.is_empty() {
+            return None;
+        }
+        let reg = &self.regions[0];
+        return reg.block_entities.get(&reg.global_pos_to_relative_pos(pos));
+    }
+
+    pub fn shape(&self) -> [i32; 3] {
+        let mut result = [0, 0, 0];
+        for reg in &self.regions {
+            for dim in 0..3 {
+                result[dim] = max(result[dim], reg.offset[dim] + reg.shape()[dim]);
+            }
+        }
+        return result;
+    }
+
+    pub fn volume(&self) -> u64 {
+        let mut result: u64 = 1;
+        for sz in self.shape() {
+            result *= sz as u64;
+        }
+        return result;
+    }
+
+
+    pub fn full_palette(&self) -> (Vec<(&Block, u64)>, Vec<Vec<usize>>) {
+        let possible_max_palette_size;
+        {
+            let mut pmps: usize = 0;
+            for reg in &self.regions {
+                pmps = max(pmps, reg.palette.len());
+            }
+            possible_max_palette_size = pmps;
+        }
+
+        let mut palette: Vec<(&Block, u64)> = Vec::with_capacity(possible_max_palette_size);
+        let mut lut_lut: Vec<Vec<usize>> = Vec::with_capacity(self.regions.len());
+        for reg in &self.regions {
+            let mut lut: Vec<usize> = Vec::with_capacity(reg.palette.len());
+
+            for cur_blk in &reg.palette {
+                let mut hasher = DefaultHasher::new();
+                cur_blk.hash(&mut hasher);
+                let cur_hash = hasher.finish();
+
+                let mut cur_block_index_in_full_palette = palette.len();
+                for (idx, (blk, hash)) in palette.iter().enumerate() {
+                    if *hash != cur_hash {
+                        continue;
+                    }
+                    if *blk != cur_blk {
+                        continue;
+                    }
+                    cur_block_index_in_full_palette = idx;
+                    break;
+                }
+
+                if cur_block_index_in_full_palette >= palette.len() {
+                    palette.push((cur_blk, cur_hash));
+                }
+                lut.push(cur_block_index_in_full_palette);
+            }
+            lut_lut.push(lut);
+        }
+        return (palette, lut_lut);
     }
 }
 

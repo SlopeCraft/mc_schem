@@ -1,16 +1,17 @@
 mod vanilla_structure {
     use std::collections::HashMap;
-    use crate::schem::{id_of_nbt_tag, schem, VanillaStructureLoadOption};
+    use crate::schem::{id_of_nbt_tag, schem, VanillaStructureLoadOption, VanillaStructureSaveOption};
     //use compress::zlib;
     use crate::schem::schem::{BlockEntity, Entity, MetaData, Schematic, VanillaStructureMetaData};
     use fastnbt;
     use fastnbt::{Value};
+    use fastnbt::Tag::List;
     use crate::block::{Block, CommonBlock};
     use crate::error::{LoadError, WriteError};
     use crate::{unwrap_tag, unwrap_opt_tag};
 
 
-    fn parse_size_tag(nbt: &HashMap<String, Value>) -> Result<[i64; 3], LoadError> {
+    fn parse_size_tag(nbt: &HashMap<String, Value>) -> Result<[i32; 3], LoadError> {
         let size_list = unwrap_opt_tag!(nbt.get("size"),List,vec![],"/size");
 
         if size_list.len() != 3 {
@@ -20,7 +21,7 @@ mod vanilla_structure {
                 }
             );
         }
-        let mut size: [i64; 3] = [0, 0, 0];
+        let mut size: [i32; 3] = [0, 0, 0];
         for idx in 0..3 {
             let sz = *unwrap_tag!(&size_list[idx],Int,0,&*format!("/size[{}]", idx));
             if sz <= 0 {
@@ -30,7 +31,7 @@ mod vanilla_structure {
                     }
                 );
             }
-            size[idx] = sz as i64;
+            size[idx] = sz as i32;
         }
         return Ok(size);
     }
@@ -257,7 +258,7 @@ mod vanilla_structure {
                     region.array[pos_ndarr] = state as u16;
 
                     if let Some(block_entity) = block_entity_opt {
-                        region.block_entities.insert([pos[0] as i64, pos[1] as i64, pos[2] as i64], block_entity);
+                        region.block_entities.insert([pos[0], pos[1], pos[2]], block_entity);
                     }
                 }
             }
@@ -304,7 +305,7 @@ mod vanilla_structure {
     }
 
     impl Schematic {
-        pub fn to_nbt_vanilla_structure(&self) -> Result<HashMap<String, fastnbt::Value>, WriteError> {
+        pub fn to_nbt_vanilla_structure(&self, option: &VanillaStructureSaveOption) -> Result<HashMap<String, fastnbt::Value>, WriteError> {
             let mut nbt: HashMap<String, fastnbt::Value> = HashMap::new();
 
             {
@@ -315,11 +316,75 @@ mod vanilla_structure {
                 nbt.insert(String::from("size"), Value::List(size));
             }
 
+            let (full_palette, luts_of_block_idx) = self.full_palette();
             {
-                for x in 0..self.regions[0].shape()[0] as i32 {
-                    for y in 0..self.regions[0].shape()[1] as i32 {
-                        for z in 0..self.regions[0].shape()[2] as i32 {
-                            let pos = [x, y, z];
+                let mut nbt_palette = Vec::with_capacity(full_palette.len());
+                for (blk, _) in full_palette {
+                    let mut cur_blk_nbt: HashMap<String, fastnbt::Value> = HashMap::new();
+                    cur_blk_nbt.insert(String::from("Name"),
+                                       Value::String(format!("{}:{}", blk.namespace, blk.id)));
+                    if !blk.attributes.is_empty() {
+                        let mut props: HashMap<String, fastnbt::Value> = HashMap::new();
+                        for (key, val) in &blk.attributes {
+                            props.insert(key.clone(), Value::String(val.clone()));
+                        }
+                        cur_blk_nbt.insert(String::from("Properties"), Value::Compound(props));
+                    }
+                    nbt_palette.push(cur_blk_nbt);
+                }
+            }
+
+            let shape = self.shape();
+
+            {
+                let mut blocks: Vec<Value> = Vec::with_capacity(self.volume() as usize);
+                for x in 0..shape[0] {
+                    for y in 0..shape[1] {
+                        for z in 0..shape[2] {
+                            let g_pos = [x, y, z];
+
+                            let mut first_region_idx = None;
+                            let mut first_r_blk_info = None;
+
+                            for (reg_idx, reg) in self.regions.iter().enumerate() {
+                                let r_pos = reg.global_pos_to_relative_pos(g_pos);
+                                let r_blk_info = reg.block_info_at(r_pos);
+                                if let Some(r_blk_info) = r_blk_info {
+                                    first_region_idx = Some(reg_idx);
+                                    first_r_blk_info = Some(r_blk_info);
+                                    break;
+                                } else {
+                                    continue;
+                                }
+                            }
+
+                            if let None = first_region_idx {
+                                // there is no block through out all regions
+                                continue;
+                            }
+                            let first_region_idx: usize = first_region_idx.unwrap();
+                            let first_r_blk_info = first_r_blk_info.unwrap();
+                            let g_blk_id = luts_of_block_idx[first_region_idx][first_r_blk_info.0 as usize];
+
+                            if first_r_blk_info.1.is_structure_void() {
+                                continue;
+                            }
+
+                            let mut cur_nbt: HashMap<String, Value> = HashMap::new();
+                            cur_nbt.insert(String::from("state"), Value::Int(g_blk_id as i32));
+                            {
+                                let mut pos_list = Vec::with_capacity(3);
+                                for p in g_pos {
+                                    pos_list.push(Value::Int(p));
+                                }
+                                cur_nbt.insert(String::from("pos"), Value::List(pos_list));
+                            }
+                            if let Some(be) = first_r_blk_info.2 {
+                                cur_nbt.insert(String::from("nbt"), Value::Compound(be.tags.clone()));
+                            }
+                            blocks.push(Value::Compound(cur_nbt));
+
+
                         }
                     }
                 }
@@ -328,9 +393,9 @@ mod vanilla_structure {
             return Ok(nbt);
         }
 
-        pub fn save_vanilla_structure(&self, dst: &mut dyn std::io::Write) -> Result<(), WriteError> {
+        pub fn save_vanilla_structure(&self, dst: &mut dyn std::io::Write, option: &VanillaStructureSaveOption) -> Result<(), WriteError> {
             let nbt;
-            match self.to_nbt_vanilla_structure() {
+            match self.to_nbt_vanilla_structure(option) {
                 Ok(nbt_) => nbt = nbt_,
                 Err(e) => return Err(e),
             }

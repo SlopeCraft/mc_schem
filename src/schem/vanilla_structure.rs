@@ -5,7 +5,6 @@ mod vanilla_structure {
     use crate::schem::schem::{BlockEntity, Entity, MetaData, Schematic, VanillaStructureMetaData};
     use fastnbt;
     use fastnbt::{Value};
-    use fastnbt::Tag::List;
     use crate::block::{Block, CommonBlock};
     use crate::error::{LoadError, WriteError};
     use crate::{unwrap_tag, unwrap_opt_tag};
@@ -31,7 +30,7 @@ mod vanilla_structure {
                     }
                 );
             }
-            size[idx] = sz as i32;
+            size[idx] = sz;
         }
         return Ok(size);
     }
@@ -245,7 +244,7 @@ mod vanilla_structure {
                     let blk_item = parse_array_item(blk_item,
                                                     &*format!("/blocks[{}]", idx),
                                                     region.palette.len() as i32,
-                                                    [region_size[0] as i32, region_size[1] as i32, region_size[2] as i32]);
+                                                    [region_size[0], region_size[1], region_size[2]]);
                     let state;
                     let pos;
                     let block_entity_opt;
@@ -282,20 +281,15 @@ mod vanilla_structure {
         }
     }
 
-    fn block_entity_to_nbt(be: &BlockEntity) -> HashMap<String, fastnbt::Value> {
+    fn block_entity_to_nbt(be: &BlockEntity) -> HashMap<String, Value> {
         return be.tags.clone();
     }
 
-    fn block_to_nbt(pos: [i32; 3], state: i32, be: &Option<&BlockEntity>) -> HashMap<String, fastnbt::Value> {
-        let mut result: HashMap<String, fastnbt::Value> = HashMap::new();
+    fn block_to_nbt(pos: [i32; 3], state: i32, be: &Option<&BlockEntity>) -> HashMap<String, Value> {
+        let mut result: HashMap<String, Value> = HashMap::new();
         result.insert(String::from("state"), Value::Int(state));
-        {
-            let mut pos_vec = Vec::with_capacity(3);
-            for sz in pos {
-                pos_vec.push(Value::Int(sz));
-            }
-            result.insert(String::from("pos"), Value::List(pos_vec));
-        }
+        result.insert(String::from("pos"), pos_to_nbt(&pos));
+
 
         if let Some(be) = be {
             result.insert(String::from("nbt"), Value::Compound(block_entity_to_nbt(be)));
@@ -304,14 +298,22 @@ mod vanilla_structure {
         return result;
     }
 
+    fn pos_to_nbt(pos: &[i32; 3]) -> Value {
+        let mut pos_list = Vec::with_capacity(3);
+        for p in pos {
+            pos_list.push(Value::Int(*p));
+        }
+        return Value::List(pos_list);
+    }
+
     impl Schematic {
-        pub fn to_nbt_vanilla_structure(&self, option: &VanillaStructureSaveOption) -> Result<HashMap<String, fastnbt::Value>, WriteError> {
-            let mut nbt: HashMap<String, fastnbt::Value> = HashMap::new();
+        pub fn to_nbt_vanilla_structure(&self, option: &VanillaStructureSaveOption) -> Result<HashMap<String, Value>, WriteError> {
+            let mut nbt: HashMap<String, Value> = HashMap::new();
 
             {
                 let mut size = Vec::with_capacity(3);
                 for dim in 0..3 {
-                    size.push(Value::Int(self.regions[0].shape()[dim] as i32));
+                    size.push(Value::Int(self.regions[0].shape()[dim]));
                 }
                 nbt.insert(String::from("size"), Value::List(size));
             }
@@ -320,18 +322,19 @@ mod vanilla_structure {
             {
                 let mut nbt_palette = Vec::with_capacity(full_palette.len());
                 for (blk, _) in full_palette {
-                    let mut cur_blk_nbt: HashMap<String, fastnbt::Value> = HashMap::new();
+                    let mut cur_blk_nbt: HashMap<String, Value> = HashMap::new();
                     cur_blk_nbt.insert(String::from("Name"),
                                        Value::String(format!("{}:{}", blk.namespace, blk.id)));
                     if !blk.attributes.is_empty() {
-                        let mut props: HashMap<String, fastnbt::Value> = HashMap::new();
+                        let mut props: HashMap<String, Value> = HashMap::new();
                         for (key, val) in &blk.attributes {
                             props.insert(key.clone(), Value::String(val.clone()));
                         }
                         cur_blk_nbt.insert(String::from("Properties"), Value::Compound(props));
                     }
-                    nbt_palette.push(cur_blk_nbt);
+                    nbt_palette.push(Value::Compound(cur_blk_nbt));
                 }
+                nbt.insert(String::from("palette"), Value::List(nbt_palette));
             }
 
             let shape = self.shape();
@@ -362,6 +365,8 @@ mod vanilla_structure {
                                 // there is no block through out all regions
                                 continue;
                             }
+
+                            assert_eq!(first_r_blk_info.is_some(), first_region_idx.is_some());
                             let first_region_idx: usize = first_region_idx.unwrap();
                             let first_r_blk_info = first_r_blk_info.unwrap();
                             let g_blk_id = luts_of_block_idx[first_region_idx][first_r_blk_info.0 as usize];
@@ -370,25 +375,47 @@ mod vanilla_structure {
                                 continue;
                             }
 
+                            if (!option.keep_air) && (first_r_blk_info.1.id == "air") {
+                                continue;
+                            }
+
                             let mut cur_nbt: HashMap<String, Value> = HashMap::new();
                             cur_nbt.insert(String::from("state"), Value::Int(g_blk_id as i32));
                             {
-                                let mut pos_list = Vec::with_capacity(3);
-                                for p in g_pos {
-                                    pos_list.push(Value::Int(p));
-                                }
-                                cur_nbt.insert(String::from("pos"), Value::List(pos_list));
+                                cur_nbt.insert(String::from("pos"), pos_to_nbt(&g_pos));
                             }
                             if let Some(be) = first_r_blk_info.2 {
                                 cur_nbt.insert(String::from("nbt"), Value::Compound(be.tags.clone()));
                             }
                             blocks.push(Value::Compound(cur_nbt));
-
-
                         }
                     }
                 }
+                nbt.insert(String::from("blocks"), Value::List(blocks));
             }
+
+            {
+                let mut entities: Vec<Value> = Vec::new();
+                for reg in &self.regions {
+                    for entity in &reg.entities {
+                        let mut nbt = HashMap::new();
+                        let mut block_pos = Vec::with_capacity(3);
+                        let mut pos = Vec::with_capacity(3);
+                        for dim in 0..3 {
+                            block_pos.push(Value::Int(entity.block_pos[dim]));
+                            pos.push(Value::Double(entity.position[dim]));
+                        }
+                        nbt.insert(String::from("blockPos"), Value::List(block_pos));
+                        nbt.insert(String::from("pos"), Value::List(pos));
+                        nbt.insert(String::from("nbt"), Value::Compound(entity.tags.clone()));
+
+                        entities.push(Value::Compound(nbt));
+                    }
+                }
+                nbt.insert(String::from("entities"), Value::List(entities));
+            }
+
+            nbt.insert(String::from("DataVersion"), Value::Int(self.data_version));
 
             return Ok(nbt);
         }

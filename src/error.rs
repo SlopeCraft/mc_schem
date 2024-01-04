@@ -88,6 +88,7 @@ macro_rules! unwrap_tag {
         };
     }
 
+#[derive(Debug)]
 pub enum WriteError {
     NBTWriteError(fastnbt::error::Error),
     NegativeSize { size: [i32; 3], region_name: String },

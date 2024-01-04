@@ -198,6 +198,7 @@ impl VanillaStructureMetaData {
     }
 }
 
+
 #[derive(Debug)]
 pub enum MetaData {
     Litematica(LitematicaMetaData),
@@ -205,6 +206,18 @@ pub enum MetaData {
     WE13(WE13MetaData),
     VanillaStructure(VanillaStructureMetaData),
 }
+
+// #[derive(Debug)]
+// pub struct MetaDataIR {
+//     pub mc_data_version: i32,
+//
+//     pub time_created: i64,
+//     pub time_modified: i64,
+//     pub author: String,
+//     pub name: String,
+//     pub description: String,
+//     pub total_volume: i64,
+// }
 
 #[derive(Debug)]
 pub struct Schematic {
@@ -214,6 +227,8 @@ pub struct Schematic {
 
     pub regions: Vec<Region>,
     pub enclosing_size: [i64; 3],
+
+    //raw_metadata: Option<MetaData>
 }
 
 

@@ -92,6 +92,7 @@ macro_rules! unwrap_tag {
 pub enum WriteError {
     NBTWriteError(fastnbt::error::Error),
     NegativeSize { size: [i32; 3], region_name: String },
+    BlockIndexOfOfRange { r_pos: [i32; 3], block_index: u16, max_index: u16 }
 }
 
 impl Display for WriteError {
@@ -100,6 +101,9 @@ impl Display for WriteError {
             WriteError::NBTWriteError(err) => write!(f, "Failed to write nbt, detail: {}", err),
             WriteError::NegativeSize { size, region_name }
             => write!(f, "region \"{}\" has negative size: [{}, {}, {}]", region_name, size[0], size[1], size[2]),
+            WriteError::BlockIndexOfOfRange { r_pos, block_index, max_index }
+            => write!(f, "Block index out of range: relative pos: [{}, {}, {}], found block index {} but expected [0,{}]",
+                      r_pos[0], r_pos[1], r_pos[2], block_index, max_index),
         }
     }
 }

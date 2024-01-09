@@ -174,6 +174,7 @@ fn parse_region(nbt: &HashMap<String, Value>, tag_path: &str) -> Result<Region, 
     let array =
         unwrap_opt_tag!(nbt.get("BlockStates"),LongArray,LongArray::new(vec![]),format!("{}/BlockStates",tag_path));
 
+
     return Ok(region);
 }
 
@@ -188,7 +189,7 @@ pub struct MultiBitSet {
 pub fn ceil_up_to(a: isize, b: isize) -> isize
 {
     assert!(b > 0);
-    if ((a % b) == 0) {
+    if (a % b) == 0 {
         return a;
     }
     return ((a / b) + 1) * b;
@@ -289,11 +290,15 @@ impl MultiBitSet {
     fn is_element_on_single_block(&self, ele_index: usize) -> bool {
         let fgbi = self.first_global_bit_index_of(ele_index);
         let lgbi = self.last_global_bit_index_of(ele_index);
-        assert_ne!(fgbi, lgbi);
+        //assert_ne!(fgbi, lgbi);
         if fgbi > lgbi {
             return false;
         }
         return true;
+    }
+
+    pub fn element_max_value(&self) -> u64 {
+        return self.basic_mask();
     }
 
     pub fn get(&self, ele_index: usize) -> u64 {
@@ -312,9 +317,9 @@ impl MultiBitSet {
             assert!(shifts + self.element_bits as isize <= 64);
             let mask = self.basic_mask() << shifts;
 
-            let taken_val = (self.arr[u64_idx] & mask) >> shifts;
+            let result = (self.arr[u64_idx] & mask) >> shifts;
 
-            taken_val
+            result
         } else {
             let u64idx_f = self.global_bit_index_to_u64_index(fgbi);
             let u64idx_l = self.global_bit_index_to_u64_index(lgbi);
@@ -335,6 +340,61 @@ impl MultiBitSet {
 
             result
         }
+    }
+
+    pub fn set(&mut self, ele_index: usize, value: u64) -> Result<(), ()> {
+        if value > self.element_max_value() {
+            return Err(());
+        }
+        if ele_index >= self.length {
+            return Err(());
+        }
+        let value_mask = self.basic_mask();
+        let value = value & value_mask;
+
+        let fgbi = self.first_global_bit_index_of(ele_index);//first global bit index
+        let lgbi = self.last_global_bit_index_of(ele_index);//last global bit index
+        if self.is_element_on_single_block(ele_index) {
+            let u64_idx = self.global_bit_index_to_u64_index(fgbi);
+            assert_eq!(u64_idx, self.global_bit_index_to_u64_index(lgbi));
+            let llbi = self.global_bit_index_to_local_bit_index(lgbi);//last local bit index
+            assert!(llbi < 64);
+            let shifts = 63 - (llbi as isize);
+            assert!(shifts >= 0);
+            assert!(shifts + self.element_bits as isize <= 64);
+            let mask = self.basic_mask() << shifts;
+
+            let inv_mask = !mask;
+            self.arr[u64_idx] &= inv_mask;
+
+
+            self.arr[u64_idx] ^= value << shifts;
+        } else {
+            let u64idx_f = self.global_bit_index_to_u64_index(fgbi);
+            let u64idx_l = self.global_bit_index_to_u64_index(lgbi);
+            assert_eq!(u64idx_f, u64idx_l + 1);
+
+            let l_part_bits = lgbi - u64idx_l * 64 + 1;
+            let f_part_bits = ((u64idx_f + 1) * 64) - fgbi;
+            assert!(l_part_bits > 0);
+            assert!(f_part_bits > 0);
+            assert_eq!(l_part_bits + f_part_bits, self.element_bits as usize);
+            let l_mask = Self::mask_on_top_by_bits(l_part_bits as u8);
+            let f_mask = Self::mask_by_bits(f_part_bits as u8);
+
+            // erase original value
+            self.arr[u64idx_f] &= !f_mask;
+            self.arr[u64idx_l] &= !l_mask;
+
+            //write new value
+            let f_write_mask = (value) >> l_part_bits;
+            let l_write_mask = (value) << (64 - l_part_bits);
+            self.arr[u64idx_f] ^= f_write_mask;
+            self.arr[u64idx_l] ^= l_write_mask;
+        }
+
+
+        return Ok(());
     }
 }
 

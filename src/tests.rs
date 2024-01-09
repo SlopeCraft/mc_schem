@@ -8,6 +8,7 @@ use std::fs::create_dir_all;
 use std::io::Read;
 use fastnbt;
 use fastnbt::Value;
+use rand::Rng;
 
 
 #[test]
@@ -174,7 +175,7 @@ fn litematica_local_bit_index_to_global_bit_index() {
 }
 
 #[test]
-fn litematica_multi_bit_set() {
+fn litematica_multi_bit_set_read() {
     let data = [14242959524133701664u64, 1244691354];
     let mbs = schem::litematica::MultiBitSet::from_data(&data, 18, 5).unwrap();
 
@@ -182,5 +183,37 @@ fn litematica_multi_bit_set() {
 
     for idx in 0..mbs.len() {
         println!("mbs[{}] = {}", idx, mbs.get(idx));
+    }
+}
+
+#[test]
+fn litematica_multi_bit_set_rw() {
+    //use rand::Rng;
+    let mut rng = rand::thread_rng();
+
+
+    let bits = 1..65;
+    let num_elements = 1 << 10;
+    for element_bits in bits {
+        let mut mbs = schem::litematica::MultiBitSet::new();
+        mbs.reset(element_bits, num_elements);
+
+        let value_mask = mbs.element_max_value();
+
+        let mut values: Vec<u64> = Vec::with_capacity(num_elements);
+        for _ in 0..num_elements {
+            values.push(rng.gen::<u64>() & value_mask);
+        }
+
+        for (idx, val) in values.iter().enumerate() {
+            mbs.set(idx, *val).unwrap();
+        }
+
+        for (idx, val) in values.iter().enumerate() {
+            let found = mbs.get(idx);
+            if found != *val {
+                panic!("mbs[{}] should be {}, but found {}", idx, val, found);
+            }
+        }
     }
 }

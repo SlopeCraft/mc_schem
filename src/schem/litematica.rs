@@ -1,8 +1,13 @@
+use std::cmp::max;
 use std::collections::HashMap;
-use fastnbt::Value;
+use std::convert::From;
+use std::ops::Index;
+use fastnbt::{LongArray, Value};
+use math::round::{ceil, floor};
 use crate::schem::{LitematicaMetaData, Schematic, id_of_nbt_tag, RawMetaData, MetaDataIR, Region};
 use crate::error::LoadError;
 use crate::{schem, unwrap_opt_tag, unwrap_tag};
+use crate::block::Block;
 
 impl MetaDataIR {
     pub fn from_litematica(src: &LitematicaMetaData) -> MetaDataIR {
@@ -114,6 +119,15 @@ pub fn parse_size_compound(nbt: &HashMap<String, Value>, tag_path: &str, allow_n
     return Ok(result);
 }
 
+pub fn block_required_bits(palette_size: usize) -> usize {
+    let palette_size = max(palette_size, 1);
+    let mut bits = 0;
+    while (1 << bits) < palette_size {
+        bits += 1;
+    }
+    return bits;
+}
+
 fn parse_region(nbt: &HashMap<String, Value>, tag_path: &str) -> Result<Region, LoadError> {
     let mut region = Region::new();
 
@@ -156,6 +170,219 @@ fn parse_region(nbt: &HashMap<String, Value>, tag_path: &str) -> Result<Region, 
         }
     }
 
-    
+
+    let array =
+        unwrap_opt_tag!(nbt.get("BlockStates"),LongArray,LongArray::new(vec![]),format!("{}/BlockStates",tag_path));
+
     return Ok(region);
 }
+
+#[derive(Debug)]
+pub struct MultiBitSet {
+    arr: Vec<u64>,
+    length: usize,
+    element_bits: u8,
+
+}
+
+pub fn ceil_up_to(a: isize, b: isize) -> isize
+{
+    assert!(b > 0);
+    if ((a % b) == 0) {
+        return a;
+    }
+    return ((a / b) + 1) * b;
+}
+
+impl MultiBitSet {
+    pub fn new() -> MultiBitSet {
+        return MultiBitSet {
+            arr: Vec::new(),
+            length: 0,
+            element_bits: 1,
+        }
+    }
+
+    pub fn from_data(data: &[u64], length: usize, ele_bits: u8) -> Option<MultiBitSet> {
+        if ele_bits <= 0 || ele_bits > 64 {
+            return None;
+        }
+
+        if (length * ele_bits as usize) > (data.len() * 64) {
+            return None;
+        }
+
+        let result = MultiBitSet {
+            arr: Vec::from(data),
+            length,
+            element_bits: ele_bits,
+        };
+        return Some(result);
+    }
+    pub fn element_bits(&self) -> u8 {
+        return self.element_bits;
+    }
+    pub fn len(&self) -> usize {
+        return self.length;
+    }
+    pub fn total_bits(&self) -> usize {
+        return self.length * (self.element_bits as usize);
+    }
+    fn required_u64_num(&self) -> usize {
+        let total_bits = self.total_bits();
+        if total_bits % 64 == 0 {
+            return total_bits / 64;
+        }
+        return total_bits / 64 + 1;
+    }
+    pub fn reset(&mut self, element_bits: u8, len: usize) {
+        assert!(element_bits > 0);
+        assert!(element_bits <= 64);
+        self.length = len;
+        self.element_bits = element_bits;
+        self.arr.resize(self.required_u64_num(), 0);
+    }
+
+
+    fn global_bit_index_to_u64_index(&self, gbit_index: usize) -> usize {
+        return gbit_index / 64;
+    }
+    fn global_bit_index_to_local_bit_index(&self, gbit_index: usize) -> usize {
+        return gbit_index % 64;
+    }
+
+    pub fn mask_by_bits(bits: u8) -> u64 {
+        if bits <= 63 {
+            return (1 << (bits)) - 1;
+        }
+        return 0xFFFFFFFFFFFFFFFF;
+    }
+    pub fn mask_on_top_by_bits(bits: u8) -> u64 {
+        assert!(bits <= 64);
+        let shift_bits = 64 - bits;
+        return Self::mask_by_bits(bits) << shift_bits;
+    }
+    pub fn basic_mask(&self) -> u64 {
+        return Self::mask_by_bits(self.element_bits());
+    }
+
+    pub fn logic_bit_index_to_global_bit_index(logic_bit_index: isize) -> usize {
+        assert!(logic_bit_index < 64);
+        if logic_bit_index >= 0 {
+            return logic_bit_index as usize;
+        }
+        let addon = ceil_up_to(-logic_bit_index, 64) * 2;
+        //println!("logic_bit_index = {}, addon = {}", logic_bit_index, addon);
+        return (logic_bit_index + addon) as usize;
+    }
+
+    fn first_global_bit_index_of(&self, ele_index: usize) -> usize {
+        let logic_bit_index = 63 - ((ele_index + 1) * (self.element_bits as usize) - 1) as isize;
+        return Self::logic_bit_index_to_global_bit_index(logic_bit_index);
+    }
+    fn last_global_bit_index_of(&self, ele_index: usize) -> usize {
+        let logic_bit_index = 63 - (ele_index * (self.element_bits() as usize)) as isize;
+        return Self::logic_bit_index_to_global_bit_index(logic_bit_index);
+    }
+
+
+    fn is_element_on_single_block(&self, ele_index: usize) -> bool {
+        let fgbi = self.first_global_bit_index_of(ele_index);
+        let lgbi = self.last_global_bit_index_of(ele_index);
+        assert_ne!(fgbi, lgbi);
+        if fgbi > lgbi {
+            return false;
+        }
+        return true;
+    }
+
+    pub fn get(&self, ele_index: usize) -> u64 {
+        assert!(ele_index < self.length);
+
+        let fgbi = self.first_global_bit_index_of(ele_index);
+        let lgbi = self.last_global_bit_index_of(ele_index);
+
+        if self.is_element_on_single_block(ele_index) {
+            let u64_idx = self.global_bit_index_to_u64_index(fgbi);
+            assert_eq!(u64_idx, self.global_bit_index_to_u64_index(lgbi));
+            let llbi = self.global_bit_index_to_local_bit_index(lgbi);
+            assert!(llbi < 64);
+            let shifts = 63 - (llbi as isize);
+            assert!(shifts >= 0);
+            assert!(shifts + self.element_bits as isize <= 64);
+            let mask = self.basic_mask() << shifts;
+
+            let taken_val = (self.arr[u64_idx] & mask) >> shifts;
+
+            return taken_val;
+        } else {
+            !todo!();
+            return 0;
+        }
+    }
+}
+
+// #[derive(Debug)]
+// pub struct Bitset {
+//     arr: Vec<u64>,
+//     length: usize,
+// }
+
+
+// impl Bitset {
+//     pub fn new() -> Bitset {
+//         return Bitset {
+//             arr: Vec::new(),
+//             length: 0,
+//         }
+//     }
+//     pub fn len(&self) -> usize {
+//         return self.length;
+//     }
+//
+//     pub fn resize(&mut self, new_size: usize) {
+//         let required_elements;
+//         if new_size % 64 == 0 {
+//             required_elements = new_size / 64;
+//         } else {
+//             required_elements = new_size / 64 + 1;
+//         }
+//         self.length = new_size;
+//         self.arr.resize(required_elements, 0);
+//     }
+// }
+//
+// impl Index<usize> for Bitset {
+//     type Output = (bool);
+//
+//     fn index(&self, index: usize) -> Self::Output {
+//         assert!(index < self.arr.len() * 64);
+//         assert!(index < self.length);
+//
+//         let u64_idx = index / 64;
+//         let bit_idx = index % 64;
+//         let mask = 1u64 << bit_idx;
+//         return (self.arr[u64_idx] & mask) != 0;
+//     }
+// }
+//
+// impl From<&[u64]> for Bitset {
+//     fn from(value: &[u64]) -> Bitset {
+//         return Bitset {
+//             arr: Vec::from(value),
+//             length: value.len() * 64,
+//         };
+//     }
+// }
+//
+// impl From<&[i64]> for Bitset {
+//     fn from(value: &[i64]) -> Self {
+//         let mut result = Bitset::new();
+//         result.arr.reserve(value.len());
+//         for val in value {
+//             result.arr.push(u64::from_le_bytes(val.to_le_bytes()));
+//         }
+//         result.length = result.arr.len() * 64;
+//         return result;
+//     }
+// }

@@ -1,6 +1,6 @@
 mod world_edit12;
 mod world_edit13;
-mod litematica;
+pub(crate) mod litematica;
 
 mod vanilla_structure;
 mod mc_version;

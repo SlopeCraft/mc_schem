@@ -70,6 +70,7 @@ fn block_id_parse() {
     }
 }
 
+
 #[test]
 fn load_save_vanilla_structure() {
     use crate::schem::VanillaStructureLoadOption;
@@ -129,5 +130,57 @@ fn load_save_vanilla_structure() {
 
     if let Err(err) = write_error {
         panic!("Failed to write vanilla structure, detail: {}", err);
+    }
+}
+
+
+#[test]
+fn block_bits_required() {
+    for palette_size in 0..258 {
+        let bits = schem::litematica::block_required_bits(palette_size);
+        println!("{} blocks requires {} bit(s)", palette_size, bits);
+    }
+}
+
+#[test]
+fn ceil_up_to() {
+    let tests = [
+        ((0isize, 12isize), 0isize),
+        ((13, 12), 24),
+        ((120, 12), 120),
+        ((121, 12), 132)
+    ];
+    for ((a, b), expected) in tests {
+        let result = schem::litematica::ceil_up_to(a, b);
+        if result != expected {
+            panic!("{} ceil up to {} should b {}, but found {}", a, b, expected, result);
+        } else {
+            println!("{} ceil up to {} = {}", a, b, expected);
+        }
+    }
+}
+
+#[test]
+fn litematica_local_bit_index_to_global_bit_index() {
+    let lbi_list = [63, 0, -1, -64, -65, -128, -129, -192];
+    let expected = [63, 0, 127, 64, 191, 128, 255, 192];
+    for idx in 0..lbi_list.len() {
+        let lbi = lbi_list[idx];
+        let computed = schem::litematica::MultiBitSet::logic_bit_index_to_global_bit_index(lbi);
+        if computed != expected[idx] {
+            panic!("logical bit index {} should be mapped to {}, but found {}", lbi, expected[idx], computed);
+        }
+    }
+}
+
+#[test]
+fn litematica_multi_bit_set() {
+    let data = [14242959524133701664u64, 1244691354];
+    let mbs = schem::litematica::MultiBitSet::from_data(&data, 18, 5).unwrap();
+
+    assert_eq!(mbs.basic_mask(), 0b11111);
+
+    for idx in 0..13 {
+        println!("mbs[{}] = {}", idx, mbs.get(idx));
     }
 }

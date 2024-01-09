@@ -180,7 +180,7 @@ fn litematica_multi_bit_set() {
 
     assert_eq!(mbs.basic_mask(), 0b11111);
 
-    for idx in 0..13 {
+    for idx in 0..mbs.len() {
         println!("mbs[{}] = {}", idx, mbs.get(idx));
     }
 }

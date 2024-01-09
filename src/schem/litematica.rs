@@ -299,13 +299,13 @@ impl MultiBitSet {
     pub fn get(&self, ele_index: usize) -> u64 {
         assert!(ele_index < self.length);
 
-        let fgbi = self.first_global_bit_index_of(ele_index);
-        let lgbi = self.last_global_bit_index_of(ele_index);
+        let fgbi = self.first_global_bit_index_of(ele_index);//first global bit index
+        let lgbi = self.last_global_bit_index_of(ele_index);//last global bit index
 
-        if self.is_element_on_single_block(ele_index) {
+        return if self.is_element_on_single_block(ele_index) {
             let u64_idx = self.global_bit_index_to_u64_index(fgbi);
             assert_eq!(u64_idx, self.global_bit_index_to_u64_index(lgbi));
-            let llbi = self.global_bit_index_to_local_bit_index(lgbi);
+            let llbi = self.global_bit_index_to_local_bit_index(lgbi);//last local bit index
             assert!(llbi < 64);
             let shifts = 63 - (llbi as isize);
             assert!(shifts >= 0);
@@ -314,10 +314,26 @@ impl MultiBitSet {
 
             let taken_val = (self.arr[u64_idx] & mask) >> shifts;
 
-            return taken_val;
+            taken_val
         } else {
-            !todo!();
-            return 0;
+            let u64idx_f = self.global_bit_index_to_u64_index(fgbi);
+            let u64idx_l = self.global_bit_index_to_u64_index(lgbi);
+            assert_eq!(u64idx_f, u64idx_l + 1);
+
+            let l_part_bits = lgbi - u64idx_l * 64 + 1;
+            let f_part_bits = ((u64idx_f + 1) * 64) - fgbi;
+            assert!(l_part_bits > 0);
+            assert!(f_part_bits > 0);
+            assert_eq!(l_part_bits + f_part_bits, self.element_bits as usize);
+            let l_mask = Self::mask_on_top_by_bits(l_part_bits as u8);
+            let f_mask = Self::mask_by_bits(f_part_bits as u8);
+
+            let l_part = (self.arr[u64idx_l] & l_mask) >> (64 - l_part_bits);
+            let f_part = (self.arr[u64idx_f] & f_mask) << l_part_bits;
+
+            let result = l_part | f_part;
+
+            result
         }
     }
 }

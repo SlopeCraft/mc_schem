@@ -188,6 +188,7 @@ pub struct LitematicaMetaData {
     pub data_version: i32,
 
     pub version: i32,
+    pub sub_version: Option<i32>,
     pub time_created: i64,
     pub time_modified: i64,
     pub author: String,
@@ -201,6 +202,7 @@ impl LitematicaMetaData {
         return LitematicaMetaData {
             data_version: mc_version::DataVersion::new() as i32,
             version: 5,
+            sub_version: None,
             time_created: 0,
             time_modified: 0,
             author: String::from("mc_schem.rs"),

@@ -1,15 +1,17 @@
 use std::cmp::max;
 use std::collections::HashMap;
 use std::convert::From;
+use std::fmt::format;
 use std::fs::File;
 use std::ops::Index;
 use fastnbt::{LongArray, Value};
 use flate2::read::GzDecoder;
 use math::round::{ceil, floor};
-use crate::schem::{LitematicaMetaData, Schematic, id_of_nbt_tag, RawMetaData, MetaDataIR, Region, VanillaStructureLoadOption, LitematicaLoadOption};
+use crate::schem::{LitematicaMetaData, Schematic, id_of_nbt_tag, RawMetaData, MetaDataIR, Region, VanillaStructureLoadOption, LitematicaLoadOption, Entity, BlockEntity};
 use crate::error::LoadError;
 use crate::{schem, unwrap_opt_tag, unwrap_tag};
 use crate::block::Block;
+use crate::error::LoadError::MultipleBlockEntityInOnePos;
 
 impl MetaDataIR {
     pub fn from_litematica(src: &LitematicaMetaData) -> MetaDataIR {
@@ -37,7 +39,7 @@ impl Schematic {
         let mut decoder = GzDecoder::new(&mut file);
         return Self::from_litematica(&mut decoder, option);
     }
-    pub fn from_litematica(src: &mut dyn std::io::Read, option: &LitematicaLoadOption) -> Result<Schematic, LoadError> {
+    pub fn from_litematica(src: &mut dyn std::io::Read, _option: &LitematicaLoadOption) -> Result<Schematic, LoadError> {
         let parse_res: Result<HashMap<String, Value>, fastnbt::error::Error> = fastnbt::from_reader(src);
         let parsed;
         match parse_res {
@@ -93,7 +95,7 @@ fn parse_metadata(root: &HashMap<String, Value>) -> Result<LitematicaMetaData, L
         }
 
         match parse_size_compound(enclosing_size, "/Metadata/EnclosingSize", false) {
-            Ok(size) => {},
+            Ok(_size) => {},
             Err(e) => return Err(e),
         }
 
@@ -114,6 +116,10 @@ fn parse_metadata(root: &HashMap<String, Value>) -> Result<LitematicaMetaData, L
     //result.total_volume = *unwrap_opt_tag!(md.get("TotalVolume"),Int,0,"/Metadata/TotalVolume".to_string()) as i64;
     result.author = unwrap_opt_tag!(md.get("Author"),String,"".to_string(),"/Metadata/Author".to_string()).clone();
     result.name = unwrap_opt_tag!(md.get("Name"),String,"".to_string(),"/Metadata/Name".to_string()).clone();
+
+    if let Some(value) = md.get("SubVersion") {
+        result.sub_version = Some(*unwrap_tag!(value,Int,0,"/Metadata/SubVersion"));
+    }
 
     return Ok(result);
 }
@@ -221,7 +227,51 @@ fn parse_region(nbt: &HashMap<String, Value>, tag_path: &str) -> Result<Region, 
         }
     }
 
+    //parse entities
+    {
+        let cur_tag_path = format!("{}/Entities", tag_path);
+        let entities_list = unwrap_opt_tag!(nbt.get("Entities"),List,vec![],cur_tag_path);
+        for (idx, entity_comp) in entities_list.iter().enumerate() {
+            let cur_tag_path = format!("{}/[{}]", cur_tag_path, idx);
+            let entity_comp =
+                unwrap_tag!(entity_comp,Compound,HashMap::new(),cur_tag_path);
+            let parse_res = parse_entity(entity_comp, &cur_tag_path);
+            match parse_res {
+                Ok(entity) => region.entities.push(entity),
+                Err(e) => return Err(e),
+            }
+        }
+    }
 
+    //parse tile entities
+    {
+        let cur_tag_path = format!("{}/TileEntities", tag_path);
+        let te_list = unwrap_opt_tag!(nbt.get("TileEntities"),List,vec![],cur_tag_path);
+        for (idx, te_comp) in te_list.iter().enumerate() {
+            let cur_tag_path = format!("{}/[{}]", tag_path, idx);
+            let te_comp = unwrap_tag!(te_comp,Compound,HashMap::new(),cur_tag_path);
+
+            let te_res = parse_tile_entity(te_comp, tag_path, &region_size);
+
+            let pos;
+            let te;
+            match te_res {
+                Ok((pos_, te_)) => {
+                    pos = pos_;
+                    te = te_;
+                }
+                Err(e) => return Err(e),
+            }
+
+            if region.block_entities.contains_key(&pos) {
+                return Err(LoadError::MultipleBlockEntityInOnePos {
+                    pos,
+                    latter_tag_path: cur_tag_path,
+                });
+            }
+            region.block_entities.insert(pos, te);
+        }
+    }
 
     return Ok(region);
 }
@@ -459,4 +509,61 @@ impl MultiBitSet {
 
         return Ok(());
     }
+}
+
+fn parse_entity(nbt: &HashMap<String, Value>, tag_path: &str) -> Result<(Entity), LoadError> {
+    let mut entity = Entity::new();
+    entity.tags = nbt.clone();
+
+    let tag_pos_path = format!("{}/Pos", tag_path);
+    let pos = unwrap_opt_tag!(nbt.get("Pos"),List,vec![],tag_pos_path);
+    if pos.len() != 3 {
+        return Err(LoadError::InvalidValue {
+            tag_path: tag_pos_path,
+            error: format!("Pos filed for an entity should contain 3 doubles, but found {}", pos.len()),
+        });
+    }
+
+    let mut pos_d = [0.0, 0.0, 0.0];
+    for dim in 0..3 {
+        let cur_tag_path = format!("{}/Pos[{}]", tag_path, dim);
+        pos_d[dim] = unwrap_tag!(pos[dim],Double,0.0,cur_tag_path);
+        entity.block_pos[dim] = pos_d[dim] as i32;
+    }
+
+    entity.position = pos_d;
+
+    return Ok(entity);
+}
+
+fn parse_tile_entity(nbt: &HashMap<String, Value>, tag_path: &str, region_size: &[i32; 3])
+                     -> Result<([i32; 3], BlockEntity), LoadError> {
+    let mut be = BlockEntity::new();
+
+    let pos: [i32; 3];
+    let pos_res = parse_size_compound(nbt, tag_path, false);
+    match pos_res {
+        Ok(pos_) => pos = pos_,
+        Err(e) => return Err(e),
+    }
+
+    let tag_names = ['x', 'y', 'z'];
+    for (dim, p) in pos.iter().enumerate() {
+        if *p < 0 || *p > region_size[dim] {
+            return Err(LoadError::BlockPosOutOfRange {
+                tag_path: format!("{}/{}", tag_path, tag_names[dim]),
+                pos,
+                range: *region_size,
+            });
+        }
+    }
+
+    for (key, val) in nbt {
+        if key == "x" || key == "y" || key == "z" {
+            continue;
+        }
+        be.tags.insert(key.clone(), val.clone());
+    }
+
+    return Ok((pos, be));
 }

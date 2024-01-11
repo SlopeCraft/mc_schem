@@ -222,8 +222,6 @@ fn litematica_multi_bit_set_rw() {
 #[test]
 fn litematica_3d_array_decode() {
     println!("Current dir: {}", env::current_dir().unwrap().to_string_lossy());
-
-
     let src_filename = "./test_files/litematica/test01.litematic";
 
     let schem = Schematic::from_litematica_file(src_filename, &LitematicaLoadOption::default()).unwrap();
@@ -236,3 +234,10 @@ fn litematica_3d_array_decode() {
     }
 }
 
+#[test]
+fn litematica_load_save() {
+    //println!("Current dir: {}", env::current_dir().unwrap().to_string_lossy());
+    let src_filename = "./test_files/litematica/test02.litematic";
+
+    let schem = Schematic::from_litematica_file(src_filename, &LitematicaLoadOption::default()).unwrap();
+}

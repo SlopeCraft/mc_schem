@@ -1,4 +1,5 @@
 use std::fmt::{Display, Formatter};
+use crate::schem::BlockEntity;
 
 #[derive(Debug)]
 pub enum LoadError {
@@ -30,6 +31,10 @@ pub enum LoadError {
         range: [i32; 3],
     },
     FileOpenError(std::io::Error),
+    MultipleBlockEntityInOnePos {
+        pos: [i32; 3],
+        latter_tag_path: String,
+    }
 }
 
 impl Display for LoadError {
@@ -52,6 +57,8 @@ impl Display for LoadError {
             => write!(f, "Block pos out of range, tag: {}, coordinate: [{}, {}, {}], range: [{}, {}, {}]", tag_path, pos[0], pos[1], pos[2], range[0], range[1], range[2]),
             LoadError::FileOpenError(err)
             => write!(f, "File open error: {}", err),
+            LoadError::MultipleBlockEntityInOnePos { pos, latter_tag_path }
+            => write!(f, "Multiple block entities in one [{}, {}, {}], the latter block is defined at {}", pos[0], pos[1], pos[2], latter_tag_path),
         }
     }
 }

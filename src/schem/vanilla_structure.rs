@@ -5,7 +5,8 @@ use crate::schem::{id_of_nbt_tag, MetaDataIR, schem, VanillaStructureLoadOption,
 use crate::schem::schem::{BlockEntity, Entity, Schematic, VanillaStructureMetaData};
 use fastnbt;
 use fastnbt::{Value};
-use flate2::read::GzDecoder;
+use flate2::Compression;
+use flate2::read::{GzDecoder, GzEncoder};
 use crate::block::{Block};
 use crate::error::{LoadError, WriteError};
 use crate::{unwrap_tag, unwrap_opt_tag};
@@ -184,7 +185,7 @@ impl Schematic {
         let mut file;
         match file_res {
             Ok(f) => file = f,
-            Err(e) => return Err(LoadError::FileOpenError(e)),
+            Err(e) => return Err(FileOpenError(e)),
         }
 
         let mut decoder = GzDecoder::new(&mut file);
@@ -465,6 +466,17 @@ impl Schematic {
             Err(err) => Err(WriteError::NBTWriteError(err)),
             _ => Ok(())
         }
+    }
+
+    pub fn save_vanilla_structure_file(&self, filename: &str, option: &VanillaStructureSaveOption) -> Result<(), WriteError> {
+        let mut file;
+        match File::create(filename) {
+            Ok(f) => file = f,
+            Err(e) => return Err(WriteError::FileCreateError(e)),
+        }
+
+        let mut encoder = GzEncoder::new(file, Compression::best());
+        return self.save_vanilla_structure(&mut encoder, option);
     }
 }
 

@@ -9,7 +9,7 @@ use std::io::Read;
 use fastnbt;
 use fastnbt::Value;
 use rand::Rng;
-use crate::schem::{LitematicaLoadOption, Schematic};
+use crate::schem::{Schematic};
 
 
 #[test]
@@ -74,67 +74,6 @@ fn block_id_parse() {
 
 
 #[test]
-fn load_save_vanilla_structure() {
-    use crate::schem::VanillaStructureLoadOption;
-    println!("Current dir: {}", env::current_dir().unwrap().to_string_lossy());
-
-    let src_file;
-    //let filename = "./test_files/vanilla_structure/test01.nbt";
-    {
-    let filename = "./test_files/vanilla_structure/test01.nbt";
-
-    let file_opt = fs::File::open(filename);
-    match file_opt {
-        Ok(f) => src_file = f,
-        Err(e) => panic!("Failed to open {} because {}", filename, e),
-    }
-    }
-
-
-    let mut src = flate2::read::GzDecoder::new(src_file);
-
-    // let nbt: Result<HashMap<String, Value>, fastnbt::error::Error> = fastnbt::from_reader(&mut src);
-    // let nbt = nbt.unwrap();
-    // let dv = nbt.get("DataVersion").unwrap();
-    // if let fastnbt::Value::Int(i) = dv {
-    //     println!("DataVersion = {} i32", i);
-    // } else {
-    //     panic!("Type of DataVersion mismatch, it is {:?}", dv);
-    // }
-
-    // let mut bytes = Vec::new();
-    // let bytes = src.read_to_end(&mut bytes).unwrap();
-    //
-    // println!("Decompressed {} bytes", bytes);
-    //
-    // return;
-    let parse_result = schem::Schematic::from_vanilla_structure(&mut src,
-                                                                &VanillaStructureLoadOption::default());
-
-    if let Err(err) = parse_result {
-        panic!("Failed to parse vanilla structure, detail: {:?}", err);
-    }
-
-    let dst_file;
-    {
-        create_dir_all("./target/test/load_save_vanilla_structure").unwrap();
-
-        let dst_filename = "./target/test/load_save_vanilla_structure/out.nbt";
-        let dst_file_opt = fs::File::create(dst_filename);
-        match dst_file_opt {
-            Ok(f) => dst_file = f,
-            Err(e) => panic!("Failed to create {} because {}", dst_filename, e),
-        }
-    }
-    let mut dst = flate2::write::GzEncoder::new(dst_file, flate2::Compression::best());
-
-    let write_error = parse_result.unwrap().save_vanilla_structure(&mut dst, &schem::VanillaStructureSaveOption::default());
-
-    if let Err(err) = write_error {
-        panic!("Failed to write vanilla structure, detail: {}", err);
-    }
-}
-
 
 #[test]
 fn block_bits_required() {
@@ -221,6 +160,7 @@ fn litematica_multi_bit_set_rw() {
 
 #[test]
 fn litematica_3d_array_decode() {
+    use schem::{LitematicaLoadOption};
     println!("Current dir: {}", env::current_dir().unwrap().to_string_lossy());
     let src_filename = "./test_files/litematica/test01.litematic";
 
@@ -235,7 +175,23 @@ fn litematica_3d_array_decode() {
 }
 
 #[test]
-fn litematica_load_save() {
+fn load_save_vanilla_structure() {
+    use schem::{VanillaStructureLoadOption, VanillaStructureSaveOption};
+    let schem =
+        Schematic::from_vanilla_structure_file(
+            "./test_files/vanilla_structure/test01.nbt",
+            &VanillaStructureLoadOption::default()).unwrap();
+
+    create_dir_all("./target/test/load_save_vanilla_structure").unwrap();
+
+    schem.save_vanilla_structure_file(
+        "./target/test/load_save_vanilla_structure/out01.nbt",
+        &VanillaStructureSaveOption::default()).unwrap();
+}
+
+#[test]
+fn load_save_litematica() {
+    use schem::{LitematicaLoadOption};
     //println!("Current dir: {}", env::current_dir().unwrap().to_string_lossy());
     let src_filename = "./test_files/litematica/test02.litematic";
 

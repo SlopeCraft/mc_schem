@@ -102,7 +102,8 @@ macro_rules! unwrap_tag {
 pub enum WriteError {
     NBTWriteError(fastnbt::error::Error),
     NegativeSize { size: [i32; 3], region_name: String },
-    BlockIndexOfOfRange { r_pos: [i32; 3], block_index: u16, max_index: u16 }
+    BlockIndexOfOfRange { r_pos: [i32; 3], block_index: u16, max_index: u16 },
+    FileCreateError(std::io::Error),
 }
 
 impl Display for WriteError {
@@ -114,6 +115,8 @@ impl Display for WriteError {
             WriteError::BlockIndexOfOfRange { r_pos, block_index, max_index }
             => write!(f, "Block index out of range: relative pos: [{}, {}, {}], found block index {} but expected [0,{}]",
                       r_pos[0], r_pos[1], r_pos[2], block_index, max_index),
+            WriteError::FileCreateError(err)
+            => write!(f, "Failed to create file, detail: {}", err),
         }
     }
 }

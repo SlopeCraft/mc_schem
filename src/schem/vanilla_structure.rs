@@ -1,12 +1,15 @@
 use std::collections::HashMap;
+use std::fs::File;
 use crate::schem::{id_of_nbt_tag, MetaDataIR, schem, VanillaStructureLoadOption, VanillaStructureSaveOption};
 //use compress::zlib;
 use crate::schem::schem::{BlockEntity, Entity, Schematic, VanillaStructureMetaData};
 use fastnbt;
 use fastnbt::{Value};
+use flate2::read::GzDecoder;
 use crate::block::{Block};
 use crate::error::{LoadError, WriteError};
 use crate::{unwrap_tag, unwrap_opt_tag};
+use crate::error::LoadError::FileOpenError;
 use crate::schem::RawMetaData::VanillaStructure;
 
 
@@ -176,6 +179,17 @@ fn parse_entity(tag: &Value, tag_path: &str) -> Result<Entity, LoadError> {
 
 
 impl Schematic {
+    pub fn from_vanilla_structure_file(filename: &str, option: &VanillaStructureLoadOption) -> Result<Schematic, LoadError> {
+        let mut file_res = File::open(filename);
+        let mut file;
+        match file_res {
+            Ok(f) => file = f,
+            Err(e) => return Err(LoadError::FileOpenError(e)),
+        }
+
+        let mut decoder = GzDecoder::new(&mut file);
+        return Self::from_vanilla_structure(&mut decoder, option);
+    }
     pub fn from_vanilla_structure(src: &mut dyn std::io::Read, option: &VanillaStructureLoadOption)
                                   -> Result<Schematic, LoadError> {
         let loaded_opt: Result<HashMap<String, Value>, fastnbt::error::Error> = fastnbt::from_reader(src);

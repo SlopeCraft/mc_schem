@@ -9,6 +9,7 @@ use std::io::Read;
 use fastnbt;
 use fastnbt::Value;
 use rand::Rng;
+use crate::schem::{LitematicaLoadOption, Schematic};
 
 
 #[test]
@@ -217,3 +218,21 @@ fn litematica_multi_bit_set_rw() {
         }
     }
 }
+
+#[test]
+fn litematica_3d_array_decode() {
+    println!("Current dir: {}", env::current_dir().unwrap().to_string_lossy());
+
+
+    let src_filename = "./test_files/litematica/test01.litematic";
+
+    let schem = Schematic::from_litematica_file(src_filename, &LitematicaLoadOption::default()).unwrap();
+
+    for y in 0..19 {
+        let bid = schem.first_block_index_at([0, y, 0]).unwrap();
+        if bid != y as u16 {
+            panic!("Block index at [0, {}, 0] should be {}, but found {}", y, y, bid);
+        }
+    }
+}
+

@@ -315,6 +315,7 @@ impl Hash for Block {
 }
 
 #[repr(u8)]
+#[derive(Debug)]
 pub enum CommonBlock {
     Air,
     StructureVoid,

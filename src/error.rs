@@ -29,6 +29,7 @@ pub enum LoadError {
         pos: [i32; 3],
         range: [i32; 3],
     },
+    FileOpenError(std::io::Error),
 }
 
 impl Display for LoadError {
@@ -49,6 +50,8 @@ impl Display for LoadError {
             => write!(f, "Block index out of range, tag: {}, index = {}, index should be in range [{}, {}]", tag_path, index, range[0], range[1]),
             LoadError::BlockPosOutOfRange { tag_path, pos, range }
             => write!(f, "Block pos out of range, tag: {}, coordinate: [{}, {}, {}], range: [{}, {}, {}]", tag_path, pos[0], pos[1], pos[2], range[0], range[1], range[2]),
+            LoadError::FileOpenError(err)
+            => write!(f, "File open error: {}", err),
         }
     }
 }

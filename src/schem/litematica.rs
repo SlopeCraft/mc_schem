@@ -1,10 +1,12 @@
 use std::cmp::max;
 use std::collections::HashMap;
 use std::convert::From;
+use std::fs::File;
 use std::ops::Index;
 use fastnbt::{LongArray, Value};
+use flate2::read::GzDecoder;
 use math::round::{ceil, floor};
-use crate::schem::{LitematicaMetaData, Schematic, id_of_nbt_tag, RawMetaData, MetaDataIR, Region};
+use crate::schem::{LitematicaMetaData, Schematic, id_of_nbt_tag, RawMetaData, MetaDataIR, Region, VanillaStructureLoadOption, LitematicaLoadOption};
 use crate::error::LoadError;
 use crate::{schem, unwrap_opt_tag, unwrap_tag};
 use crate::block::Block;
@@ -24,7 +26,18 @@ impl MetaDataIR {
 
 
 impl Schematic {
-    pub fn from_litematica(src: &mut dyn std::io::Read) -> Result<Schematic, LoadError> {
+    pub fn from_litematica_file(filename: &str, option: &LitematicaLoadOption) -> Result<Schematic, LoadError> {
+        let mut file_res = File::open(filename);
+        let mut file;
+        match file_res {
+            Ok(f) => file = f,
+            Err(e) => return Err(LoadError::FileOpenError(e)),
+        }
+
+        let mut decoder = GzDecoder::new(&mut file);
+        return Self::from_litematica(&mut decoder, option);
+    }
+    pub fn from_litematica(src: &mut dyn std::io::Read, option: &LitematicaLoadOption) -> Result<Schematic, LoadError> {
         let parse_res: Result<HashMap<String, Value>, fastnbt::error::Error> = fastnbt::from_reader(src);
         let parsed;
         match parse_res {
@@ -71,23 +84,29 @@ fn parse_metadata(root: &HashMap<String, Value>) -> Result<LitematicaMetaData, L
     result.time_created = *unwrap_opt_tag!(md.get("TimeCreated"),Long,0,"/Metadata/TimeCreated".to_string());
     result.time_modified = *unwrap_opt_tag!(md.get("TimeModified"),Long,0,"/Metadata/TimeModified".to_string());
     {
-        let enclosing_size = unwrap_opt_tag!(md.get("EnclosingSize"),List,vec![],"/Metadata/EnclosingSize".to_string());
+        let enclosing_size = unwrap_opt_tag!(md.get("EnclosingSize"),Compound,HashMap::new(),"/Metadata/EnclosingSize".to_string());
         if enclosing_size.len() != 3 {
             return Err(LoadError::InvalidValue {
                 tag_path: "/Metadata/EnclosingSize".to_string(),
-                error: format!("Expected a list containing 3 elements, but found {}", enclosing_size.len()),
+                error: format!("Expected a compound containing 3 elements, but found {}", enclosing_size.len()),
             });
         }
-        for dim in 0..3 {
-            let tag_path = format!("/Metadata/EnclosingSize[{}]", dim);
-            let val = unwrap_tag!(enclosing_size[dim],Int,0,tag_path);
-            if val < 0 {
-                return Err(LoadError::InvalidValue {
-                    tag_path,
-                    error: format!("Negative number {} in size", val),
-                });
-            }
+
+        match parse_size_compound(enclosing_size, "/Metadata/EnclosingSize", false) {
+            Ok(size) => {},
+            Err(e) => return Err(e),
         }
+
+        // for dim in 0..3 {
+        //     let tag_path = format!("/Metadata/EnclosingSize[{}]", dim);
+        //     let val = unwrap_tag!(enclosing_size[dim],Int,0,tag_path);
+        //     if val < 0 {
+        //         return Err(LoadError::InvalidValue {
+        //             tag_path,
+        //             error: format!("Negative number {} in size", val),
+        //         });
+        //     }
+        // }
     }
 
     result.description
@@ -169,10 +188,39 @@ fn parse_region(nbt: &HashMap<String, Value>, tag_path: &str) -> Result<Region, 
             Err(e) => return Err(e),
         }
     }
+    let total_blocks = region_size[0] as isize * region_size[1] as isize * region_size[2] as isize;
 
+    //parse 3d
+    {
+        let palette_len = region.palette.len();
+        let array =
+            unwrap_opt_tag!(nbt.get("BlockStates"),LongArray,LongArray::new(vec![]),format!("{}/BlockStates",tag_path));
+        let mut array_u8_be: Vec<u64> = Vec::with_capacity(array.len());
+        for val in array.iter() {
+            array_u8_be.push(u64::from_ne_bytes(val.to_le_bytes()));
+        }
+        let mbs = MultiBitSet::from_data_vec(array_u8_be, total_blocks as usize, block_required_bits(palette_len) as u8);
+        assert!(mbs.is_some());
+        let mbs = mbs.unwrap();
+        let mut idx = 0;
+        for y in 0..region.shape()[1] {
+            for z in 0..region.shape()[2] {
+                for x in 0..region.shape()[0] {
+                    let blk_id = mbs.get(idx);
+                    if blk_id >= palette_len as u64 {
+                        return Err(LoadError::BlockIndexOutOfRange {
+                            tag_path: format!("{}/BlockStates", tag_path),
+                            index: blk_id as i32,
+                            range: [0, palette_len as i32],
+                        })
+                    }
+                    idx += 1;
+                    region.array[[x as usize, y as usize, z as usize]] = blk_id as u16;
+                }
+            }
+        }
+    }
 
-    let array =
-        unwrap_opt_tag!(nbt.get("BlockStates"),LongArray,LongArray::new(vec![]),format!("{}/BlockStates",tag_path));
 
 
     return Ok(region);
@@ -186,8 +234,7 @@ pub struct MultiBitSet {
 
 }
 
-pub fn ceil_up_to(a: isize, b: isize) -> isize
-{
+pub fn ceil_up_to(a: isize, b: isize) -> isize {
     assert!(b > 0);
     if (a % b) == 0 {
         return a;
@@ -220,6 +267,22 @@ impl MultiBitSet {
         };
         return Some(result);
     }
+
+    pub fn from_data_vec(data: Vec<u64>, length: usize, ele_bits: u8) -> Option<MultiBitSet> {
+        if ele_bits <= 0 || ele_bits > 64 {
+            return None;
+        }
+
+        if (length * ele_bits as usize) > (data.len() * 64) {
+            return None;
+        }
+        return Some(MultiBitSet {
+            arr: data,
+            length,
+            element_bits: ele_bits,
+        })
+    }
+
     pub fn element_bits(&self) -> u8 {
         return self.element_bits;
     }
@@ -252,13 +315,13 @@ impl MultiBitSet {
         return gbit_index % 64;
     }
 
-    pub fn mask_by_bits(bits: u8) -> u64 {
+    fn mask_by_bits(bits: u8) -> u64 {
         if bits <= 63 {
             return (1 << (bits)) - 1;
         }
         return 0xFFFFFFFFFFFFFFFF;
     }
-    pub fn mask_on_top_by_bits(bits: u8) -> u64 {
+    fn mask_on_top_by_bits(bits: u8) -> u64 {
         assert!(bits <= 64);
         let shift_bits = 64 - bits;
         return Self::mask_by_bits(bits) << shift_bits;
@@ -397,68 +460,3 @@ impl MultiBitSet {
         return Ok(());
     }
 }
-
-// #[derive(Debug)]
-// pub struct Bitset {
-//     arr: Vec<u64>,
-//     length: usize,
-// }
-
-
-// impl Bitset {
-//     pub fn new() -> Bitset {
-//         return Bitset {
-//             arr: Vec::new(),
-//             length: 0,
-//         }
-//     }
-//     pub fn len(&self) -> usize {
-//         return self.length;
-//     }
-//
-//     pub fn resize(&mut self, new_size: usize) {
-//         let required_elements;
-//         if new_size % 64 == 0 {
-//             required_elements = new_size / 64;
-//         } else {
-//             required_elements = new_size / 64 + 1;
-//         }
-//         self.length = new_size;
-//         self.arr.resize(required_elements, 0);
-//     }
-// }
-//
-// impl Index<usize> for Bitset {
-//     type Output = (bool);
-//
-//     fn index(&self, index: usize) -> Self::Output {
-//         assert!(index < self.arr.len() * 64);
-//         assert!(index < self.length);
-//
-//         let u64_idx = index / 64;
-//         let bit_idx = index % 64;
-//         let mask = 1u64 << bit_idx;
-//         return (self.arr[u64_idx] & mask) != 0;
-//     }
-// }
-//
-// impl From<&[u64]> for Bitset {
-//     fn from(value: &[u64]) -> Bitset {
-//         return Bitset {
-//             arr: Vec::from(value),
-//             length: value.len() * 64,
-//         };
-//     }
-// }
-//
-// impl From<&[i64]> for Bitset {
-//     fn from(value: &[i64]) -> Self {
-//         let mut result = Bitset::new();
-//         result.arr.reserve(value.len());
-//         for val in value {
-//             result.arr.push(u64::from_le_bytes(val.to_le_bytes()));
-//         }
-//         result.length = result.arr.len() * 64;
-//         return result;
-//     }
-// }

@@ -454,7 +454,7 @@ pub fn id_of_nbt_tag(tag: &fastnbt::Value) -> u8 {
     }
 }
 
-
+#[derive(Debug)]
 pub struct VanillaStructureLoadOption {
     pub background_block: CommonBlock,
 }
@@ -467,6 +467,7 @@ impl VanillaStructureLoadOption {
     }
 }
 
+#[derive(Debug)]
 pub struct VanillaStructureSaveOption {
     pub keep_air: bool,
 }
@@ -476,5 +477,24 @@ impl VanillaStructureSaveOption {
         return VanillaStructureSaveOption {
             keep_air: true
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct LitematicaLoadOption {}
+
+impl LitematicaLoadOption {
+    pub fn default() -> LitematicaLoadOption {
+        return LitematicaLoadOption {};
+    }
+}
+
+
+#[derive(Debug)]
+pub struct LitematicaSaveOption {}
+
+impl LitematicaSaveOption {
+    pub fn default() -> LitematicaSaveOption {
+        return LitematicaSaveOption {};
     }
 }

@@ -1,13 +1,8 @@
 
 use crate::block::Block;
 use crate::schem;
-use std::{env, fs};
-use std::any::Any;
-use std::collections::HashMap;
+use std::env;
 use std::fs::create_dir_all;
-use std::io::Read;
-use fastnbt;
-use fastnbt::Value;
 use rand::Rng;
 use crate::schem::{LitematicaSaveOption, Schematic};
 
@@ -73,7 +68,6 @@ fn block_id_parse() {
 }
 
 
-#[test]
 
 #[test]
 fn block_bits_required() {
@@ -92,7 +86,7 @@ fn ceil_up_to() {
         ((121, 12), 132)
     ];
     for ((a, b), expected) in tests {
-        let result = schem::litematica::ceil_up_to(a, b);
+        let result = schem::common::ceil_up_to(a, b);
         if result != expected {
             panic!("{} ceil up to {} should b {}, but found {}", a, b, expected, result);
         } else {
@@ -193,13 +187,20 @@ fn load_save_vanilla_structure() {
 fn load_save_litematica() {
     use schem::{LitematicaLoadOption};
     //println!("Current dir: {}", env::current_dir().unwrap().to_string_lossy());
-    let src_filename = "./test_files/litematica/test02.litematic";
 
-    let schem = Schematic::from_litematica_file(src_filename, &LitematicaLoadOption::default()).unwrap();
+    let src_dir = "./test_files/litematica";
+    let out_dir = "./target/test/load_save_litematica";
+    create_dir_all(out_dir).unwrap();
 
-    println!("Metadata: \n{:?}", schem.metadata_litematica());
+    for id in 1..4 {
+        let src_filename = format!("{}/test{:02}.litematic", src_dir, id);
+        let dst_filename = format!("{}/out{:02}.litematic", out_dir, id);
 
-    create_dir_all("./target/test/load_save_litematica").unwrap();
+        let schem = Schematic::from_litematica_file(&src_filename, &LitematicaLoadOption::default()).unwrap();
 
-    schem.save_litematica_file("./target/test/load_save_litematica/out02.litematic", &LitematicaSaveOption::default()).unwrap();
+        schem.save_litematica_file(&dst_filename, &LitematicaSaveOption::default()).unwrap();
+
+        //println!("Metadata: \n{:?}", schem.metadata_litematica());
+    }
+
 }

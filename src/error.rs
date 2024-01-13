@@ -1,7 +1,7 @@
 use std::fmt::{Display, Formatter};
-use crate::schem::BlockEntity;
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum LoadError {
     NBTReadError(fastnbt::error::Error),
     TagMissing(String),
@@ -99,6 +99,7 @@ macro_rules! unwrap_tag {
     }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum WriteError {
     NBTWriteError(fastnbt::error::Error),
     NegativeSize { size: [i32; 3], region_name: String },

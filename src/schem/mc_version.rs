@@ -1,6 +1,7 @@
 #[allow(non_camel_case_types)]
 #[derive(Debug)]
 #[repr(i32)]
+#[allow(dead_code)]
 pub enum DataVersion {
     Snapshot_23w51b = 3802,
     Snapshot_23w51a = 3801,
@@ -505,6 +506,7 @@ pub enum DataVersion {
     Snapshot_15w32a = 100,
 }
 
+#[allow(dead_code)]
 impl DataVersion {
     pub fn latest() -> DataVersion {
         return DataVersion::Snapshot_23w51b;

@@ -4,6 +4,7 @@ pub(crate) mod litematica;
 
 mod vanilla_structure;
 mod mc_version;
+pub(crate) mod common;
 
 use std::cmp::max;
 use std::collections::hash_map::DefaultHasher;
@@ -16,6 +17,7 @@ use fastnbt;
 use crate::error::WriteError;
 //use schem::mc_version;
 use crate::schem;
+
 
 #[derive(Debug, Clone)]
 pub struct BlockEntity {
@@ -47,13 +49,30 @@ impl Entity {
     }
 }
 
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub enum PendingTickInfo {
+    Fluid { id: String },
+    Block { id: String },
+}
+
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub struct PendingTick {
+    pub priority: i32,
+    pub sub_tick: i64,
+    pub time: i32,
+    pub info: PendingTickInfo,
+}
+
 #[derive(Debug)]
 pub struct Region {
     pub name: String,
-    pub array: Array3<u16>,
     //XYZ
+    pub array: Array3<u16>,
     pub palette: Vec<Block>,
     pub block_entities: HashMap<[i32; 3], BlockEntity>,
+    pub pending_ticks: HashMap<[i32; 3], PendingTick>,
     pub entities: Vec<Entity>,
 
     pub offset: [i32; 3],
@@ -66,6 +85,7 @@ impl Region {
             array: Array3::zeros([1, 1, 1]),
             palette: Vec::new(),
             block_entities: HashMap::new(),
+            pending_ticks: HashMap::new(),
             entities: Vec::new(),
             offset: [0, 0, 0],
         };
@@ -260,8 +280,10 @@ impl LitematicaMetaData {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct WE12MetaData {}
 
+#[allow(dead_code)]
 impl WE12MetaData {
     pub fn new() -> WE12MetaData {
         return WE12MetaData {};
@@ -269,6 +291,7 @@ impl WE12MetaData {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct WE13MetaData {
     pub data_version: i32,
     pub version: i32,
@@ -276,6 +299,7 @@ pub struct WE13MetaData {
     pub offset: [i32; 3],
 }
 
+#[allow(dead_code)]
 impl WE13MetaData {
     pub fn new() -> WE13MetaData {
         return WE13MetaData {
@@ -288,6 +312,7 @@ impl WE13MetaData {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct VanillaStructureMetaData {
     pub data_version: i32,
 }
@@ -302,6 +327,7 @@ impl VanillaStructureMetaData {
 
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum RawMetaData {
     Litematica(LitematicaMetaData),
     WE12(WE12MetaData),
@@ -310,6 +336,7 @@ pub enum RawMetaData {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct MetaDataIR {
     pub mc_data_version: i32,
 
@@ -322,6 +349,7 @@ pub struct MetaDataIR {
     //pub raw_metadata: Option<MetaData>,
 }
 
+#[allow(dead_code)]
 impl MetaDataIR {
     pub fn default() -> MetaDataIR {
         use std::time::{SystemTime, UNIX_EPOCH};
@@ -354,6 +382,7 @@ pub struct Schematic {
 //     WorldEdit13,
 //     VanillaStructure,
 // }
+#[allow(dead_code)]
 impl Schematic {
     pub fn new() -> Schematic {
         return Schematic {

@@ -1,17 +1,14 @@
 use std::cmp::max;
 use std::collections::HashMap;
 use std::convert::From;
-use std::fmt::format;
 use std::fs::File;
-use std::ops::Index;
 use fastnbt::{LongArray, Value};
 use flate2::Compression;
 use flate2::read::{GzDecoder, GzEncoder};
-use math::round::{ceil, floor};
-use crate::schem::{LitematicaMetaData, Schematic, id_of_nbt_tag, RawMetaData, MetaDataIR, Region, VanillaStructureLoadOption, LitematicaLoadOption, Entity, BlockEntity, LitematicaSaveOption};
+use crate::schem::{LitematicaMetaData, Schematic, id_of_nbt_tag, RawMetaData, MetaDataIR, Region, LitematicaLoadOption, Entity, BlockEntity, LitematicaSaveOption};
 use crate::error::{LoadError, WriteError};
-use crate::{schem, unwrap_opt_tag, unwrap_tag};
-use crate::block::Block;
+use crate::{unwrap_opt_tag, unwrap_tag};
+use crate::schem::common;
 
 impl MetaDataIR {
     pub fn from_litematica(src: &LitematicaMetaData) -> MetaDataIR {
@@ -29,7 +26,7 @@ impl MetaDataIR {
 
 impl Schematic {
     pub fn from_litematica_file(filename: &str, option: &LitematicaLoadOption) -> Result<Schematic, LoadError> {
-        let mut file_res = File::open(filename);
+        let file_res = File::open(filename);
         let mut file;
         match file_res {
             Ok(f) => file = f,
@@ -94,7 +91,7 @@ fn parse_metadata(root: &HashMap<String, Value>) -> Result<LitematicaMetaData, L
             });
         }
 
-        match parse_size_compound(enclosing_size, "/Metadata/EnclosingSize", false) {
+        match common::parse_size_compound(enclosing_size, "/Metadata/EnclosingSize", false) {
             Ok(_size) => {},
             Err(e) => return Err(e),
         }
@@ -124,25 +121,6 @@ fn parse_metadata(root: &HashMap<String, Value>) -> Result<LitematicaMetaData, L
     return Ok(result);
 }
 
-pub fn parse_size_compound(nbt: &HashMap<String, Value>, tag_path: &str, allow_negative: bool) -> Result<[i32; 3], LoadError> {
-    // let x = *unwrap_opt_tag!(nbt.get("x"),Int,0,format!("{}/x",tag_path));
-    // let y = *unwrap_opt_tag!(nbt.get("y"),Int,0,format!("{}/y",tag_path));
-    // let z = *unwrap_opt_tag!(nbt.get("z"),Int,0,format!("{}/z",tag_path));
-    let mut result: [i32; 3] = [0, 0, 0];
-    for (idx, key) in ["x", "y", "z"].iter().enumerate() {
-        let cur_tag_path = format!("{}/{}", tag_path, key);
-        let val = *unwrap_opt_tag!(nbt.get(*key),Int,0,cur_tag_path);
-        if (!allow_negative) && (val < 0) {
-            return Err(LoadError::InvalidValue {
-                tag_path: cur_tag_path,
-                error: format!("Expected non-negative value, but found {}", val),
-            });
-        }
-        result[idx] = val;
-    }
-
-    return Ok(result);
-}
 
 pub fn block_required_bits(palette_size: usize) -> usize {
     let palette_size = max(palette_size, 1);
@@ -160,7 +138,7 @@ fn parse_region(nbt: &HashMap<String, Value>, tag_path: &str) -> Result<Region, 
     {
         let cur_tag_path = format!("{}/Position", tag_path);
         let position = unwrap_opt_tag!(nbt.get("Position"),Compound,HashMap::new(),cur_tag_path);
-        match parse_size_compound(position, &cur_tag_path, false) {
+        match common::parse_size_compound(position, &cur_tag_path, false) {
             Ok(pos) => region.offset = pos,
             Err(e) => return Err(e),
         }
@@ -173,7 +151,7 @@ fn parse_region(nbt: &HashMap<String, Value>, tag_path: &str) -> Result<Region, 
         for (idx, blk_nbt) in palette.iter().enumerate() {
             let cur_tag_path = format!("{}/BlockStatePalette[{}]", tag_path, idx);
             let blk_nbt = unwrap_tag!(blk_nbt,Compound,HashMap::new(),&cur_tag_path);
-            let block = schem::vanilla_structure::parse_block(blk_nbt, &cur_tag_path);
+            let block = common::parse_block(blk_nbt, &cur_tag_path);
             match block {
                 Ok(blk) => region.palette.push(blk),
                 Err(e) => return Err(e),
@@ -186,7 +164,7 @@ fn parse_region(nbt: &HashMap<String, Value>, tag_path: &str) -> Result<Region, 
     {
         let cur_tag_path = format!("{}/Size", tag_path);
         let size = unwrap_opt_tag!(nbt.get("Size"),Compound,HashMap::new(),cur_tag_path);
-        match parse_size_compound(size, &cur_tag_path, false) {
+        match common::parse_size_compound(size, &cur_tag_path, false) {
             Ok(size) => {
                 region.reshape(size);
                 region_size = size;
@@ -284,13 +262,6 @@ pub struct MultiBitSet {
 
 }
 
-pub fn ceil_up_to(a: isize, b: isize) -> isize {
-    assert!(b > 0);
-    if (a % b) == 0 {
-        return a;
-    }
-    return ((a / b) + 1) * b;
-}
 
 impl MultiBitSet {
     pub fn new() -> MultiBitSet {
@@ -389,7 +360,7 @@ impl MultiBitSet {
         if logic_bit_index >= 0 {
             return logic_bit_index as usize;
         }
-        let addon = ceil_up_to(-logic_bit_index, 64) * 2;
+        let addon = common::ceil_up_to(-logic_bit_index, 64) * 2;
         //println!("logic_bit_index = {}, addon = {}", logic_bit_index, addon);
         return (logic_bit_index + addon) as usize;
     }
@@ -515,7 +486,7 @@ impl MultiBitSet {
     }
 }
 
-fn parse_entity(nbt: &HashMap<String, Value>, tag_path: &str) -> Result<(Entity), LoadError> {
+fn parse_entity(nbt: &HashMap<String, Value>, tag_path: &str) -> Result<Entity, LoadError> {
     let mut entity = Entity::new();
     entity.tags = nbt.clone();
 
@@ -545,7 +516,7 @@ fn parse_tile_entity(nbt: &HashMap<String, Value>, tag_path: &str, region_size: 
     let mut be = BlockEntity::new();
 
     let pos: [i32; 3];
-    let pos_res = parse_size_compound(nbt, tag_path, false);
+    let pos_res = common::parse_size_compound(nbt, tag_path, false);
     match pos_res {
         Ok(pos_) => pos = pos_,
         Err(e) => return Err(e),
@@ -609,7 +580,7 @@ impl Schematic {
             let mut regions: HashMap<String, Value> = HashMap::with_capacity(self.regions.len());
             for reg in &self.regions {
                 let nbt_region;
-                match region_to_nbt_litematica(&reg) {
+                match reg.to_nbt_litematica() {
                     Ok(nbt) => nbt_region = nbt,
                     Err(e) => return Err(e),
                 }
@@ -645,7 +616,7 @@ impl Schematic {
                 md_nbt.insert("TotalVolume".to_string(), Value::Int(self.volume() as i32));
                 md_nbt.insert("TotalBlocks".to_string(), Value::Int(self.total_blocks(false) as i32));
                 md_nbt.insert("RegionCount".to_string(), Value::Int(self.regions.len() as i32));
-                md_nbt.insert("EnclosingSize".to_string(), Value::Compound(size_to_compound(&self.shape())));
+                md_nbt.insert("EnclosingSize".to_string(), Value::Compound(common::size_to_compound(&self.shape())));
 
                 nbt.insert("Metadata".to_string(), Value::Compound(md_nbt));
             }
@@ -677,81 +648,70 @@ impl Schematic {
     }
 }
 
-fn region_to_nbt_litematica(region: &Region) -> Result<HashMap<String, Value>, WriteError> {
-    let mut nbt = HashMap::new();
-    //Size
-    nbt.insert("Size".to_string(), Value::Compound(size_to_compound(&region.shape())));
-    //Position
-    nbt.insert("Position".to_string(), Value::Compound(size_to_compound(&region.offset)));
-    // BlockStatePalette
-    {
-        let mut palette_vec = Vec::with_capacity(region.palette.len());
-        for blk in &region.palette {
-            palette_vec.push(Value::Compound(blk.to_nbt()));
+impl Region {
+    pub fn to_nbt_litematica(&self) -> Result<HashMap<String, Value>, WriteError> {
+        let mut nbt = HashMap::new();
+        //Size
+        nbt.insert("Size".to_string(), Value::Compound(common::size_to_compound(&self.shape())));
+        //Position
+        nbt.insert("Position".to_string(), Value::Compound(common::size_to_compound(&self.offset)));
+        // BlockStatePalette
+        {
+            let mut palette_vec = Vec::with_capacity(self.palette.len());
+            for blk in &self.palette {
+                palette_vec.push(Value::Compound(blk.to_nbt()));
+            }
+            nbt.insert("BlockStatePalette".to_string(), Value::List(palette_vec));
         }
-        nbt.insert("BlockStatePalette".to_string(), Value::List(palette_vec));
-    }
-    //Entities
-    {
-        let mut entities = Vec::with_capacity(region.entities.len());
-        for entity in &region.entities {
-            let mut e_nbt = entity.tags.clone();
-            e_nbt.insert("Pos".to_string(), Value::List(size_to_list(&entity.position)));
-            entities.push(Value::Compound(e_nbt));
+        //Entities
+        {
+            let mut entities = Vec::with_capacity(self.entities.len());
+            for entity in &self.entities {
+                let mut e_nbt = entity.tags.clone();
+                e_nbt.insert("Pos".to_string(), Value::List(common::size_to_list(&entity.position)));
+                entities.push(Value::Compound(e_nbt));
+            }
+            nbt.insert("Entities".to_string(), Value::List(entities));
         }
-        nbt.insert("Entities".to_string(), Value::List(entities));
-    }
-    // BlockStates
-    {
-        let mut mbs = MultiBitSet::new();
-        mbs.reset(block_required_bits(region.palette.len()) as u8, region.volume() as usize);
-        let mut idx = 0usize;
-        for y in 0..region.shape()[1] as usize {
-            for z in 0..region.shape()[2] as usize {
-                for x in 0..region.shape()[0] as usize {
-                    let res = mbs.set(idx, region.array[[x, y, z]] as u64);
-                    assert!(res.is_ok());
-                    idx += 1;
+        // BlockStates
+        {
+            let mut mbs = MultiBitSet::new();
+            mbs.reset(block_required_bits(self.palette.len()) as u8, self.volume() as usize);
+            let mut idx = 0usize;
+            for y in 0..self.shape()[1] as usize {
+                for z in 0..self.shape()[2] as usize {
+                    for x in 0..self.shape()[0] as usize {
+                        let res = mbs.set(idx, self.array[[x, y, z]] as u64);
+                        assert!(res.is_ok());
+                        idx += 1;
+                    }
                 }
             }
-        }
 
-        let u64_slice = mbs.as_u64_slice();
-        let mut i64_rep = Vec::with_capacity(u64_slice.len());
-        for u_val in u64_slice {
-            i64_rep.push(i64::from_le_bytes(u_val.to_ne_bytes()));
+            let u64_slice = mbs.as_u64_slice();
+            let mut i64_rep = Vec::with_capacity(u64_slice.len());
+            for u_val in u64_slice {
+                i64_rep.push(i64::from_le_bytes(u_val.to_ne_bytes()));
+            }
+            nbt.insert("BlockStates".to_string(), Value::LongArray(LongArray::new(i64_rep)));
         }
-        nbt.insert("BlockStates".to_string(), Value::LongArray(LongArray::new(i64_rep)));
+        //TileEntities
+        {
+            let mut te_list = Vec::with_capacity(self.block_entities.len());
+            for (pos, te) in &self.block_entities {
+                let mut nbt = te.tags.clone();
+                nbt.insert("x".to_string(), Value::Int(pos[0]));
+                nbt.insert("y".to_string(), Value::Int(pos[1]));
+                nbt.insert("z".to_string(), Value::Int(pos[2]));
+                te_list.push(Value::Compound(nbt));
+            }
+            nbt.insert("TileEntities".to_string(), Value::List(te_list));
+        }
+        //PendingFluidTicks
+        nbt.insert("PendingFluidTicks".to_string(), Value::List(vec![]));
+        //PendingBlockTicks
+        nbt.insert("PendingBlockTicks".to_string(), Value::List(vec![]));
+
+        return Ok(nbt);
     }
-    //TileEntities
-    {
-        let mut te_list = Vec::with_capacity(region.block_entities.len());
-        for (pos, te) in &region.block_entities {
-            let mut nbt = te.tags.clone();
-            nbt.insert("x".to_string(), Value::Int(pos[0]));
-            nbt.insert("y".to_string(), Value::Int(pos[1]));
-            nbt.insert("z".to_string(), Value::Int(pos[2]));
-            te_list.push(Value::Compound(nbt));
-        }
-        nbt.insert("TileEntities".to_string(), Value::List(te_list));
-    }
-    //PendingFluidTicks
-    nbt.insert("PendingFluidTicks".to_string(), Value::List(vec![]));
-    //PendingBlockTicks
-    nbt.insert("PendingBlockTicks".to_string(), Value::List(vec![]));
-
-    return Ok(nbt);
-}
-
-fn size_to_compound<T>(size: &[T; 3]) -> HashMap<String, Value>
-    where T: Copy, Value: From<T>
-{
-    return HashMap::from([("x".to_string(), Value::from(size[0])),
-        ("y".to_string(), Value::from(size[1])),
-        ("z".to_string(), Value::from(size[2]))]);
-}
-
-fn size_to_list<T>(size: &[T; 3]) -> Vec<Value>
-    where T: Copy, Value: From<T> {
-    return vec![Value::from(size[0]), Value::from(size[1]), Value::from(size[2])];
 }

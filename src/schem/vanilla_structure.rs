@@ -1,19 +1,19 @@
 use std::collections::HashMap;
 use std::fs::File;
-use crate::schem::{id_of_nbt_tag, MetaDataIR, schem, VanillaStructureLoadOption, VanillaStructureSaveOption};
+use crate::schem::{common, id_of_nbt_tag, MetaDataIR, schem, VanillaStructureLoadOption, VanillaStructureSaveOption};
 //use compress::zlib;
 use crate::schem::schem::{BlockEntity, Entity, Schematic, VanillaStructureMetaData};
 use fastnbt;
 use fastnbt::{Value};
 use flate2::Compression;
 use flate2::read::{GzDecoder, GzEncoder};
-use crate::block::{Block};
 use crate::error::{LoadError, WriteError};
 use crate::{unwrap_tag, unwrap_opt_tag};
 use crate::error::LoadError::FileOpenError;
 use crate::schem::RawMetaData::VanillaStructure;
 
 
+#[allow(dead_code)]
 impl MetaDataIR {
     pub fn from_vanilla_structure(src: &VanillaStructureMetaData) -> MetaDataIR {
         let mut result = MetaDataIR::default();
@@ -53,33 +53,6 @@ fn parse_size_tag(nbt: &HashMap<String, Value>) -> Result<[i32; 3], LoadError> {
     return Ok(size);
 }
 
-pub fn parse_block(nbt: &HashMap<String, Value>, tag_path: &str) -> Result<Block, LoadError> {
-    let mut blk = Block::new();
-
-    let id = unwrap_opt_tag!(nbt.get("Name"),String,String::new(),&*format!("{}/Name", tag_path));
-    let id_parse = Block::from_id(id);
-
-    match id_parse {
-        Ok(blk_temp) => blk = blk_temp,
-        _ => return Err(LoadError::InvalidBlockId(String::from(id))),
-    }
-
-    let prop_comp;
-    // unwrap the properties map
-    if let Some(prop_tag) = nbt.get("Properties") {
-        prop_comp = unwrap_tag!(prop_tag,Compound,HashMap::new(),&*format!("{}/Properties", tag_path));
-    } else {
-        return Ok(blk);
-    }
-
-    // parse properties
-    for (key, tag) in prop_comp {
-        let value = unwrap_tag!(tag,String,String::new(),&*format!("{}/Properties/{}", tag_path, key));
-        blk.attributes.insert(key.to_string(), value.to_string());
-    }
-
-    return Ok(blk);
-}
 
 fn parse_array_item(item: &Value, tag_path: &str, palette_size: i32, region_size: [i32; 3]) -> Result<(i32, [i32; 3], Option<BlockEntity>), LoadError> {
     let map = unwrap_tag!(item,Compound,HashMap::new(),tag_path);
@@ -181,7 +154,7 @@ fn parse_entity(tag: &Value, tag_path: &str) -> Result<Entity, LoadError> {
 
 impl Schematic {
     pub fn from_vanilla_structure_file(filename: &str, option: &VanillaStructureLoadOption) -> Result<Schematic, LoadError> {
-        let mut file_res = File::open(filename);
+        let file_res = File::open(filename);
         let mut file;
         match file_res {
             Ok(f) => file = f,
@@ -234,7 +207,7 @@ impl Schematic {
                 let tag_path = format!("/palette[{}]", idx);
 
                 let blk_comp = unwrap_tag!(blk_tag,Compound,HashMap::new(),&tag_path);
-                let blk = parse_block(blk_comp, &tag_path);
+                let blk = common::parse_block(blk_comp, &tag_path);
                 match blk {
                     Err(err) => return Err(err),
                     Ok(blk) => region.palette.push(blk),
@@ -314,22 +287,22 @@ impl Schematic {
     }
 }
 
-fn block_entity_to_nbt(be: &BlockEntity) -> HashMap<String, Value> {
-    return be.tags.clone();
-}
+// fn block_entity_to_nbt(be: &BlockEntity) -> HashMap<String, Value> {
+//     return be.tags.clone();
+// }
 
-fn block_to_nbt(pos: [i32; 3], state: i32, be: &Option<&BlockEntity>) -> HashMap<String, Value> {
-    let mut result: HashMap<String, Value> = HashMap::new();
-    result.insert(String::from("state"), Value::Int(state));
-    result.insert(String::from("pos"), pos_to_nbt(&pos));
-
-
-    if let Some(be) = be {
-        result.insert(String::from("nbt"), Value::Compound(block_entity_to_nbt(be)));
-    }
-
-    return result;
-}
+// fn block_to_nbt(pos: [i32; 3], state: i32, be: &Option<&BlockEntity>) -> HashMap<String, Value> {
+//     let mut result: HashMap<String, Value> = HashMap::new();
+//     result.insert(String::from("state"), Value::Int(state));
+//     result.insert(String::from("pos"), pos_to_nbt(&pos));
+//
+//
+//     if let Some(be) = be {
+//         result.insert(String::from("nbt"), Value::Compound(block_entity_to_nbt(be)));
+//     }
+//
+//     return result;
+// }
 
 fn pos_to_nbt(pos: &[i32; 3]) -> Value {
     let mut pos_list = Vec::with_capacity(3);
@@ -459,7 +432,7 @@ impl Schematic {
     }
 
     pub fn save_vanilla_structure_file(&self, filename: &str, option: &VanillaStructureSaveOption) -> Result<(), WriteError> {
-        let mut file;
+        let file;
         match File::create(filename) {
             Ok(f) => file = f,
             Err(e) => return Err(WriteError::FileCreateError(e)),

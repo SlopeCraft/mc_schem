@@ -14,11 +14,10 @@ use ndarray::Array3;
 use crate::block::{Block, CommonBlock};
 use fastnbt;
 use crate::error::WriteError;
-use crate::error::WriteError::NBTWriteError;
 //use schem::mc_version;
 use crate::schem;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BlockEntity {
     pub tags: HashMap<String, fastnbt::Value>,
 }
@@ -31,7 +30,7 @@ impl BlockEntity {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Entity {
     pub tags: HashMap<String, fastnbt::Value>,
     pub position: [f64; 3],
@@ -89,6 +88,53 @@ impl Region {
             panic!("Invalid array dimensions: should be 3 but now it is {}", shape.len());
         }
         return [shape[0] as i32, shape[1] as i32, shape[2] as i32];
+    }
+
+    pub fn volume(&self) -> u64 {
+        return self.array.shape()[0] as u64 * self.array.shape()[1] as u64 * self.array.shape()[2] as u64;
+    }
+
+    pub fn block_index_of_air(&self) -> Option<u16> {
+        for (idx, blk) in self.palette.iter().enumerate() {
+            if blk.is_air() {
+                return Some(idx as u16);
+            }
+        }
+        return None;
+    }
+
+    pub fn block_index_of_structure_void(&self) -> Option<u16> {
+        for (idx, blk) in self.palette.iter().enumerate() {
+            if blk.is_structure_void() {
+                return Some(idx as u16);
+            }
+        }
+        return None;
+    }
+
+    pub fn total_blocks(&self, include_air: bool) -> u64 {
+        let mut counter = 0;
+
+        for blk_id in &self.array {
+            if let Some(air_idx) = self.block_index_of_air() {
+                if *blk_id == air_idx {
+                    if include_air {
+                        counter += 1;
+                    }
+                    continue;
+                }
+            }
+
+            if let Some(sv_idx) = self.block_index_of_structure_void() {
+                if *blk_id == sv_idx {
+                    counter += 1;
+                    continue;
+                }
+            }
+
+            counter += 1;
+        }
+        return counter;
     }
     pub fn contains_coord(&self, coord: [i32; 3]) -> bool {
         for dim in 0..3 {
@@ -183,7 +229,7 @@ impl Region {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LitematicaMetaData {
     pub data_version: i32,
 
@@ -213,7 +259,7 @@ impl LitematicaMetaData {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WE12MetaData {}
 
 impl WE12MetaData {
@@ -222,7 +268,7 @@ impl WE12MetaData {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WE13MetaData {
     pub data_version: i32,
     pub version: i32,
@@ -241,7 +287,7 @@ impl WE13MetaData {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct VanillaStructureMetaData {
     pub data_version: i32,
 }
@@ -263,7 +309,7 @@ pub enum RawMetaData {
     VanillaStructure(VanillaStructureMetaData),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MetaDataIR {
     pub mc_data_version: i32,
 
@@ -395,6 +441,14 @@ impl Schematic {
         return result;
     }
 
+    pub fn total_blocks(&self, include_air: bool) -> u64 {
+        let mut counter = 0;
+        for reg in &self.regions {
+            counter += reg.total_blocks(include_air);
+        }
+        return counter;
+    }
+
 
     pub fn full_palette(&self) -> (Vec<(&Block, u64)>, Vec<Vec<usize>>) {
         let possible_max_palette_size;
@@ -493,10 +547,14 @@ impl LitematicaLoadOption {
 
 
 #[derive(Debug)]
-pub struct LitematicaSaveOption {}
+pub struct LitematicaSaveOption {
+    rename_duplicated_regions: bool,
+}
 
 impl LitematicaSaveOption {
     pub fn default() -> LitematicaSaveOption {
-        return LitematicaSaveOption {};
+        return LitematicaSaveOption {
+            rename_duplicated_regions: true,
+        };
     }
 }

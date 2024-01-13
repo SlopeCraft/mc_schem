@@ -104,6 +104,7 @@ pub enum WriteError {
     NegativeSize { size: [i32; 3], region_name: String },
     BlockIndexOfOfRange { r_pos: [i32; 3], block_index: u16, max_index: u16 },
     FileCreateError(std::io::Error),
+    DuplicatedRegionName { name: String },
 }
 
 impl Display for WriteError {
@@ -117,6 +118,8 @@ impl Display for WriteError {
                       r_pos[0], r_pos[1], r_pos[2], block_index, max_index),
             WriteError::FileCreateError(err)
             => write!(f, "Failed to create file, detail: {}", err),
+            WriteError::DuplicatedRegionName { name }
+            => write!(f, "More than one region used name \"{}\"", name),
         }
     }
 }

@@ -1,6 +1,7 @@
 use strum::{Display, EnumString};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::hash::{Hash, Hasher};
+use fastnbt::Value;
 
 #[derive(Debug)]
 pub struct Block {
@@ -285,6 +286,18 @@ impl Block {
 
         return true;
     }
+    pub fn is_air(&self) -> bool {
+        if self.namespace != "minecraft" {
+            return false;
+        }
+        if self.id != "air" {
+            return false;
+        }
+        if !self.attributes.is_empty() {
+            return false;
+        }
+        return true;
+    }
 
     pub fn air() -> Block {
         return Block {
@@ -300,6 +313,21 @@ impl Block {
             id: String::from("structure_void"),
             attributes: BTreeMap::new(),
         }
+    }
+
+    pub fn to_nbt(&self) -> HashMap<String, Value> {
+        let mut nbt: HashMap<String, Value> = HashMap::new();
+        nbt.insert(String::from("Name"),
+                   Value::String(format!("{}:{}", self.namespace, self.id)));
+        if !self.attributes.is_empty() {
+            let mut props: HashMap<String, Value> = HashMap::new();
+            for (key, val) in &self.attributes {
+                props.insert(key.clone(), Value::String(val.clone()));
+            }
+            nbt.insert(String::from("Properties"), Value::Compound(props));
+        }
+
+        return nbt;
     }
 }
 

@@ -7,8 +7,8 @@ use std::ops::Index;
 use fastnbt::{LongArray, Value};
 use flate2::read::GzDecoder;
 use math::round::{ceil, floor};
-use crate::schem::{LitematicaMetaData, Schematic, id_of_nbt_tag, RawMetaData, MetaDataIR, Region, VanillaStructureLoadOption, LitematicaLoadOption, Entity, BlockEntity};
-use crate::error::LoadError;
+use crate::schem::{LitematicaMetaData, Schematic, id_of_nbt_tag, RawMetaData, MetaDataIR, Region, VanillaStructureLoadOption, LitematicaLoadOption, Entity, BlockEntity, LitematicaSaveOption};
+use crate::error::{LoadError, WriteError};
 use crate::{schem, unwrap_opt_tag, unwrap_tag};
 use crate::block::Block;
 use crate::error::LoadError::MultipleBlockEntityInOnePos;
@@ -333,6 +333,10 @@ impl MultiBitSet {
         })
     }
 
+    pub fn as_u64_slice(&self) -> &[u64] {
+        return &self.arr;
+    }
+
     pub fn element_bits(&self) -> u8 {
         return self.element_bits;
     }
@@ -566,4 +570,163 @@ fn parse_tile_entity(nbt: &HashMap<String, Value>, tag_path: &str, region_size: 
     }
 
     return Ok((pos, be));
+}
+
+
+impl Schematic {
+    pub fn metadata_litematica(&self) -> LitematicaMetaData {
+        let mut md = LitematicaMetaData::new();
+        if let Some(raw) = &self.raw_metadata {
+            if let RawMetaData::Litematica(raw) = &raw {
+                md = raw.clone();
+            }
+        }
+
+        md.data_version = self.metadata.mc_data_version;
+        md.author = self.metadata.author.clone();
+        md.name = self.metadata.name.clone();
+        md.description = self.metadata.description.clone();
+
+
+        return md;
+    }
+
+    fn find_non_duplicate_name<T>(saved_regions: &HashMap<String, T>, old_name: &str) -> String {
+        let idx = 1u64;
+        loop {
+            let cur_name = format!("{}({})", old_name, idx);
+            if saved_regions.contains_key(&cur_name) {
+                continue;
+            }
+            return cur_name;
+        }
+    }
+    pub fn to_nbt_litematica(&self, option: &LitematicaSaveOption) -> Result<HashMap<String, Value>, WriteError> {
+        let mut nbt: HashMap<String, Value> = HashMap::new();
+
+        //Regions
+        {
+            let mut regions: HashMap<String, Value> = HashMap::with_capacity(self.regions.len());
+            for reg in &self.regions {
+                let nbt_region;
+                match region_to_nbt_litematica(&reg) {
+                    Ok(nbt) => nbt_region = nbt,
+                    Err(e) => return Err(e),
+                }
+
+                if regions.contains_key(&reg.name) {
+                    if option.rename_duplicated_regions {
+                        let new_name = Self::find_non_duplicate_name(&regions, &reg.name);
+                        regions.insert(new_name, Value::Compound(nbt_region));
+                        continue;
+                    }
+                    return Err(WriteError::DuplicatedRegionName { name: reg.name.clone() });
+                }
+            }
+            nbt.insert("Regions".to_string(), Value::Compound(regions));
+        }
+
+        // meta data
+        {
+            let md = self.metadata_litematica();
+            nbt.insert("MinecraftDataVersion".to_string(), Value::Int(md.data_version));
+            nbt.insert("Version".to_string(), Value::Int(md.version));
+            if let Some(sv) = md.sub_version {
+                nbt.insert("SubVersion".to_string(), Value::Int(sv));
+            }
+            {
+                let mut md_nbt = HashMap::new();
+                md_nbt.insert("Name".to_string(), Value::String(md.name));
+                md_nbt.insert("Author".to_string(), Value::String(md.author));
+                md_nbt.insert("Description".to_string(), Value::String(md.description));
+                md_nbt.insert("TimeCreated".to_string(), Value::Long(md.time_created));
+                md_nbt.insert("TimeModified".to_string(), Value::Long(md.time_modified));
+                md_nbt.insert("TotalVolume".to_string(), Value::Int(self.volume() as i32));
+                md_nbt.insert("TotalBlocks".to_string(), Value::Int(self.total_blocks(false) as i32));
+                md_nbt.insert("RegionCount".to_string(), Value::Int(self.regions.len() as i32));
+                md_nbt.insert("EnclosingSize".to_string(), Value::Compound(size_to_compound(&self.shape())));
+
+                nbt.insert("Metadata".to_string(), Value::Compound(md_nbt));
+            }
+        }
+        return Ok(nbt);
+    }
+}
+
+fn region_to_nbt_litematica(region: &Region) -> Result<HashMap<String, Value>, WriteError> {
+    let mut nbt = HashMap::new();
+    //Size
+    nbt.insert("Size".to_string(), Value::Compound(size_to_compound(&region.shape())));
+    //Position
+    nbt.insert("Position".to_string(), Value::Compound(size_to_compound(&region.offset)));
+    // BlockStatePalette
+    {
+        let mut palette_vec = Vec::with_capacity(region.palette.len());
+        for blk in &region.palette {
+            palette_vec.push(Value::Compound(blk.to_nbt()));
+        }
+        nbt.insert("BlockStatePalette".to_string(), Value::List(palette_vec));
+    }
+    //Entities
+    {
+        let mut entities = Vec::with_capacity(region.entities.len());
+        for entity in &region.entities {
+            let mut e_nbt = entity.tags.clone();
+            e_nbt.insert("Pos".to_string(), Value::List(size_to_list(&entity.position)));
+            entities.push(Value::Compound(e_nbt));
+        }
+        nbt.insert("Entities".to_string(), Value::List(entities));
+    }
+    // BlockStates
+    {
+        let mut mbs = MultiBitSet::new();
+        mbs.reset(block_required_bits(region.palette.len()) as u8, region.volume() as usize);
+        let mut idx = 0usize;
+        for y in 0..region.shape()[1] as usize {
+            for z in 0..region.shape()[2] as usize {
+                for x in 0..region.shape()[0] as usize {
+                    let res = mbs.set(idx, region.array[[x, y, z]] as u64);
+                    assert!(res.is_ok());
+                }
+            }
+        }
+
+        let u64_slice = mbs.as_u64_slice();
+        let mut i64_rep = Vec::with_capacity(u64_slice.len());
+        for u_val in u64_slice {
+            i64_rep.push(i64::from_be_bytes(u_val.to_ne_bytes()));
+        }
+        nbt.insert("BlockStates".to_string(), Value::LongArray(LongArray::new(i64_rep)));
+    }
+    //TileEntities
+    {
+        let mut te_list = Vec::with_capacity(region.block_entities.len());
+        for (pos, te) in &region.block_entities {
+            let mut nbt = te.tags.clone();
+            nbt.insert("x".to_string(), Value::Int(pos[0]));
+            nbt.insert("y".to_string(), Value::Int(pos[1]));
+            nbt.insert("z".to_string(), Value::Int(pos[2]));
+            te_list.push(Value::Compound(nbt));
+        }
+        nbt.insert("TileEntities".to_string(), Value::List(te_list));
+    }
+    //PendingFluidTicks
+    nbt.insert("PendingFluidTicks".to_string(), Value::List(vec![]));
+    //PendingBlockTicks
+    nbt.insert("PendingBlockTicks".to_string(), Value::List(vec![]));
+
+    return Ok(nbt);
+}
+
+fn size_to_compound<T>(size: &[T; 3]) -> HashMap<String, Value>
+    where T: Copy, fastnbt::Value: From<T>
+{
+    return HashMap::from([("x".to_string(), Value::from(size[0])),
+        ("y".to_string(), Value::from(size[1])),
+        ("z".to_string(), Value::from(size[2]))]);
+}
+
+fn size_to_list<T>(size: &[T; 3]) -> Vec<Value>
+    where T: Copy, fastnbt::Value: From<T> {
+    return vec![Value::from(size[0]), Value::from(size[1]), Value::from(size[2])];
 }

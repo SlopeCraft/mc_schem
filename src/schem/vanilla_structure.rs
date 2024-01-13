@@ -355,17 +355,7 @@ impl Schematic {
         {
             let mut nbt_palette = Vec::with_capacity(full_palette.len());
             for (blk, _) in full_palette {
-                let mut cur_blk_nbt: HashMap<String, Value> = HashMap::new();
-                cur_blk_nbt.insert(String::from("Name"),
-                                   Value::String(format!("{}:{}", blk.namespace, blk.id)));
-                if !blk.attributes.is_empty() {
-                    let mut props: HashMap<String, Value> = HashMap::new();
-                    for (key, val) in &blk.attributes {
-                        props.insert(key.clone(), Value::String(val.clone()));
-                    }
-                    cur_blk_nbt.insert(String::from("Properties"), Value::Compound(props));
-                }
-                nbt_palette.push(Value::Compound(cur_blk_nbt));
+                nbt_palette.push(Value::Compound(blk.to_nbt()));
             }
             nbt.insert(String::from("palette"), Value::List(nbt_palette));
         }

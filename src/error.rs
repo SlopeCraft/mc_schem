@@ -34,6 +34,10 @@ pub enum LoadError {
     MultipleBlockEntityInOnePos {
         pos: [i32; 3],
         latter_tag_path: String,
+    },
+    MultiplePendingTickInOnePos {
+        pos: [i32; 3],
+        latter_tag_path: String,
     }
 }
 
@@ -59,6 +63,8 @@ impl Display for LoadError {
             => write!(f, "File open error: {}", err),
             LoadError::MultipleBlockEntityInOnePos { pos, latter_tag_path }
             => write!(f, "Multiple block entities in one [{}, {}, {}], the latter block is defined at {}", pos[0], pos[1], pos[2], latter_tag_path),
+            LoadError::MultiplePendingTickInOnePos { pos, latter_tag_path }
+            => write!(f, "Multiple pending ticks in one [{}, {}, {}], the latter block is defined at {}", pos[0], pos[1], pos[2], latter_tag_path),
         }
     }
 }

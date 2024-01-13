@@ -56,6 +56,12 @@ pub enum PendingTickInfo {
     Block { id: String },
 }
 
+impl PendingTickInfo {
+    pub fn default() -> PendingTickInfo {
+        return PendingTickInfo::Block { id: "".to_string() };
+    }
+}
+
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct PendingTick {

@@ -5,7 +5,7 @@ use std::fs::File;
 use fastnbt::{LongArray, Value};
 use flate2::Compression;
 use flate2::read::{GzDecoder, GzEncoder};
-use crate::schem::{LitematicaMetaData, Schematic, id_of_nbt_tag, RawMetaData, MetaDataIR, Region, LitematicaLoadOption, Entity, BlockEntity, LitematicaSaveOption};
+use crate::schem::{LitematicaMetaData, Schematic, id_of_nbt_tag, RawMetaData, MetaDataIR, Region, LitematicaLoadOption, Entity, BlockEntity, LitematicaSaveOption, PendingTick, PendingTickInfo};
 use crate::error::{LoadError, WriteError};
 use crate::{unwrap_opt_tag, unwrap_tag};
 use crate::schem::common;
@@ -57,7 +57,7 @@ impl Schematic {
         schem.regions.reserve(regions.len());
         for (key, val) in regions {
             let reg = unwrap_tag!(val,Compound,HashMap::new(),format!("/Regions/{}",key));
-            match parse_region(reg, &*format!("/Regions/{}", key)) {
+            match Region::from_nbt_litematica(reg, &*format!("/Regions/{}", key)) {
                 Ok(mut reg) => {
                     reg.name = key.clone();
                     schem.regions.push(reg);
@@ -131,128 +131,173 @@ pub fn block_required_bits(palette_size: usize) -> usize {
     return bits;
 }
 
-fn parse_region(nbt: &HashMap<String, Value>, tag_path: &str) -> Result<Region, LoadError> {
-    let mut region = Region::new();
+impl Region {
+    pub fn from_nbt_litematica(nbt: &HashMap<String, Value>, tag_path: &str) -> Result<Region, LoadError> {
+        let mut region = Region::new();
 
-    // parse position(offset)
-    {
-        let cur_tag_path = format!("{}/Position", tag_path);
-        let position = unwrap_opt_tag!(nbt.get("Position"),Compound,HashMap::new(),cur_tag_path);
-        match common::parse_size_compound(position, &cur_tag_path, false) {
-            Ok(pos) => region.offset = pos,
-            Err(e) => return Err(e),
-        }
-    }
-
-    // parse palette
-    {
-        let palette = unwrap_opt_tag!(nbt.get("BlockStatePalette"),List,vec![],format!("{}/BlockStatePalette",tag_path));
-        region.palette.reserve(palette.len());
-        for (idx, blk_nbt) in palette.iter().enumerate() {
-            let cur_tag_path = format!("{}/BlockStatePalette[{}]", tag_path, idx);
-            let blk_nbt = unwrap_tag!(blk_nbt,Compound,HashMap::new(),&cur_tag_path);
-            let block = common::parse_block(blk_nbt, &cur_tag_path);
-            match block {
-                Ok(blk) => region.palette.push(blk),
+        // parse position(offset)
+        {
+            let cur_tag_path = format!("{}/Position", tag_path);
+            let position = unwrap_opt_tag!(nbt.get("Position"),Compound,HashMap::new(),cur_tag_path);
+            match common::parse_size_compound(position, &cur_tag_path, false) {
+                Ok(pos) => region.offset = pos,
                 Err(e) => return Err(e),
             }
         }
-    }
 
-    // parse size
-    let region_size;
-    {
-        let cur_tag_path = format!("{}/Size", tag_path);
-        let size = unwrap_opt_tag!(nbt.get("Size"),Compound,HashMap::new(),cur_tag_path);
-        match common::parse_size_compound(size, &cur_tag_path, false) {
-            Ok(size) => {
-                region.reshape(size);
-                region_size = size;
-            },
-            Err(e) => return Err(e),
+        // parse palette
+        {
+            let palette = unwrap_opt_tag!(nbt.get("BlockStatePalette"),List,vec![],format!("{}/BlockStatePalette",tag_path));
+            region.palette.reserve(palette.len());
+            for (idx, blk_nbt) in palette.iter().enumerate() {
+                let cur_tag_path = format!("{}/BlockStatePalette[{}]", tag_path, idx);
+                let blk_nbt = unwrap_tag!(blk_nbt,Compound,HashMap::new(),&cur_tag_path);
+                let block = common::parse_block(blk_nbt, &cur_tag_path);
+                match block {
+                    Ok(blk) => region.palette.push(blk),
+                    Err(e) => return Err(e),
+                }
+            }
         }
-    }
-    let total_blocks = region_size[0] as isize * region_size[1] as isize * region_size[2] as isize;
 
-    //parse 3d
-    {
-        let palette_len = region.palette.len();
-        let array =
-            unwrap_opt_tag!(nbt.get("BlockStates"),LongArray,LongArray::new(vec![]),format!("{}/BlockStates",tag_path));
-        let mut array_u8_be: Vec<u64> = Vec::with_capacity(array.len());
-        for val in array.iter() {
-            array_u8_be.push(u64::from_ne_bytes(val.to_le_bytes()));
+        // parse size
+        let region_size;
+        {
+            let cur_tag_path = format!("{}/Size", tag_path);
+            let size = unwrap_opt_tag!(nbt.get("Size"),Compound,HashMap::new(),cur_tag_path);
+            match common::parse_size_compound(size, &cur_tag_path, false) {
+                Ok(size) => {
+                    region.reshape(size);
+                    region_size = size;
+                },
+                Err(e) => return Err(e),
+            }
         }
-        let mbs = MultiBitSet::from_data_vec(array_u8_be, total_blocks as usize, block_required_bits(palette_len) as u8);
-        assert!(mbs.is_some());
-        let mbs = mbs.unwrap();
-        let mut idx = 0;
-        for y in 0..region.shape()[1] {
-            for z in 0..region.shape()[2] {
-                for x in 0..region.shape()[0] {
-                    let blk_id = mbs.get(idx);
-                    if blk_id >= palette_len as u64 {
-                        return Err(LoadError::BlockIndexOutOfRange {
-                            tag_path: format!("{}/BlockStates", tag_path),
-                            index: blk_id as i32,
-                            range: [0, palette_len as i32],
-                        })
+        let total_blocks = region_size[0] as isize * region_size[1] as isize * region_size[2] as isize;
+
+        //parse 3d
+        {
+            let palette_len = region.palette.len();
+            let array =
+                unwrap_opt_tag!(nbt.get("BlockStates"),LongArray,LongArray::new(vec![]),format!("{}/BlockStates",tag_path));
+            let mut array_u8_be: Vec<u64> = Vec::with_capacity(array.len());
+            for val in array.iter() {
+                array_u8_be.push(u64::from_ne_bytes(val.to_le_bytes()));
+            }
+            let mbs = MultiBitSet::from_data_vec(array_u8_be, total_blocks as usize, block_required_bits(palette_len) as u8);
+            assert!(mbs.is_some());
+            let mbs = mbs.unwrap();
+            let mut idx = 0;
+            for y in 0..region.shape()[1] {
+                for z in 0..region.shape()[2] {
+                    for x in 0..region.shape()[0] {
+                        let blk_id = mbs.get(idx);
+                        if blk_id >= palette_len as u64 {
+                            return Err(LoadError::BlockIndexOutOfRange {
+                                tag_path: format!("{}/BlockStates", tag_path),
+                                index: blk_id as i32,
+                                range: [0, palette_len as i32],
+                            })
+                        }
+                        idx += 1;
+                        region.array[[x as usize, y as usize, z as usize]] = blk_id as u16;
                     }
-                    idx += 1;
-                    region.array[[x as usize, y as usize, z as usize]] = blk_id as u16;
                 }
             }
         }
-    }
 
-    //parse entities
-    {
-        let cur_tag_path = format!("{}/Entities", tag_path);
-        let entities_list = unwrap_opt_tag!(nbt.get("Entities"),List,vec![],cur_tag_path);
-        for (idx, entity_comp) in entities_list.iter().enumerate() {
-            let cur_tag_path = format!("{}/[{}]", cur_tag_path, idx);
-            let entity_comp =
-                unwrap_tag!(entity_comp,Compound,HashMap::new(),cur_tag_path);
-            let parse_res = parse_entity(entity_comp, &cur_tag_path);
-            match parse_res {
-                Ok(entity) => region.entities.push(entity),
-                Err(e) => return Err(e),
-            }
-        }
-    }
-
-    //parse tile entities
-    {
-        let cur_tag_path = format!("{}/TileEntities", tag_path);
-        let te_list = unwrap_opt_tag!(nbt.get("TileEntities"),List,vec![],cur_tag_path);
-        for (idx, te_comp) in te_list.iter().enumerate() {
-            let cur_tag_path = format!("{}/[{}]", tag_path, idx);
-            let te_comp = unwrap_tag!(te_comp,Compound,HashMap::new(),cur_tag_path);
-
-            let te_res = parse_tile_entity(te_comp, tag_path, &region_size);
-
-            let pos;
-            let te;
-            match te_res {
-                Ok((pos_, te_)) => {
-                    pos = pos_;
-                    te = te_;
+        //parse entities
+        {
+            let cur_tag_path = format!("{}/Entities", tag_path);
+            let entities_list = unwrap_opt_tag!(nbt.get("Entities"),List,vec![],cur_tag_path);
+            for (idx, entity_comp) in entities_list.iter().enumerate() {
+                let cur_tag_path = format!("{}/[{}]", cur_tag_path, idx);
+                let entity_comp =
+                    unwrap_tag!(entity_comp,Compound,HashMap::new(),cur_tag_path);
+                let parse_res = parse_entity(entity_comp, &cur_tag_path);
+                match parse_res {
+                    Ok(entity) => region.entities.push(entity),
+                    Err(e) => return Err(e),
                 }
-                Err(e) => return Err(e),
             }
-
-            if region.block_entities.contains_key(&pos) {
-                return Err(LoadError::MultipleBlockEntityInOnePos {
-                    pos,
-                    latter_tag_path: cur_tag_path,
-                });
-            }
-            region.block_entities.insert(pos, te);
         }
-    }
 
-    return Ok(region);
+        //parse tile entities
+        {
+            let cur_tag_path = format!("{}/TileEntities", tag_path);
+            let te_list = unwrap_opt_tag!(nbt.get("TileEntities"),List,vec![],cur_tag_path);
+            for (idx, te_comp) in te_list.iter().enumerate() {
+                let cur_tag_path = format!("{}/[{}]", tag_path, idx);
+                let te_comp = unwrap_tag!(te_comp,Compound,HashMap::new(),cur_tag_path);
+
+                let te_res = parse_tile_entity(te_comp, tag_path, &region_size);
+
+                let pos;
+                let te;
+                match te_res {
+                    Ok((pos_, te_)) => {
+                        pos = pos_;
+                        te = te_;
+                    }
+                    Err(e) => return Err(e),
+                }
+
+                if region.block_entities.contains_key(&pos) {
+                    return Err(LoadError::MultipleBlockEntityInOnePos {
+                        pos,
+                        latter_tag_path: cur_tag_path,
+                    });
+                }
+                region.block_entities.insert(pos, te);
+            }
+        }
+
+        // PendingFluidTicks
+        {
+            let pft_tag_path = format!("{}/PendingFluidTicks", tag_path);
+            let pft_list = unwrap_opt_tag!(nbt.get("PendingFluidTicks"),List,vec![],pft_tag_path);
+            region.pending_ticks.reserve(region.pending_ticks.len() + pft_list.len());
+
+            for (idx, pft_comp) in pft_list.iter().enumerate() {
+                let cur_tag_path = format!("{}/[{}]", tag_path, idx);
+                let pft_comp = unwrap_tag!(pft_comp,Compound,HashMap::new(),cur_tag_path);
+                match parse_pending_tick(pft_comp, &cur_tag_path, &region.shape(), false) {
+                    Ok((pos, pft)) => {
+                        if region.pending_ticks.contains_key(&pos) {
+                            return Err(LoadError::MultiplePendingTickInOnePos { pos, latter_tag_path: cur_tag_path });
+                        }
+                        region.pending_ticks.insert(pos, pft);
+                    }
+                    Err(e) => return Err(e),
+                }
+            }
+        }
+
+        // PendingBlockTicks
+        {
+            let pbt_tag_path = format!("{}/PendingBlockTicks", tag_path);
+            let pbt_list = unwrap_opt_tag!(nbt.get("PendingBlockTicks"),List,vec![],pbt_tag_path);
+            region.pending_ticks.reserve(region.pending_ticks.len() + pbt_list.len());
+            for (idx, pbt_comp) in pbt_list.iter().enumerate() {
+                let cur_tag_path = format!("{}/[{}]", tag_path, idx);
+                let pbt_comp = unwrap_tag!(pbt_comp,Compound,HashMap::new(),cur_tag_path);
+                match parse_pending_tick(pbt_comp, &cur_tag_path, &region.shape(), true) {
+                    Ok((pos, pbt)) => {
+                        if region.pending_ticks.contains_key(&pos) {
+                            return Err(LoadError::MultiplePendingTickInOnePos { pos, latter_tag_path: cur_tag_path });
+                        }
+                        region.pending_ticks.insert(pos, pbt);
+                    }
+                    Err(e) => return Err(e),
+                }
+            }
+        }
+
+        return Ok(region);
+    }
 }
+
+
 
 #[derive(Debug)]
 pub struct MultiBitSet {
@@ -544,6 +589,44 @@ fn parse_tile_entity(nbt: &HashMap<String, Value>, tag_path: &str, region_size: 
 }
 
 
+fn parse_pending_tick(nbt: &HashMap<String, Value>, tag_path: &str, region_size: &[i32; 3], is_block: bool)
+                      -> Result<([i32; 3], PendingTick), LoadError> {
+    let pos;
+    match common::parse_size_compound(nbt, tag_path, false) {
+        Ok(p) => pos = p,
+        Err(e) => return Err(e),
+    }
+    let pos_keys = ['x', 'y', 'z'];
+    for dim in 0..3 {
+        if pos[dim] < 0 || pos[dim] >= region_size[dim] {
+            return Err(LoadError::BlockPosOutOfRange {
+                tag_path: format!("{}/{}", tag_path, pos_keys[dim]),
+                pos,
+                range: *region_size,
+            });
+        }
+    }
+
+    let mut pending_tick = PendingTick {
+        priority: *unwrap_opt_tag!(nbt.get("Priority"),Int,0,format!("{}/Priority",tag_path)),
+        time: *unwrap_opt_tag!(nbt.get("Time"),Int,0,format!("{}/Time",tag_path)),
+        sub_tick: *unwrap_opt_tag!(nbt.get("SubTick"),Long,0,format!("{}/SubTick",tag_path)),
+        info: PendingTickInfo::default(),
+    };
+
+    if is_block {
+        pending_tick.info = PendingTickInfo::Block {
+            id: unwrap_opt_tag!(nbt.get("Block"),String,"".to_string(),format!("{}/Block",tag_path)).clone(),
+        };
+    } else {
+        pending_tick.info = PendingTickInfo::Fluid {
+            id: unwrap_opt_tag!(nbt.get("Fluid"),String,"".to_string(),format!("{}/Fluid",tag_path)).clone(),
+        };
+    }
+
+    return Ok((pos, pending_tick));
+}
+
 impl Schematic {
     pub fn metadata_litematica(&self) -> LitematicaMetaData {
         let mut md = LitematicaMetaData::new();
@@ -648,6 +731,7 @@ impl Schematic {
     }
 }
 
+
 impl Region {
     pub fn to_nbt_litematica(&self) -> Result<HashMap<String, Value>, WriteError> {
         let mut nbt = HashMap::new();
@@ -707,11 +791,39 @@ impl Region {
             }
             nbt.insert("TileEntities".to_string(), Value::List(te_list));
         }
-        //PendingFluidTicks
-        nbt.insert("PendingFluidTicks".to_string(), Value::List(vec![]));
-        //PendingBlockTicks
-        nbt.insert("PendingBlockTicks".to_string(), Value::List(vec![]));
+        //PendingFluidTicks & PendingBlockTicks
+        {
+            let mut pft = Vec::with_capacity(self.pending_ticks.len());
+            let mut pbt = Vec::with_capacity(self.pending_ticks.len());
+            for (pos, pt) in &self.pending_ticks {
+                let nbt = pt.to_nbt(pos);
+                if let PendingTickInfo::Fluid { .. } = pt.info {
+                    pft.push(Value::Compound(nbt));
+                } else {
+                    pbt.push(Value::Compound(nbt));
+                }
+            }
+            nbt.insert("PendingFluidTicks".to_string(), Value::List(pft));
+            nbt.insert("PendingBlockTicks".to_string(), Value::List(pbt));
+        }
 
         return Ok(nbt);
+    }
+}
+
+
+impl PendingTick {
+    pub fn to_nbt(&self, pos: &[i32; 3]) -> HashMap<String, Value> {
+        let mut res = common::size_to_compound(pos);
+        res.insert("Priority".to_string(), Value::Int(self.priority));
+        res.insert("Time".to_string(), Value::Int(self.time));
+        res.insert("SubTick".to_string(), Value::Long(self.sub_tick));
+
+        match &self.info {
+            PendingTickInfo::Block { id } => res.insert("Block".to_string(), Value::String(id.clone())),
+            PendingTickInfo::Fluid { id } => res.insert("Fluid".to_string(), Value::String(id.clone())),
+        };
+
+        return res;
     }
 }

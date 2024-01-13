@@ -9,7 +9,7 @@ use std::io::Read;
 use fastnbt;
 use fastnbt::Value;
 use rand::Rng;
-use crate::schem::{Schematic};
+use crate::schem::{LitematicaSaveOption, Schematic};
 
 
 #[test]
@@ -196,4 +196,10 @@ fn load_save_litematica() {
     let src_filename = "./test_files/litematica/test02.litematic";
 
     let schem = Schematic::from_litematica_file(src_filename, &LitematicaLoadOption::default()).unwrap();
+
+    println!("Metadata: \n{:?}", schem.metadata_litematica());
+
+    create_dir_all("./target/test/load_save_litematica").unwrap();
+
+    schem.save_litematica_file("./target/test/load_save_litematica/out02.litematic", &LitematicaSaveOption::default()).unwrap();
 }

@@ -5,13 +5,13 @@ use std::fmt::format;
 use std::fs::File;
 use std::ops::Index;
 use fastnbt::{LongArray, Value};
-use flate2::read::GzDecoder;
+use flate2::Compression;
+use flate2::read::{GzDecoder, GzEncoder};
 use math::round::{ceil, floor};
 use crate::schem::{LitematicaMetaData, Schematic, id_of_nbt_tag, RawMetaData, MetaDataIR, Region, VanillaStructureLoadOption, LitematicaLoadOption, Entity, BlockEntity, LitematicaSaveOption};
 use crate::error::{LoadError, WriteError};
 use crate::{schem, unwrap_opt_tag, unwrap_tag};
 use crate::block::Block;
-use crate::error::LoadError::MultipleBlockEntityInOnePos;
 
 impl MetaDataIR {
     pub fn from_litematica(src: &LitematicaMetaData) -> MetaDataIR {
@@ -117,8 +117,8 @@ fn parse_metadata(root: &HashMap<String, Value>) -> Result<LitematicaMetaData, L
     result.author = unwrap_opt_tag!(md.get("Author"),String,"".to_string(),"/Metadata/Author".to_string()).clone();
     result.name = unwrap_opt_tag!(md.get("Name"),String,"".to_string(),"/Metadata/Name".to_string()).clone();
 
-    if let Some(value) = md.get("SubVersion") {
-        result.sub_version = Some(*unwrap_tag!(value,Int,0,"/Metadata/SubVersion"));
+    if let Some(value) = root.get("SubVersion") {
+        result.sub_version = Some(*unwrap_tag!(value,Int,0,"/SubVersion"));
     }
 
     return Ok(result);
@@ -622,6 +622,7 @@ impl Schematic {
                     }
                     return Err(WriteError::DuplicatedRegionName { name: reg.name.clone() });
                 }
+                regions.insert(reg.name.clone(), Value::Compound(nbt_region));
             }
             nbt.insert("Regions".to_string(), Value::Compound(regions));
         }
@@ -650,6 +651,29 @@ impl Schematic {
             }
         }
         return Ok(nbt);
+    }
+
+    pub fn save_litematica_file(&self, filename: &str, option: &LitematicaSaveOption) -> Result<(), WriteError> {
+        let nbt;
+        match self.to_nbt_litematica(option) {
+            Ok(nbt_) => nbt = nbt_,
+            Err(e) => return Err(e),
+        }
+
+        let mut file;
+        match File::create(filename) {
+            Ok(f) => file = f,
+            Err(e) => return Err(WriteError::FileCreateError(e)),
+        }
+
+        let encoder = GzEncoder::new(&mut file, Compression::best());
+
+        let res: Result<(), fastnbt::error::Error> = fastnbt::to_writer(encoder, &nbt);
+        if let Err(e) = res {
+            return Err(WriteError::NBTWriteError(e));
+        }
+
+        return Ok(());
     }
 }
 
@@ -687,6 +711,7 @@ fn region_to_nbt_litematica(region: &Region) -> Result<HashMap<String, Value>, W
                 for x in 0..region.shape()[0] as usize {
                     let res = mbs.set(idx, region.array[[x, y, z]] as u64);
                     assert!(res.is_ok());
+                    idx += 1;
                 }
             }
         }
@@ -694,7 +719,7 @@ fn region_to_nbt_litematica(region: &Region) -> Result<HashMap<String, Value>, W
         let u64_slice = mbs.as_u64_slice();
         let mut i64_rep = Vec::with_capacity(u64_slice.len());
         for u_val in u64_slice {
-            i64_rep.push(i64::from_be_bytes(u_val.to_ne_bytes()));
+            i64_rep.push(i64::from_le_bytes(u_val.to_ne_bytes()));
         }
         nbt.insert("BlockStates".to_string(), Value::LongArray(LongArray::new(i64_rep)));
     }
@@ -719,7 +744,7 @@ fn region_to_nbt_litematica(region: &Region) -> Result<HashMap<String, Value>, W
 }
 
 fn size_to_compound<T>(size: &[T; 3]) -> HashMap<String, Value>
-    where T: Copy, fastnbt::Value: From<T>
+    where T: Copy, Value: From<T>
 {
     return HashMap::from([("x".to_string(), Value::from(size[0])),
         ("y".to_string(), Value::from(size[1])),
@@ -727,6 +752,6 @@ fn size_to_compound<T>(size: &[T; 3]) -> HashMap<String, Value>
 }
 
 fn size_to_list<T>(size: &[T; 3]) -> Vec<Value>
-    where T: Copy, fastnbt::Value: From<T> {
+    where T: Copy, Value: From<T> {
     return vec![Value::from(size[0]), Value::from(size[1]), Value::from(size[2])];
 }

@@ -1,14 +1,14 @@
-
-use crate::block::Block;
-use crate::schem;
 use std::env;
 use std::fs::create_dir_all;
 use rand::Rng;
+use crate::block::Block;
+use crate::schem;
 use crate::schem::{LitematicaSaveOption, Schematic};
 
 
 #[test]
 fn block_id_parse() {
+
     let pass_ids = [
         "minecraft:air",
         "minecraft:stone",
@@ -154,7 +154,7 @@ fn litematica_multi_bit_set_rw() {
 
 #[test]
 fn litematica_3d_array_decode() {
-    use schem::{LitematicaLoadOption};
+    use crate::schem::{LitematicaLoadOption};
     println!("Current dir: {}", env::current_dir().unwrap().to_string_lossy());
     let src_filename = "./test_files/litematica/test01.litematic";
 

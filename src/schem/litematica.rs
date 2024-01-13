@@ -5,10 +5,11 @@ use std::fs::File;
 use fastnbt::{LongArray, Value};
 use flate2::Compression;
 use flate2::read::{GzDecoder, GzEncoder};
-use crate::schem::{LitematicaMetaData, Schematic, id_of_nbt_tag, RawMetaData, MetaDataIR, Region, LitematicaLoadOption, Entity, BlockEntity, LitematicaSaveOption, PendingTick, PendingTickInfo};
+use crate::schem::{LitematicaMetaData, Schematic, id_of_nbt_tag, RawMetaData, MetaDataIR, Region, LitematicaLoadOption, BlockEntity, LitematicaSaveOption};
 use crate::error::{LoadError, WriteError};
 use crate::{unwrap_opt_tag, unwrap_tag};
 use crate::schem::common;
+use crate::region::{Entity, PendingTick, PendingTickInfo};
 
 impl MetaDataIR {
     pub fn from_litematica(src: &LitematicaMetaData) -> MetaDataIR {

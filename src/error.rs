@@ -1,4 +1,6 @@
 use std::fmt::{Display, Formatter};
+use std::fs::write;
+use crate::block::BlockIdParseError;
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -14,7 +16,10 @@ pub enum LoadError {
         tag_path: String,
         error: String,
     },
-    InvalidBlockId(String),
+    InvalidBlockId {
+        id: String,
+        reason: BlockIdParseError,
+    },
     InvalidBlockProperty {
         tag_path: String,
         error: String,
@@ -38,7 +43,17 @@ pub enum LoadError {
     MultiplePendingTickInOnePos {
         pos: [i32; 3],
         latter_tag_path: String,
-    }
+    },
+    ConflictingIndexInPalette {
+        index: u16,
+        former_block_id: String,
+        latter_block_id: String,
+    },
+    BlockDataIncomplete {
+        tag_path: String,
+        index: usize,
+        detail: String,
+    },
 }
 
 impl Display for LoadError {
@@ -51,7 +66,7 @@ impl Display for LoadError {
             => write!(f, "Type of {} is invalid, expected {}, but found {}", tag_path, expected_type, found_type),
             LoadError::InvalidValue { tag_path, error }
             => write!(f, "Value of tag {} is invalid, detail: {}", tag_path, error),
-            LoadError::InvalidBlockId(id) => write!(f, "Invalid block id: \"{}\"", id),
+            LoadError::InvalidBlockId { id, reason } => write!(f, "Invalid block id: \"{}\", detail: {}", id, reason),
             LoadError::InvalidBlockProperty { tag_path, error }
             => write!(f, "Invalid block property: tag_path = {}, detail: {}", tag_path, error),
             LoadError::PaletteTooLong(l) => write!(f, "Palette too long: {}", l),
@@ -65,6 +80,10 @@ impl Display for LoadError {
             => write!(f, "Multiple block entities in one [{}, {}, {}], the latter block is defined at {}", pos[0], pos[1], pos[2], latter_tag_path),
             LoadError::MultiplePendingTickInOnePos { pos, latter_tag_path }
             => write!(f, "Multiple pending ticks in one [{}, {}, {}], the latter block is defined at {}", pos[0], pos[1], pos[2], latter_tag_path),
+            LoadError::ConflictingIndexInPalette { index, former_block_id, latter_block_id }
+            => write!(f, "2 blocks have same id({}) in palette, \"{}\" and \"{}\"", index, former_block_id, latter_block_id),
+            LoadError::BlockDataIncomplete { tag_path, index, detail }
+            => write!(f, "The 3d block array stored in {} is incomplete, failed to decode at index {}, detail: {}", tag_path, index, detail),
         }
     }
 }

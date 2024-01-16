@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::hash::{Hash, Hasher};
 use fastnbt::Value;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Block {
     pub namespace: String,
     pub id: String,
@@ -217,6 +217,7 @@ impl PartialEq<Self> for Block {
     }
 }
 
+#[allow(dead_code)]
 impl Block {
     pub fn new() -> Block {
         return Block {

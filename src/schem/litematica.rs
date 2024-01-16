@@ -168,7 +168,7 @@ impl Region {
             let size = unwrap_opt_tag!(nbt.get("Size"),Compound,HashMap::new(),cur_tag_path);
             match common::parse_size_compound(size, &cur_tag_path, false) {
                 Ok(size) => {
-                    region.reshape(size);
+                    region.reshape(&size);
                     region_size = size;
                 },
                 Err(e) => return Err(e),
@@ -739,19 +739,19 @@ impl Region {
         //Size
         nbt.insert("Size".to_string(), Value::Compound(common::size_to_compound(&self.shape())));
         //Position
-        nbt.insert("Position".to_string(), Value::Compound(common::size_to_compound(&self.offset)));
+        nbt.insert("Position".to_string(), Value::Compound(common::size_to_compound(&self.offset())));
         // BlockStatePalette
         {
-            let mut palette_vec = Vec::with_capacity(self.palette.len());
-            for blk in &self.palette {
+            let mut palette_vec = Vec::with_capacity(self.palette().len());
+            for blk in self.palette() {
                 palette_vec.push(Value::Compound(blk.to_nbt()));
             }
             nbt.insert("BlockStatePalette".to_string(), Value::List(palette_vec));
         }
         //Entities
         {
-            let mut entities = Vec::with_capacity(self.entities.len());
-            for entity in &self.entities {
+            let mut entities = Vec::with_capacity(self.entities().len());
+            for entity in self.entities() {
                 let mut e_nbt = entity.tags.clone();
                 e_nbt.insert("Pos".to_string(), Value::List(common::size_to_list(&entity.position)));
                 entities.push(Value::Compound(e_nbt));
@@ -761,12 +761,12 @@ impl Region {
         // BlockStates
         {
             let mut mbs = MultiBitSet::new();
-            mbs.reset(block_required_bits(self.palette.len()) as u8, self.volume() as usize);
+            mbs.reset(block_required_bits(self.palette().len()) as u8, self.volume() as usize);
             let mut idx = 0usize;
             for y in 0..self.shape()[1] as usize {
                 for z in 0..self.shape()[2] as usize {
                     for x in 0..self.shape()[0] as usize {
-                        let res = mbs.set(idx, self.array[[x, y, z]] as u64);
+                        let res = mbs.set(idx, self.array()[[x, y, z]] as u64);
                         assert!(res.is_ok());
                         idx += 1;
                     }
@@ -782,8 +782,8 @@ impl Region {
         }
         //TileEntities
         {
-            let mut te_list = Vec::with_capacity(self.block_entities.len());
-            for (pos, te) in &self.block_entities {
+            let mut te_list = Vec::with_capacity(self.block_entities().len());
+            for (pos, te) in self.block_entities() {
                 let mut nbt = te.tags.clone();
                 nbt.insert("x".to_string(), Value::Int(pos[0]));
                 nbt.insert("y".to_string(), Value::Int(pos[1]));
@@ -794,9 +794,9 @@ impl Region {
         }
         //PendingFluidTicks & PendingBlockTicks
         {
-            let mut pft = Vec::with_capacity(self.pending_ticks.len());
-            let mut pbt = Vec::with_capacity(self.pending_ticks.len());
-            for (pos, pt) in &self.pending_ticks {
+            let mut pft = Vec::with_capacity(self.pending_ticks().len());
+            let mut pbt = Vec::with_capacity(self.pending_ticks().len());
+            for (pos, pt) in self.pending_ticks() {
                 let nbt = pt.to_nbt(pos);
                 if let PendingTickInfo::Fluid { .. } = pt.info {
                     pft.push(Value::Compound(nbt));

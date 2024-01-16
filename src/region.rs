@@ -36,13 +36,13 @@ pub struct PendingTick {
 pub struct Region {
     pub name: String,
     //XYZ
-    pub array: Array3<u16>,
-    pub palette: Vec<Block>,
-    pub block_entities: HashMap<[i32; 3], BlockEntity>,
-    pub pending_ticks: HashMap<[i32; 3], PendingTick>,
-    pub entities: Vec<Entity>,
+    pub(in crate) array: Array3<u16>,
+    pub(in crate) palette: Vec<Block>,
+    pub(in crate) block_entities: HashMap<[i32; 3], BlockEntity>,
+    pub(in crate) pending_ticks: HashMap<[i32; 3], PendingTick>,
+    pub(in crate) entities: Vec<Entity>,
 
-    pub offset: [i32; 3],
+    pub(in crate) offset: [i32; 3],
 }
 
 impl Entity {
@@ -70,6 +70,7 @@ impl PendingTickInfo {
     }
 }
 
+#[allow(dead_code)]
 impl Region {
     pub fn new() -> Region {
         return Region {
@@ -82,8 +83,75 @@ impl Region {
             offset: [0, 0, 0],
         };
     }
+    pub fn array(&self) -> &Array3<u16> {
+        return &self.array;
+    }
+    pub fn palette(&self) -> &[Block] {
+        return &self.palette;
+    }
+    pub fn block_entities(&self) -> &HashMap<[i32; 3], BlockEntity> {
+        return &self.block_entities;
+    }
+    pub fn pending_ticks(&self) -> &HashMap<[i32; 3], PendingTick> {
+        return &self.pending_ticks;
+    }
+    pub fn entities(&self) -> &[Entity] {
+        return &self.entities;
+    }
+    pub fn offset(&self) -> &[i32; 3] {
+        return &self.offset;
+    }
 
-    pub fn reshape(&mut self, size: [i32; 3]) {
+    pub fn set_offset(&mut self, new_offset: [i32; 3]) {
+        self.offset = new_offset;
+    }
+
+    pub fn i32_to_usize(pos: &[i32; 3]) -> [usize; 3] {
+        let x = pos[0] as usize;
+        let y = pos[1] as usize;
+        let z = pos[2] as usize;
+
+        return [x, y, z];
+    }
+
+    pub fn set_block(&mut self, r_pos: [i32; 3], block: &Block) -> Result<(), ()> {
+        if !self.contains_coord(r_pos) {
+            return Err(());
+        }
+        let mut blkid = self.palette.len();
+        for (idx, blk) in self.palette().iter().enumerate() {
+            if blk == block {
+                blkid = idx;
+                break;
+            }
+        }
+        if blkid >= self.palette.len() {
+            self.palette.push(block.clone());
+        }
+        if blkid >= 65536 {
+            return Err(());
+        }
+        let blkid = blkid as u16;
+
+        let pos_usize = Self::i32_to_usize(&r_pos);
+        self.array[pos_usize] = blkid;
+
+        return Ok(());
+    }
+
+    pub fn set_block_id(&mut self, r_pos: [i32; 3], block_id: u16) -> Result<(), ()> {
+        if !self.contains_coord(r_pos) {
+            return Err(());
+        }
+        if block_id as usize >= self.palette().len() {
+            return Err(());
+        }
+        let pos_usize = Self::i32_to_usize(&r_pos);
+        self.array[pos_usize] = block_id;
+        return Ok(());
+    }
+
+    pub fn reshape(&mut self, size: &[i32; 3]) {
         let mut usz: [usize; 3] = [0, 0, 0];
         for idx in 0..3 {
             let sz = size[idx];
@@ -148,9 +216,9 @@ impl Region {
         }
         return counter;
     }
-    pub fn contains_coord(&self, coord: [i32; 3]) -> bool {
+    pub fn contains_coord(&self, r_pos: [i32; 3]) -> bool {
         for dim in 0..3 {
-            if coord[dim] >= 0 && coord[dim] <= self.shape()[dim] {
+            if r_pos[dim] >= 0 && r_pos[dim] <= self.shape()[dim] {
                 continue;
             }
             return false;

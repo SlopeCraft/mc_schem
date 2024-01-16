@@ -196,7 +196,7 @@ impl Schematic {
             return Err(err);
         }
         let region_size = region_size.unwrap();
-        region.reshape(region_size);
+        region.reshape(&region_size);
 
         //parse block palette
         {

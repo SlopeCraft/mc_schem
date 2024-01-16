@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::format;
 use fastnbt::Value;
 use crate::error::LoadError;
 use crate::{unwrap_opt_tag, schem::{id_of_nbt_tag}, unwrap_tag};
@@ -39,6 +40,29 @@ pub fn parse_size_compound(nbt: &HashMap<String, Value>, tag_path: &str, allow_n
 }
 
 
+pub fn parse_size_list(data: &[i32], tag_path: &str, allow_negative: bool) -> Result<[i32; 3], LoadError> {
+    let mut result: [i32; 3] = [0, 0, 0];
+    if data.len() != 3 {
+        return Err(LoadError::InvalidValue {
+            tag_path: tag_path.to_string(),
+            error: format!("Expected a list with 3 elements, but found {}", data.len()),
+        });
+    }
+
+    for dim in 0..3 {
+        let val = data[dim];
+        if (!allow_negative) && (val < 0) {
+            return Err(LoadError::InvalidValue {
+                tag_path: format!("{}[{}]", tag_path, dim),
+                error: format!("Expected non-negative value, but found {}", val),
+            });
+        }
+        result[dim] = val;
+    }
+
+    return Ok(result);
+}
+
 pub fn ceil_up_to(a: isize, b: isize) -> isize {
     assert!(b > 0);
     if (a % b) == 0 {
@@ -56,7 +80,7 @@ pub fn parse_block(nbt: &HashMap<String, Value>, tag_path: &str) -> Result<Block
 
     match id_parse {
         Ok(blk_temp) => blk = blk_temp,
-        _ => return Err(LoadError::InvalidBlockId(String::from(id))),
+        Err(e) => return Err(LoadError::InvalidBlockId { id: id.clone(), reason: e }),
     }
 
     let prop_comp;

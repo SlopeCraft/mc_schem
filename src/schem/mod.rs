@@ -138,11 +138,11 @@ impl MetaDataIR {
 
 #[derive(Debug)]
 pub struct Schematic {
-    pub metadata: MetaDataIR,
+    metadata: MetaDataIR,
     raw_metadata: Option<RawMetaData>,
 
-    pub regions: Vec<Region>,
-    pub enclosing_size: [i64; 3],
+    regions: Vec<Region>,
+    //pub enclosing_size: [i64; 3],
 
 }
 
@@ -161,9 +161,21 @@ impl Schematic {
             metadata: MetaDataIR::default(),
             raw_metadata: None,
             regions: Vec::new(),
-            enclosing_size: [1, 1, 1],
+            //enclosing_size: [1, 1, 1],
 
         };
+    }
+
+    pub fn metadata(&self) -> &MetaDataIR {
+        return &self.metadata;
+    }
+
+    pub fn regions(&self) -> &[Region] {
+        return &self.regions;
+    }
+
+    pub fn raw_metadata(&self) -> &Option<RawMetaData> {
+        return &self.raw_metadata;
     }
 
     pub fn block_indices_at(&self, g_pos: [i32; 3]) -> Vec<u16> {
@@ -192,7 +204,7 @@ impl Schematic {
         let mut result = Vec::with_capacity(self.regions.len());
         for reg in &self.regions {
             let cur_pos = reg.global_pos_to_relative_pos(pos);
-            if let Some(blk) = reg.block_entities.get(&cur_pos) {
+            if let Some(blk) = reg.block_entities().get(&cur_pos) {
                 result.push(blk);
             }
         }
@@ -220,14 +232,14 @@ impl Schematic {
             return None;
         }
         let reg = &self.regions[0];
-        return reg.block_entities.get(&reg.global_pos_to_relative_pos(pos));
+        return reg.block_entities().get(&reg.global_pos_to_relative_pos(pos));
     }
 
     pub fn shape(&self) -> [i32; 3] {
         let mut result = [0, 0, 0];
         for reg in &self.regions {
             for dim in 0..3 {
-                result[dim] = max(result[dim], reg.offset[dim] + reg.shape()[dim]);
+                result[dim] = max(result[dim], reg.offset()[dim] + reg.shape()[dim]);
             }
         }
         return result;
@@ -255,7 +267,7 @@ impl Schematic {
         {
             let mut pmps: usize = 0;
             for reg in &self.regions {
-                pmps = max(pmps, reg.palette.len());
+                pmps = max(pmps, reg.palette().len());
             }
             possible_max_palette_size = pmps;
         }
@@ -263,9 +275,9 @@ impl Schematic {
         let mut palette: Vec<(&Block, u64)> = Vec::with_capacity(possible_max_palette_size);
         let mut lut_lut: Vec<Vec<usize>> = Vec::with_capacity(self.regions.len());
         for reg in &self.regions {
-            let mut lut: Vec<usize> = Vec::with_capacity(reg.palette.len());
+            let mut lut: Vec<usize> = Vec::with_capacity(reg.palette().len());
 
-            for cur_blk in &reg.palette {
+            for cur_blk in reg.palette() {
                 let mut hasher = DefaultHasher::new();
                 cur_blk.hash(&mut hasher);
                 let cur_hash = hasher.finish();
@@ -356,5 +368,16 @@ impl LitematicaSaveOption {
         return LitematicaSaveOption {
             rename_duplicated_regions: true,
         };
+    }
+}
+
+
+#[derive(Debug)]
+pub struct WorldEdit13LoadOption {}
+
+#[allow(dead_code)]
+impl WorldEdit13LoadOption {
+    pub fn default() -> WorldEdit13LoadOption {
+        return WorldEdit13LoadOption {};
     }
 }

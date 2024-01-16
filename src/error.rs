@@ -1,5 +1,4 @@
 use std::fmt::{Display, Formatter};
-use std::fs::write;
 use crate::block::BlockIdParseError;
 
 #[derive(Debug)]

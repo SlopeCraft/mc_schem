@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::fmt::format;
 use fastnbt::Value;
 use crate::error::LoadError;
 use crate::{unwrap_opt_tag, schem::{id_of_nbt_tag}, unwrap_tag};

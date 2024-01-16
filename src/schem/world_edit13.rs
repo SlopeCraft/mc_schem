@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use fastnbt::Value;
 use crate::block::Block;
 use crate::error::LoadError;
-use crate::region::Region;
+use crate::region::{BlockEntity, Region};
 use crate::schem::{common, Schematic, WorldEdit13LoadOption};
 use crate::{unwrap_opt_tag, unwrap_tag};
 use crate::schem::id_of_nbt_tag;
@@ -134,9 +134,30 @@ impl Region {
 
 
         // parse block entities
-        !todo!();
+        {
+            let block_entities = unwrap_opt_tag!(nbt.get("BlockEntities"),List,vec![],"/BlockEntities".to_string());
+            for (idx, nbt) in block_entities.iter().enumerate() {
+                let cur_tag_path = format!("/BlockEntities[{}]", idx);
+                let nbt = unwrap_tag!(nbt,Compound,HashMap::new(),cur_tag_path);
+                let pos;
+                let be;
+                match parse_block_entity(nbt, &cur_tag_path, &size) {
+                    Ok((b_, p_)) => {
+                        be = b_;
+                        pos = p_;
+                    },
+                    Err(e) => return Err(e),
+                }
 
-
+                if region.block_entities.contains_key(&pos) {
+                    return Err(LoadError::MultipleBlockEntityInOnePos {
+                        pos,
+                        latter_tag_path: cur_tag_path,
+                    });
+                }
+                region.block_entities.insert(pos, be);
+            }
+        }
         return Ok(region);
     }
 }
@@ -179,4 +200,38 @@ fn parse_palette(pal: &HashMap<String, Value>) -> Result<Vec<Block>, LoadError> 
         is_set[idx as usize] = Some(&key);
     }
     return Ok(result);
+}
+
+fn parse_block_entity(nbt: &HashMap<String, Value>, tag_path: &str, region_size: &[i32; 3])
+                      -> Result<(BlockEntity, [i32; 3]), LoadError> {
+    let pos;
+    let pos_tag_path = format!("{}/Pos", tag_path);
+    // parse pos
+    {
+        let pos_tag = unwrap_opt_tag!(nbt.get("Pos"),IntArray,fastnbt::IntArray::new(vec![]),pos_tag_path);
+        match common::parse_size_list(pos_tag.as_ref(), &pos_tag_path, false) {
+            Ok(pos_) => pos = pos_,
+            Err(e) => return Err(e),
+        }
+    }
+    for dim in 0..3 {
+        if pos[dim] < 0 || pos[dim] >= region_size[dim] {
+            return Err(LoadError::BlockPosOutOfRange {
+                tag_path: pos_tag_path,
+                pos,
+                range: region_size.clone(),
+            });
+        }
+    }
+
+    let mut be = BlockEntity::new();
+    be.tags.reserve(nbt.len() - 1);
+    for (key, val) in nbt {
+        if key == "Pos" {
+            continue;
+        }
+        be.tags.insert(key.clone(), val.clone());
+    }
+
+    return Ok((be, pos));
 }

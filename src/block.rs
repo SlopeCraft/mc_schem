@@ -33,11 +33,15 @@ fn check_blockid_characters(blkid:&str) ->Result<(),BlockIdParseError> {
         if ch>='a' && ch <='z' {
             continue;
         }
+        if ch >= '0' && ch <= '9' {
+            continue;
+        }
 
         let other_valid_chars=[',','=','[',']',':','_'];
         if other_valid_chars.contains(&ch) {
             continue;
         }
+        //panic!("Invalid char {}", ch);
         return Err(BlockIdParseError::InvalidCharacter);
     }
     return Ok(());

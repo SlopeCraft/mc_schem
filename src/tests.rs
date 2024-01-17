@@ -204,3 +204,23 @@ fn load_save_litematica() {
     }
 
 }
+
+#[test]
+fn load_save_world_edit13() {
+    use schem::WorldEdit13LoadOption;
+
+    let src_dir = "./test_files/schem";
+    let out_dir = "./target/test/load_save_world_edit13";
+    create_dir_all(out_dir).unwrap();
+
+    for id in 1..3 {
+        let src_filename = format!("{}/test{:02}.schem", src_dir, id);
+        //let dst_filename = format!("{}/out{:02}.schem", out_dir, id);
+
+        let _schem = Schematic::from_world_edit_13_file(&src_filename, &WorldEdit13LoadOption::default()).unwrap();
+
+        //schem.save_litematica_file(&dst_filename, &LitematicaSaveOption::default()).unwrap();
+
+        //println!("Metadata: \n{:?}", schem.metadata_litematica());
+    }
+}

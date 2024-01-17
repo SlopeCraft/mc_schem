@@ -1,14 +1,27 @@
 use std::collections::HashMap;
+use std::fs::File;
 use fastnbt::Value;
+use flate2::read::GzDecoder;
 use crate::block::Block;
 use crate::error::LoadError;
 use crate::region::{BlockEntity, Region};
-use crate::schem::{common, Schematic, WorldEdit13LoadOption};
+use crate::schem::{common, MetaDataIR, RawMetaData, Schematic, WE13MetaData, WorldEdit13LoadOption};
 use crate::{unwrap_opt_tag, unwrap_tag};
 use crate::schem::id_of_nbt_tag;
 
 #[allow(dead_code)]
 impl Schematic {
+    pub fn from_world_edit_13_file(filename: &str, option: &WorldEdit13LoadOption) -> Result<Schematic, LoadError> {
+        let mut file;
+        match File::open(filename) {
+            Ok(f) => file = f,
+            Err(e) => return Err(LoadError::FileOpenError(e)),
+        }
+
+        let mut decoder = GzDecoder::new(&mut file);
+        return Self::from_world_edit_13(&mut decoder, option);
+    }
+
     pub fn from_world_edit_13(src: &mut dyn std::io::Read, option: &WorldEdit13LoadOption) -> Result<Schematic, LoadError> {
         let nbt: HashMap<String, Value>;
         match fastnbt::from_reader(src) {
@@ -18,12 +31,64 @@ impl Schematic {
 
         let mut schem = Schematic::new();
 
+        // metadata
+        {
+            let we13;
+            match parse_metadata(&nbt, option) {
+                Ok(we13_) => we13 = we13_,
+                Err(e) => return Err(e),
+            }
+
+            let ir = MetaDataIR::from_world_edit13(&we13);
+            schem.raw_metadata = Some(RawMetaData::WE13(we13));
+            schem.metadata = ir;
+        }
+
         match Region::from_world_edit_13(&nbt, option) {
             Ok(reg) => schem.regions.push(reg),
             Err(e) => return Err(e),
         }
         return Ok(schem);
     }
+}
+
+
+impl MetaDataIR {
+    pub fn from_world_edit13(src: &WE13MetaData) -> MetaDataIR {
+        let mut result = MetaDataIR::default();
+        result.mc_data_version = src.data_version;
+
+        return result;
+    }
+}
+
+fn parse_metadata(root: &HashMap<String, Value>, _option: &WorldEdit13LoadOption)
+                  -> Result<WE13MetaData, LoadError> {
+    let mut we13 = WE13MetaData::new();
+
+    we13.version = *unwrap_opt_tag!(root.get("Version"),Int,0,"/Version".to_string());
+    we13.data_version = *unwrap_opt_tag!(root.get("DataVersion"),Int,0,"/DataVersion".to_string());
+
+    // offset
+    {
+        let offset_list =
+            unwrap_opt_tag!(root.get("Offset"),IntArray,fastnbt::IntArray::new(vec![]),"Offset".to_string());
+        match common::parse_size_list(offset_list.as_ref(), "Offset", true) {
+            Ok(offset) => we13.offset = offset,
+            Err(e) => return Err(e),
+        }
+    }
+
+    let tag_md = unwrap_opt_tag!(root.get("Metadata"),Compound,HashMap::new(),"/Metadata".to_string());
+    // we offset
+    {
+        let keys = ["WEOffsetX", "WEOffsetY", "WEOffsetZ"];
+        for dim in 0..3 {
+            we13.we_offset[dim] = *unwrap_opt_tag!(tag_md.get(keys[dim]),Int,0,format!("/Metadata/{}",keys[dim]));
+        }
+    }
+
+    return Ok(we13);
 }
 
 #[allow(dead_code)]
@@ -49,14 +114,7 @@ impl Region {
         }
 
         // offset
-        {
-            let offset_list =
-                unwrap_opt_tag!(nbt.get("Offset"),IntArray,fastnbt::IntArray::new(vec![]),"Offset".to_string());
-            match common::parse_size_list(offset_list.as_ref(), "Offset", false) {
-                Ok(offset) => region.offset = offset,
-                Err(e) => return Err(e),
-            }
-        }
+        region.offset = [0, 0, 0];
 
         let size: [i32; 3];
         // size

@@ -1,9 +1,11 @@
 mod block;
 mod schem;
 mod error;
+mod region;
+
+mod c_ffi;
 #[cfg(test)]
 mod tests;
-mod region;
 
 // pub type Block = block::Block;
 // pub type Entity = region::Entity;

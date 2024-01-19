@@ -43,10 +43,18 @@ target_include_directories(mc_schem INTERFACE
         $<INSTALL_INTERFACE:"include">)
 target_link_libraries(mc_schem INTERFACE
         $<BUILD_INTERFACE:${export_lib_loc}>)
+target_compile_features(mc_schem PRIVATE c_std_17)
 
-add_executable(c_test c_sources/test.c)
-target_compile_features(c_test PRIVATE c_std_17)
+if (MSVC)
+    add_compile_options("/Zc:__cplusplus")
+endif ()
+
+add_executable(c_test c_sources/c_test.c)
 target_link_libraries(c_test PRIVATE mc_schem)
+
+add_executable(cpp_test c_sources/cpp_test.cpp)
+target_compile_features(cpp_test PRIVATE cxx_std_23)
+target_link_libraries(cpp_test PRIVATE mc_schem)
 
 if (${MC_SCHEM_INSTALL})
     include(CMakePackageConfigHelpers)

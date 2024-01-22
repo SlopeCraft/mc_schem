@@ -6,12 +6,14 @@
 #define MC_SCHEM_MC_SCHEM_H
 #ifdef __cplusplus
 
-#include <cstdint>
 #include <cstdbool>
+#include <cstddef>
+#include <cstdint>
 
 #else
-#include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 #endif
 #include <mc_schem_export.h>
 
@@ -37,9 +39,57 @@ typedef struct {
   size_t reserved[2];
 } MC_SCHEM_rust_object;
 
-MC_SCHEM_EXPORT void MC_SCHEM_release_rust_object(MC_SCHEM_rust_object *obj);
+MC_SCHEM_EXPORT MC_SCHEM_rust_object MC_SCHEM_rust_object_get_null();
+
+inline void MC_SCHEM_rust_object_manual_init(MC_SCHEM_rust_object *ro) {
+  *ro = MC_SCHEM_rust_object_get_null();
+}
+
 MC_SCHEM_EXPORT bool MC_SCHEM_rust_object_is_reference(const MC_SCHEM_rust_object *obj);
 MC_SCHEM_EXPORT bool MC_SCHEM_rust_object_is_null(const MC_SCHEM_rust_object *obj);
+
+//------------------------------------map
+// reference---------------------------------------
+typedef enum {
+  MC_SCHEM_map_key_string, // MC_SCHEM_rust_str
+  MC_SCHEM_map_pos_i32,    // int32_t[3]
+} MC_SCHEM_map_key_type;
+
+typedef enum {
+  MC_SCHEM_map_value_string,
+  MC_SCHEM_map_value_nbt,
+  MC_SCHEM_map_value_block_entity,
+  MC_SCHEM_map_value_pending_tick,
+} MC_SCHEM_map_value_type;
+
+// reference to a map/hashmap
+typedef struct {
+  size_t reserved[2];
+} MC_SCHEM_map_ref;
+
+MC_SCHEM_EXPORT MC_SCHEM_map_key_type
+MC_SCHEM_map_get_key_type(const MC_SCHEM_map_ref *);
+
+MC_SCHEM_EXPORT MC_SCHEM_map_value_type
+MC_SCHEM_map_get_value_type(const MC_SCHEM_map_ref *);
+
+MC_SCHEM_EXPORT size_t MC_SCHEM_map_get_size(const MC_SCHEM_map_ref *);
+
+MC_SCHEM_EXPORT bool MC_SCHEM_map_find_const(const MC_SCHEM_map_ref *,
+                                             MC_SCHEM_map_key_type,
+                                             const void *key, void *value);
+
+MC_SCHEM_EXPORT bool MC_SCHEM_map_find_mut(MC_SCHEM_map_ref *,
+                                           MC_SCHEM_map_key_type,
+                                           const void *key, void *value);
+
+MC_SCHEM_EXPORT bool MC_SCHEM_map_contains_key(const MC_SCHEM_map_ref *map,
+                                               MC_SCHEM_map_key_type t,
+                                               const void *key);
+
+MC_SCHEM_EXPORT bool MC_SCHEM_map_insert(MC_SCHEM_map_ref *,
+                                         MC_SCHEM_map_key_type, const void *key,
+                                         const void *value);
 
 //------------------------------------nbt wrappers---------------------------------------
 typedef struct {
@@ -70,8 +120,8 @@ typedef struct {
   MC_SCHEM_rust_object reserved;
 } MC_SCHEM_nbt_list;
 
-MC_SCHEM_EXPORT MC_SCHEM_nbt_value
-MC_SCHEM_nbt_create_scalar(MC_SCHEM_nbt_type type, const void *value, bool *success);
+MC_SCHEM_EXPORT MC_SCHEM_nbt_value MC_SCHEM_nbt_create_scalar(
+    MC_SCHEM_nbt_type type, const void *value, bool *success_nullable);
 
 MC_SCHEM_EXPORT void MC_SCHEM_nbt_release_value(MC_SCHEM_nbt_value *value);
 
@@ -102,12 +152,21 @@ MC_SCHEM_EXPORT bool MC_SCHEM_nbt_get_string(const MC_SCHEM_nbt_value *tag_strin
 
 // for byte array, int array, long array
 MC_SCHEM_EXPORT bool
-MC_SCHEM_nbt_get_scalar_array_const(const MC_SCHEM_nbt_value *tag, const void **dest_ptr, size_t *num_elements);
+MC_SCHEM_nbt_get_scalar_array_const(const MC_SCHEM_nbt_value *tag,
+                                    const void **dest_ptr_nullable,
+                                    size_t *num_elements_nullable);
 
 // for byte array, int array, long array
 MC_SCHEM_EXPORT bool
-MC_SCHEM_nbt_get_scalar_array_mut(MC_SCHEM_nbt_value *tag, void **dest_ptr, size_t *num_elements);
+MC_SCHEM_nbt_get_scalar_array_mut(MC_SCHEM_nbt_value *tag,
+                                  void **dest_ptr_nullable,
+                                  size_t *num_elements_nullable);
 
+MC_SCHEM_EXPORT const MC_SCHEM_map_ref MC_SCHEM_nbt_get_compound_const(
+    const MC_SCHEM_nbt_value *tag, bool *ok_nullable);
+
+MC_SCHEM_EXPORT MC_SCHEM_map_ref
+MC_SCHEM_nbt_get_compound_mut(MC_SCHEM_nbt_value *tag, bool *ok_nullable);
 //------------------------------------regions---------------------------------------
 typedef struct {
   MC_SCHEM_rust_object reserved;

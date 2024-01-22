@@ -7,5 +7,11 @@ function(rust_binary_names out_var_shared_lib out_var_export_lib)
         return()
     endif ()
 
+    if (LINUX)
+        set(${out_var_shared_lib} "libmc_schem.so" PARENT_SCOPE)
+        return()
+    endif ()
+
+
     message(FATAL_ERROR "Can not guess the names of generated binaries.")
 endfunction(rust_binary_names)

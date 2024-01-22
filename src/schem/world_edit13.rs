@@ -1,14 +1,12 @@
 use std::collections::HashMap;
-use std::ffi::c_long;
 use std::fs::File;
-use std::io::Write;
 use fastnbt::Value;
 use flate2::{Compression, GzBuilder};
-use flate2::read::{GzDecoder, GzEncoder};
+use flate2::read::GzDecoder;
 use crate::block::Block;
 use crate::error::{LoadError, WriteError};
 use crate::region::{BlockEntity, Region};
-use crate::schem::{common, MetaDataIR, RawMetaData, Schematic, WE12MetaData, WE13MetaData, WorldEdit13LoadOption, WorldEdit13SaveOption};
+use crate::schem::{common, MetaDataIR, RawMetaData, Schematic, WE13MetaData, WorldEdit13LoadOption, WorldEdit13SaveOption};
 use crate::{unwrap_opt_tag, unwrap_tag};
 use crate::schem::id_of_nbt_tag;
 
@@ -461,7 +459,7 @@ impl Schematic {
             Err(e) => return Err(e),
         }
 
-        let mut file;
+        let file;
         match File::create(filename) {
             Ok(f) => file = f,
             Err(e) => return Err(WriteError::FileCreateError(e)),

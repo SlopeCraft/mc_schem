@@ -7,7 +7,7 @@ use crate::region::{Entity};
 use fastnbt;
 use fastnbt::{Value};
 use flate2::{Compression, GzBuilder};
-use flate2::read::{GzDecoder, GzEncoder};
+use flate2::read::GzDecoder;
 use crate::error::{LoadError, WriteError};
 use crate::{unwrap_tag, unwrap_opt_tag};
 use crate::error::LoadError::FileOpenError;

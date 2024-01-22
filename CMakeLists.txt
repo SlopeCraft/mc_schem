@@ -13,10 +13,11 @@ else ()
     set(cargo_build_flags "--release")
 endif ()
 
-set(rust_bin_dir "${CMAKE_CURRENT_SOURCE_DIR}/target/${cargo_build_mode}")
+set(rust_build_dir "${CMAKE_CURRENT_BINARY_DIR}/rust-build")
+set(rust_bin_dir "${rust_build_dir}/${cargo_build_mode}")
 
 include(cmake/rust_binary_names.cmake)
-rust_binary_names(shared_lib_name export_lib_name)
+rust_binary_names(shared_lib_name export_lib_name link_shared_lib_directly)
 message(STATUS "The shared lib should be ${shared_lib_name}")
 message(STATUS "The export lib should be ${export_lib_name}")
 
@@ -26,11 +27,19 @@ if (export_lib_name)
 endif ()
 
 file(GLOB_RECURSE rust_sources "*.rs")
-add_custom_target(mc_schem_rs
-        COMMAND ${cargo_exe} build ${cargo_build_flags}
+add_custom_target(mc_schem_rs ALL
+        COMMAND ${cargo_exe} build ${cargo_build_flags} --target-dir=${rust_build_dir}
         SOURCES ${rust_sources} Cargo.toml
         COMMENT "Build all rust binaries"
         BYPRODUCTS ${shared_lib_loc} ${export_lib_loc})
+
+if (${WIN32})
+    cmake_path(RELATIVE_PATH rust_bin_dir BASE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR} OUTPUT_VARIABLE relative_path_to_rs_build_dir)
+    string(REPLACE "/" "\\" relative_path_to_rs_build_dir ${relative_path_to_rs_build_dir})
+    add_custom_target(make_dll_symlink
+            COMMAND mklink mc_schem.dll ".\\${relative_path_to_rs_build_dir}\\mc_schem.dll"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+endif ()
 
 file(GLOB_RECURSE headers "c_sources/*.h")
 add_library(mc_schem STATIC
@@ -43,8 +52,15 @@ generate_export_header(mc_schem)
 target_include_directories(mc_schem INTERFACE
         $<BUILD_INTERFACE: "${CMAKE_SOURCE_DIR}/c_sources;${CMAKE_BINARY_DIR}" >
         $<INSTALL_INTERFACE:"include">)
-target_link_libraries(mc_schem INTERFACE
-    $<BUILD_INTERFACE:${export_lib_loc} ${shared_lib_loc}>)
+if (${link_shared_lib_directly})    # link to shared lib directly
+    target_link_libraries(mc_schem PUBLIC
+            $<BUILD_INTERFACE:${shared_lib_loc}>
+            $<INSTALL_INTERFACE:${shared_lib_name}>)
+else ()
+    target_link_libraries(mc_schem PUBLIC
+            $<BUILD_INTERFACE:${export_lib_loc}>
+            $<INSTALL_INTERFACE:${export_lib_name}>)
+endif ()
 target_compile_features(mc_schem PRIVATE c_std_17)
 
 if (MSVC)
@@ -67,7 +83,7 @@ if (${MC_SCHEM_INSTALL})
             DESTINATION lib/cmake/mc_schem)
 
     install(FILES ${headers} "${CMAKE_BINARY_DIR}/mc_schem_export.h"
-            DESTINATION include)
+            DESTINATION include/mc_schem)
     install(TARGETS mc_schem
             EXPORT mc_schem-targets
             COMPONENT core
@@ -81,7 +97,6 @@ if (${MC_SCHEM_INSTALL})
                 DESTINATION lib)
     endif ()
     if (EXISTS ${export_lib_loc})
-        message(STATUS "export_lib_loc = ${export_lib_loc}")
         install(FILES ${export_lib_loc}
             DESTINATION lib)
     endif ()

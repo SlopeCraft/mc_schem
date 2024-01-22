@@ -1,9 +1,12 @@
 mod nbt_ffi;
 mod schem_ffi;
+mod map_ffi;
 
-use std::ffi::c_char;
+use std::collections::{BTreeMap, HashMap};
+use std::ffi::{c_char, c_void};
 use std::mem::size_of;
-use std::ptr::null_mut;
+use std::ptr::{null_mut, slice_from_raw_parts};
+use std::str::from_utf8_unchecked;
 use fastnbt::Value;
 use static_assertions as sa;
 use crate::block::Block;
@@ -36,9 +39,33 @@ extern "C" fn MC_SCHEM_version_tweak() -> u16 {
 }
 
 #[repr(C, align(8))]
+#[derive(Debug, Clone)]
 struct SchemString {
     begin: *const c_char,
     end: *const c_char,
+}
+
+impl SchemString {
+    pub fn to_u8_slice(&self) -> &[u8] {
+        unsafe {
+            let str_beg = self.begin;
+            let str_end = self.end;
+            let len = (str_end as usize) - (str_beg as usize);
+            return &*slice_from_raw_parts(str_beg as *const u8, len);
+        }
+    }
+
+    pub fn to_str(&self) -> &str {
+        unsafe {
+            return from_utf8_unchecked(self.to_u8_slice());
+        }
+    }
+    pub fn to_string(&self) -> String {
+        unsafe {
+            let v = Vec::from(self.to_u8_slice());
+            return String::from_utf8_unchecked(v);
+        }
+    }
 }
 
 sa::const_assert!(size_of::<SchemString>()==2*size_of::<usize>());
@@ -105,7 +132,7 @@ type CNBTValue = RsObjWrapper<Value>;
 sa::const_assert!(size_of::<CNBTValue>()==2*size_of::<usize>());
 
 
-#[repr(i32)]
+#[repr(C)]
 #[allow(non_camel_case_types, dead_code)]
 enum CEnumNBTType {
     MC_SCHEM_nbt_type_byte = 1,
@@ -121,16 +148,6 @@ enum CEnumNBTType {
     MC_SCHEM_nbt_type_int_array = 11,
     MC_SCHEM_nbt_type_long_array = 12,
 }
-
-type CBlock = RsObjWrapper<Block>;
-type CEntity = RsObjWrapper<Entity>;
-type CBlockEntity = RsObjWrapper<BlockEntity>;
-type CPendingTick = RsObjWrapper<PendingTick>;
-type CRegion = RsObjWrapper<Region>;
-type CMetaDataIR = RsObjWrapper<MetaDataIR>;
-type CSchematic = RsObjWrapper<Schematic>;
-
-
 
 #[no_mangle]
 extern "C" fn MC_SCHEM_rust_object_is_reference(value: *const CNBTValue) -> bool {
@@ -149,3 +166,43 @@ extern "C" fn MC_SCHEM_rust_object_is_null(value: *const CNBTValue) -> bool {
         return value.is_null();
     }
 }
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_rust_object_get_null() -> RsObjWrapper<()> {
+    sa::const_assert!(size_of::<RsObjWrapper<()>>()==2*size_of::<usize>());
+    return RsObjWrapper::Ref(null_mut());
+}
+
+#[repr(u8)]
+enum CMapRef {
+    StrStr(*mut BTreeMap<String, String>),
+    StrValue(*mut HashMap<String, Value>),
+    PosBlockEntity(*mut HashMap<[i32; 3], BlockEntity>),
+    PosPendingTick(*mut HashMap<[i32; 3], PendingTick>),
+}
+sa::const_assert!(size_of::<CMapRef>()==2*size_of::<usize>());
+
+#[repr(C)]
+#[derive(PartialEq)]
+enum CMapRefKeyType {
+    String,
+    Pos,
+}
+
+#[repr(C)]
+#[derive(PartialEq)]
+enum CMapRefValueType {
+    String,
+    NBT,
+    BlockEntity,
+    PendingTick,
+}
+
+type CBlock = RsObjWrapper<Block>;
+type CEntity = RsObjWrapper<Entity>;
+type CBlockEntity = RsObjWrapper<BlockEntity>;
+type CPendingTick = RsObjWrapper<PendingTick>;
+type CRegion = RsObjWrapper<Region>;
+type CMetaDataIR = RsObjWrapper<MetaDataIR>;
+type CSchematic = RsObjWrapper<Schematic>;
+

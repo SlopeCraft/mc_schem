@@ -1,8 +1,9 @@
+use std::collections::HashMap;
 use std::ffi::c_void;
 use std::mem::size_of;
 use std::ptr::null_mut;
 use fastnbt::Value;
-use crate::c_ffi::{CEnumNBTType, CNBTValue, RsObjWrapper, SchemString};
+use crate::c_ffi::{CEnumNBTType, CMapRef, CNBTValue, RsObjWrapper, SchemString};
 
 #[no_mangle]
 extern "C" fn MC_SCHEM_nbt_create_scalar(
@@ -248,4 +249,22 @@ extern "C" fn MC_SCHEM_nbt_get_scalar_array_mut(
     dest_ptr: *mut *mut c_void,
     dest_num_elements: *mut usize) -> bool {
     return MC_SCHEM_nbt_get_scalar_array_const(tag, dest_ptr as *mut *const c_void, dest_num_elements);
+}
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_nbt_get_compound_const(tag: *const CNBTValue, ok: *mut bool) -> CMapRef {
+    unsafe {
+        let tag = (*tag).get_ref();
+        if let Value::Compound(map) = tag {
+            if ok != null_mut() { *ok = true; }
+            return CMapRef::StrValue(map as *const HashMap<String, Value> as *mut HashMap<String, Value>);
+        }
+        if ok != null_mut() { *ok = false; }
+        return CMapRef::StrValue(null_mut());
+    }
+}
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_nbt_get_compound_mut(tag: *mut CNBTValue, ok: *mut bool) -> CMapRef {
+    return MC_SCHEM_nbt_get_compound_const(tag, ok);
 }

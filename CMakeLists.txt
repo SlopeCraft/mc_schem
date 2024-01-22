@@ -21,7 +21,9 @@ message(STATUS "The shared lib should be ${shared_lib_name}")
 message(STATUS "The export lib should be ${export_lib_name}")
 
 set(shared_lib_loc "${rust_bin_dir}/${shared_lib_name}")
-set(export_lib_loc "${rust_bin_dir}/${export_lib_name}")
+if (export_lib_name)
+    set(export_lib_loc "${rust_bin_dir}/${export_lib_name}")
+endif ()
 
 file(GLOB_RECURSE rust_sources "*.rs")
 add_custom_target(mc_schem_rs
@@ -42,7 +44,7 @@ target_include_directories(mc_schem INTERFACE
         $<BUILD_INTERFACE: "${CMAKE_SOURCE_DIR}/c_sources;${CMAKE_BINARY_DIR}" >
         $<INSTALL_INTERFACE:"include">)
 target_link_libraries(mc_schem INTERFACE
-        $<BUILD_INTERFACE:${export_lib_loc}>)
+    $<BUILD_INTERFACE:${export_lib_loc} ${shared_lib_loc}>)
 target_compile_features(mc_schem PRIVATE c_std_17)
 
 if (MSVC)
@@ -78,8 +80,11 @@ if (${MC_SCHEM_INSTALL})
         install(FILES ${shared_lib_loc}
                 DESTINATION lib)
     endif ()
-    install(FILES ${export_lib_loc}
+    if (EXISTS ${export_lib_loc})
+        message(STATUS "export_lib_loc = ${export_lib_loc}")
+        install(FILES ${export_lib_loc}
             DESTINATION lib)
+    endif ()
 
     install(EXPORT mc_schem-targets
             NAMESPACE mc_schem::

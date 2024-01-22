@@ -3,7 +3,7 @@ use std::fs::create_dir_all;
 use rand::Rng;
 use crate::block::Block;
 use crate::schem;
-use crate::schem::{LitematicaSaveOption, Schematic};
+use crate::schem::{LitematicaSaveOption, Schematic, WorldEdit13SaveOption};
 
 
 #[test]
@@ -180,7 +180,11 @@ fn load_save_vanilla_structure() {
 
     schem.save_vanilla_structure_file(
         "./target/test/load_save_vanilla_structure/out01.nbt",
-        &VanillaStructureSaveOption::default()).unwrap();
+        &VanillaStructureSaveOption::default()).expect("Failed to save vanilla structure file");
+
+    Schematic::from_vanilla_structure_file(
+        "./target/test/load_save_vanilla_structure/out01.nbt", &VanillaStructureLoadOption::default())
+        .expect("Failed to load saved vanilla structure");
 }
 
 #[test]
@@ -198,7 +202,10 @@ fn load_save_litematica() {
 
         let schem = Schematic::from_litematica_file(&src_filename, &LitematicaLoadOption::default()).unwrap();
 
-        schem.save_litematica_file(&dst_filename, &LitematicaSaveOption::default()).unwrap();
+        schem.save_litematica_file(&dst_filename, &LitematicaSaveOption::default()).expect("Failed to save litematica file");
+
+        Schematic::from_litematica_file(&dst_filename, &LitematicaLoadOption::default()).expect("Failed to load saved litematica file");
+
 
         //println!("Metadata: \n{:?}", schem.metadata_litematica());
     }
@@ -215,11 +222,13 @@ fn load_save_world_edit13() {
 
     for id in 1..3 {
         let src_filename = format!("{}/test{:02}.schem", src_dir, id);
-        //let dst_filename = format!("{}/out{:02}.schem", out_dir, id);
+        let dst_filename = format!("{}/out{:02}.schem", out_dir, id);
 
-        let _schem = Schematic::from_world_edit_13_file(&src_filename, &WorldEdit13LoadOption::default()).unwrap();
+        let schem = Schematic::from_world_edit_13_file(&src_filename, &WorldEdit13LoadOption::default()).unwrap();
 
-        //schem.save_litematica_file(&dst_filename, &LitematicaSaveOption::default()).unwrap();
+        schem.save_world_edit_13_file(&dst_filename, &WorldEdit13SaveOption::default()).expect("Failed to save .schem file");
+
+        Schematic::from_world_edit_13_file(&dst_filename, &WorldEdit13LoadOption::default()).expect("Failed to load saved .schem file");
 
         //println!("Metadata: \n{:?}", schem.metadata_litematica());
     }

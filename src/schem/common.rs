@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Display;
 use fastnbt::Value;
 use crate::error::LoadError;
 use crate::{unwrap_opt_tag, schem::{id_of_nbt_tag}, unwrap_tag};
@@ -97,4 +98,9 @@ pub fn parse_block(nbt: &HashMap<String, Value>, tag_path: &str) -> Result<Block
     }
 
     return Ok(blk);
+}
+
+pub fn format_size<T>(size: &[T; 3]) -> String
+    where T: Display {
+    return format!("[{}, {}, {}]", size[0], size[1], size[2]);
 }

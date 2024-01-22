@@ -1,5 +1,6 @@
 use std::fmt::{Display, Formatter};
 use crate::block::BlockIdParseError;
+use crate::schem::common::format_size;
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -72,13 +73,13 @@ impl Display for LoadError {
             LoadError::BlockIndexOutOfRange { tag_path, index, range }
             => write!(f, "Block index out of range, tag: {}, index = {}, index should be in range [{}, {}]", tag_path, index, range[0], range[1]),
             LoadError::BlockPosOutOfRange { tag_path, pos, range }
-            => write!(f, "Block pos out of range, tag: {}, coordinate: [{}, {}, {}], range: [{}, {}, {}]", tag_path, pos[0], pos[1], pos[2], range[0], range[1], range[2]),
+            => write!(f, "Block pos out of range, tag: {}, coordinate: {}, range: {}", tag_path, format_size(pos), format_size(range)),
             LoadError::FileOpenError(err)
             => write!(f, "File open error: {}", err),
             LoadError::MultipleBlockEntityInOnePos { pos, latter_tag_path }
-            => write!(f, "Multiple block entities in one [{}, {}, {}], the latter block is defined at {}", pos[0], pos[1], pos[2], latter_tag_path),
+            => write!(f, "Multiple block entities in one {}, the latter block is defined at {}", format_size(pos), latter_tag_path),
             LoadError::MultiplePendingTickInOnePos { pos, latter_tag_path }
-            => write!(f, "Multiple pending ticks in one [{}, {}, {}], the latter block is defined at {}", pos[0], pos[1], pos[2], latter_tag_path),
+            => write!(f, "Multiple pending ticks in one {}, the latter block is defined at {}", format_size(pos), latter_tag_path),
             LoadError::ConflictingIndexInPalette { index, former_block_id, latter_block_id }
             => write!(f, "2 blocks have same id({}) in palette, \"{}\" and \"{}\"", index, former_block_id, latter_block_id),
             LoadError::BlockDataIncomplete { tag_path, index, detail }
@@ -130,6 +131,7 @@ pub enum WriteError {
     BlockIndexOfOfRange { r_pos: [i32; 3], block_index: u16, max_index: u16 },
     FileCreateError(std::io::Error),
     DuplicatedRegionName { name: String },
+    SizeTooLarge { size: [u64; 3], max_size: [u64; 3] }
 }
 
 impl Display for WriteError {
@@ -137,14 +139,16 @@ impl Display for WriteError {
         return match self {
             WriteError::NBTWriteError(err) => write!(f, "Failed to write nbt, detail: {}", err),
             WriteError::NegativeSize { size, region_name }
-            => write!(f, "region \"{}\" has negative size: [{}, {}, {}]", region_name, size[0], size[1], size[2]),
+            => write!(f, "region \"{}\" has negative size: {}", region_name, format_size(size)),
             WriteError::BlockIndexOfOfRange { r_pos, block_index, max_index }
-            => write!(f, "Block index out of range: relative pos: [{}, {}, {}], found block index {} but expected [0,{}]",
-                      r_pos[0], r_pos[1], r_pos[2], block_index, max_index),
+            => write!(f, "Block index out of range: relative pos: {}, found block index {} but expected [0,{}]",
+                      format_size(r_pos), block_index, max_index),
             WriteError::FileCreateError(err)
             => write!(f, "Failed to create file, detail: {}", err),
             WriteError::DuplicatedRegionName { name }
             => write!(f, "More than one region used name \"{}\"", name),
+            WriteError::SizeTooLarge { size, max_size }
+            => write!(f, "Schematic size {} exceeds maximum size {} of current format.", format_size(size), format_size(max_size)),
         }
     }
 }

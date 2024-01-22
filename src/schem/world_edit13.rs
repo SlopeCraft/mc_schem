@@ -1,11 +1,14 @@
 use std::collections::HashMap;
+use std::ffi::c_long;
 use std::fs::File;
+use std::io::Write;
 use fastnbt::Value;
-use flate2::read::GzDecoder;
+use flate2::{Compression, GzBuilder};
+use flate2::read::{GzDecoder, GzEncoder};
 use crate::block::Block;
-use crate::error::LoadError;
+use crate::error::{LoadError, WriteError};
 use crate::region::{BlockEntity, Region};
-use crate::schem::{common, MetaDataIR, RawMetaData, Schematic, WE13MetaData, WorldEdit13LoadOption};
+use crate::schem::{common, MetaDataIR, RawMetaData, Schematic, WE12MetaData, WE13MetaData, WorldEdit13LoadOption, WorldEdit13SaveOption};
 use crate::{unwrap_opt_tag, unwrap_tag};
 use crate::schem::id_of_nbt_tag;
 
@@ -292,4 +295,206 @@ fn parse_block_entity(nbt: &HashMap<String, Value>, tag_path: &str, region_size:
     }
 
     return Ok((be, pos));
+}
+
+impl Schematic {
+    pub fn metadata_world_edit_13(&self) -> WE13MetaData {
+        let mut result = WE13MetaData::new();
+        if let Some(raw_md) = &self.raw_metadata {
+            if let RawMetaData::WE13(raw) = &raw_md {
+                result = raw.clone();
+            }
+        }
+
+        result.data_version = self.metadata.mc_data_version;
+        result.offset = [0, 0, 0];
+
+        return result;
+    }
+    pub fn to_nbt_world_edit_13(&self, option: &WorldEdit13SaveOption) -> Result<HashMap<String, Value>, WriteError> {
+        let mut root = HashMap::new();
+
+        // metadata
+        {
+            let md = self.metadata_world_edit_13();
+            let mut md_nbt = HashMap::new();
+            let pos_letter = ['X', 'Y', 'Z'];
+            for dim in 0..3 {
+                md_nbt.insert(format!("WEOffset{}", pos_letter[dim]), Value::Int(md.we_offset[dim]));
+            }
+            root.insert("Metadata".to_string(), Value::Compound(md_nbt));
+            root.insert("Offset".to_string(), Value::IntArray(fastnbt::IntArray::new(Vec::from(&md.offset))));
+            root.insert("DataVersion".to_string(), Value::Int(md.data_version));
+            root.insert("Version".to_string(), Value::Int(md.version));
+        }
+
+        let (full_palette, luts_of_block_idx) = self.full_palette();
+        let background_blk_index: u16;
+        // palette
+        {
+            let mut pal = HashMap::with_capacity(full_palette.len());
+            for (index, (blk, _)) in full_palette.iter().enumerate() {
+                let id = blk.full_id();
+                debug_assert!(!pal.contains_key(&id));
+                pal.insert(id, Value::Int(index as i32));
+            }
+
+            // find/insert background block
+            {
+                let bk_id = option.background_block.to_block().full_id();
+                match pal.get(&bk_id) {
+                    Some(id) => {
+                        let id = id.as_i64();
+                        debug_assert!(id.is_some());
+                        let id = id.unwrap();
+                        background_blk_index = id as u16;
+                    }
+                    None => {
+                        background_blk_index = pal.len() as u16;
+                        pal.insert(bk_id, Value::Int(background_blk_index as i32));
+                    }
+                }
+            }
+
+            root.insert("PaletteMax".to_string(), Value::Int(pal.len() as i32));
+            root.insert("Palette".to_string(), Value::Compound(pal));
+        }
+
+
+        // shape
+        let shape = self.shape();
+        {
+            for sz in shape {
+                if sz < 0 {
+                    return Err(WriteError::NegativeSize { size: shape, region_name: "all regions".to_string() });
+                }
+                if sz >= 16384 {
+                    return Err(WriteError::SizeTooLarge {
+                        size: [shape[0] as u64, shape[1] as u64, shape[2] as u64],
+                        max_size: [16383, 16383, 16383],
+                    });
+                }
+            }
+            let keys = ["Width", "Height", "Length"];
+            for dim in 0..3 {
+                root.insert(keys[dim].to_string(), Value::Short(shape[dim] as i16));
+            }
+        }
+
+        // block data
+        {
+            let mut block_data = Vec::with_capacity(self.volume() as usize * 2);
+            for y in 0..shape[1] {
+                for z in 0..shape[2] {
+                    for x in 0..shape[0] {
+                        let mut cur_block_gindex: Option<u16> = None;
+                        for (reg_idx, reg) in self.regions.iter().enumerate() {
+                            let offset = reg.offset;
+                            match reg.block_index_at([x - offset[0], y - offset[1], z - offset[2]]) {
+                                Some(cur_idx) => {
+                                    cur_block_gindex = Some(luts_of_block_idx[reg_idx][cur_idx as usize] as u16);
+                                    break;
+                                }
+                                None => {},
+                            }
+                        }
+                        let cur_block_gindex = cur_block_gindex.unwrap_or_else(|| background_blk_index);
+
+                        let encoded_index = encode_single_block(cur_block_gindex);
+                        if encoded_index[1] == 0 {
+                            block_data.push(encoded_index[0]);
+                        } else {
+                            block_data.push(encoded_index[0]);
+                            block_data.push(encoded_index[1]);
+                        }
+                    }
+                }
+            }
+            root.insert("BlockData".to_string(), Value::ByteArray(fastnbt::ByteArray::new(block_data)));
+        }
+
+        // block entities
+        {
+            let mut be_list;
+            {
+                let mut counter = 0usize;
+                for reg in &self.regions {
+                    counter += reg.block_entities.len();
+                }
+                be_list = Vec::with_capacity(counter);
+            }
+
+            for y in 0..shape[1] {
+                for z in 0..shape[2] {
+                    for x in 0..shape[0] {
+                        let be_ = self.first_block_entity_at([x, y, z]);
+                        let be;
+                        if let Some(b) = be_ {
+                            be = b;
+                        } else {
+                            continue;
+                        }
+
+                        let mut nbt = HashMap::new();
+                        nbt.insert("Pos".to_string(), Value::IntArray(fastnbt::IntArray::new(
+                            vec![x, y, z])));
+                        for (key, val) in &be.tags {
+                            if key == "Pos" {
+                                continue;
+                            }
+                            nbt.insert(key.clone(), val.clone());
+                        }
+                        be_list.push(Value::Compound(nbt));
+                    }
+                }
+            }
+            root.insert("BlockEntities".to_string(), Value::List(be_list));
+        }
+
+        return Ok(root);
+    }
+
+    pub fn save_world_edit_13_file(&self, filename: &str, option: &WorldEdit13SaveOption) -> Result<(), WriteError> {
+        let nbt;
+        match self.to_nbt_world_edit_13(option) {
+            Ok(n) => nbt = n,
+            Err(e) => return Err(e),
+        }
+
+        let mut file;
+        match File::create(filename) {
+            Ok(f) => file = f,
+            Err(e) => return Err(WriteError::FileCreateError(e)),
+        }
+
+        let mut encoder = GzBuilder::new()
+            .filename(filename)
+            .comment("Generated by mc_schem")
+            .write(file, Compression::best());
+
+        let res: Result<(), fastnbt::error::Error> = fastnbt::to_writer(&mut encoder, &nbt);
+        if let Err(e) = res {
+            return Err(WriteError::NBTWriteError(e));
+        }
+        if let Err(e) = encoder.finish() {
+            return Err(WriteError::NBTWriteError(e.into()));
+        }
+
+        return Ok(());
+    }
+}
+
+
+fn encode_single_block(index: u16) -> [i8; 2] {
+    let index = index as i32;
+    if index <= 127 {
+        return [index as i8, 0];
+    }
+
+    let first_byte = index % 128 - 128;
+    let second_byte = (index - first_byte) / 128 - 1;
+    debug_assert!(first_byte < 0);
+    debug_assert!(second_byte >= 1);
+
+    return [first_byte as i8, second_byte as i8];
 }

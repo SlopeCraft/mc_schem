@@ -262,6 +262,7 @@ impl Schematic {
     }
 
 
+    // (Vec<(block, hash)>, Vec<LUT-cur-block-index-to-global-block-index>)
     pub fn full_palette(&self) -> (Vec<(&Block, u64)>, Vec<Vec<usize>>) {
         let possible_max_palette_size;
         {
@@ -379,5 +380,19 @@ pub struct WorldEdit13LoadOption {}
 impl WorldEdit13LoadOption {
     pub fn default() -> WorldEdit13LoadOption {
         return WorldEdit13LoadOption {};
+    }
+}
+
+#[derive(Debug)]
+pub struct WorldEdit13SaveOption {
+    pub background_block: CommonBlock,
+}
+
+#[allow(dead_code)]
+impl WorldEdit13SaveOption {
+    pub fn default() -> WorldEdit13SaveOption {
+        return WorldEdit13SaveOption {
+            background_block: CommonBlock::Air,
+        };
     }
 }

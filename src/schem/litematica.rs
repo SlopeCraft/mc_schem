@@ -308,7 +308,7 @@ pub struct MultiBitSet {
 
 }
 
-
+#[allow(dead_code)]
 impl MultiBitSet {
     pub fn new() -> MultiBitSet {
         return MultiBitSet {
@@ -628,6 +628,7 @@ fn parse_pending_tick(nbt: &HashMap<String, Value>, tag_path: &str, region_size:
     return Ok((pos, pending_tick));
 }
 
+#[allow(dead_code)]
 impl Schematic {
     pub fn metadata_litematica(&self) -> LitematicaMetaData {
         let mut md = LitematicaMetaData::new();

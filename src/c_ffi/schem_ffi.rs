@@ -1,5 +1,4 @@
 use std::mem::size_of;
-use std::ptr::drop_in_place;
 use crate::schem::Schematic;
 use static_assertions as sa;
 use crate::c_ffi::CSchematic;

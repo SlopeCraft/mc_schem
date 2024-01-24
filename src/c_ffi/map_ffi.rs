@@ -1,7 +1,5 @@
-use std::arch::x86_64::_mm_stream_si128;
 use std::ffi::c_void;
-use std::ptr::{null, null_mut, slice_from_raw_parts};
-use std::str::from_utf8_unchecked;
+use std::ptr::{null, null_mut};
 use fastnbt::Value;
 use crate::c_ffi::{CBlockEntity, CMapRef, CMapRefKeyType, CMapRefValueType, CNBTValue, CPendingTick, SchemString};
 use crate::region::{BlockEntity, PendingTick};

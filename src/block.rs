@@ -8,6 +8,7 @@ pub struct Block {
     pub namespace: String,
     pub id: String,
     pub attributes: BTreeMap<String, String>,
+
 }
 
 
@@ -348,7 +349,7 @@ impl Hash for Block {
 }
 
 #[repr(u8)]
-#[derive(Debug)]
+#[derive(Debug, Display)]
 #[allow(dead_code)]
 pub enum CommonBlock {
     Air,

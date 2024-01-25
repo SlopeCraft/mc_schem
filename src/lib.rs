@@ -6,6 +6,7 @@ mod region;
 mod c_ffi;
 #[cfg(test)]
 mod tests;
+mod old_block;
 
 // pub type Block = block::Block;
 // pub type Entity = region::Entity;

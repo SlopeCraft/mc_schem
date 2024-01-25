@@ -2,9 +2,10 @@ cmake_minimum_required(VERSION 3.20)
 project(mc_schem VERSION 0.1.0 LANGUAGES C CXX)
 
 option(MC_SCHEM_INSTALL "Install binaries" ON)
+set(MC_SCHEM_RUST_TARGET "default" CACHE STRING "Target to build rust codes. Should be consistent with C compiler. Valid values: default;guess; or any other triplet")
 
 find_program(cargo_exe NAMES "cargo" REQUIRED)
-
+unset(cargo_build_flags)
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(cargo_build_mode "debug")
     set(cargo_build_flags)
@@ -18,6 +19,16 @@ set(rust_bin_dir "${rust_build_dir}/${cargo_build_mode}")
 
 include(cmake/rust_binary_names.cmake)
 rust_binary_names(shared_lib_name export_lib_name link_shared_lib_directly)
+if (${MC_SCHEM_RUST_TARGET} STREQUAL "default")
+
+elseif (${MC_SCHEM_RUST_TARGET} STREQUAL "guess")
+    get_suggested_cargo_target(suggested_target)
+    set(cargo_build_flags "${cargo_build_flags} --target=${suggested_target}")
+else ()
+    set(cargo_build_flags "${cargo_build_flags} --target=${MC_SCHEM_RUST_TARGET}")
+endif ()
+
+message(STATUS "Suggested target for cargo is ${suggested_target}")
 message(STATUS "The shared lib should be ${shared_lib_name}")
 message(STATUS "The export lib should be ${export_lib_name}")
 

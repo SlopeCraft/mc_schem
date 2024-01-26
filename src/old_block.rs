@@ -120,15 +120,20 @@ pub fn index_to_torch_facing(idx: u8) -> &'static str {
         2 => "west",
         3 => "south",
         4 => "north",
+        5 => "up",
         _ => "",
     }
+}
+
+pub fn index_to_stairs_facing(idx: u8) -> &'static str {
+    return index_to_torch_facing(idx);
 }
 
 pub fn index_to_stone_variant(idx: u8) -> &'static str {
     return match idx {
         0 => "stone",
         1 => "sandstone",
-        2 => "wooden",
+        2 => "wood_old",
         3 => "cobblestone",
         4 => "brick",
         5 => "stone_brick",
@@ -137,6 +142,29 @@ pub fn index_to_stone_variant(idx: u8) -> &'static str {
         _ => "",
     }
 }
+
+pub fn index_to_bed_facing(idx: u8) -> &'static str {
+    return match idx {
+        0 => "south",
+        1 => "west",
+        2 => "north",
+        3 => "east",
+        _ => "",
+    }
+}
+
+pub fn index_to_piston_facing(idx: u8) -> &'static str {
+    return match idx {
+        0 => "down",
+        1 => "up",
+        2 => "north",
+        3 => "south",
+        4 => "west",
+        5 => "east",
+        _ => "",
+    }
+}
+
 
 #[allow(dead_code)]
 impl Block {
@@ -294,11 +322,6 @@ impl Block {
         }
 
         if [50, 75, 76].contains(&id) { // torch, redstone torch and unlit redstone torch
-
-            if damage == 5 {//standing torch
-                return Ok(block);
-            }
-            // wall torch
             let facing = index_to_torch_facing(damage);
             debug_assert!(!facing.is_empty());
             block.set_property("facing", facing);
@@ -316,30 +339,36 @@ impl Block {
             debug_assert!(!variant.is_empty());
             let is_top: bool;
             let is_double: bool;
+            let is_seamless: bool;
             match id {
                 43 => {
                     is_top = false;
                     is_double = true;
+                    is_seamless = damage >= 8;
                 },
                 44 => {
-                    is_top = damage >= 8;
                     is_double = false;
+                    is_top = damage >= 8;
+                    is_seamless = false;
                 },
                 181 => {
-                    is_double = true;
                     is_top = false;
+                    is_double = true;
+                    is_seamless = damage >= 8;
                 },
                 182 => {
                     is_double = false;
                     is_top = damage >= 8;
+                    is_seamless = false;
                 },
                 _ => { panic!("Unreachable"); }
             }
             block.set_property("variant", variant);
             if is_double {
-                return Ok(block);
+                block.set_property("seamless", &is_seamless);
+            } else {
+                block.set_property("half", if is_top { "top" } else { "bottom" });
             }
-            block.set_property("half", if is_top { "top" } else { "bottom" });
             return Ok(block);
         }
 
@@ -349,21 +378,141 @@ impl Block {
             debug_assert!(!variant.is_empty());
             let is_double;
             let is_top;
+            let is_seamless: bool;
             if id == 125 {//double wood slab
                 is_double = true;
                 is_top = false;
+                is_seamless = damage >= 8;
             } else {
                 is_double = false;
                 is_top = damage >= 8;
+                is_seamless = false;
             }
             block.set_property("variant", variant);
             if is_double {
-                return Ok(block);
+                block.set_property("seamless", &is_seamless);
+            } else {
+                block.set_property("half", if is_top { "top" } else { "bottom" });
             }
-            block.set_property("half", if is_top { "top" } else { "bottom" });
             return Ok(block);
         }
 
+        if [204, 205].contains(&id) {// purpur_slab
+            block.set_property("variant", "default");
+            if id == 204 {
+                let is_top = damage >= 8;
+                block.set_property("half", if is_top { "top" } else { "bottom" });
+            }
+            return Ok(block);
+        }
+
+        if id == 51 {
+            block.set_property("age", &damage);
+            return Ok(block);
+        }
+
+        if [24, 179].contains(&id) {//sandstone, red_sandstone
+            let type_: String;
+            match id {
+                0 => type_ = block.id.to_string(),
+                1 => type_ = format!("chiseled_{}", block.id),
+                2 => type_ = format!("smooth_{}", block.id),
+                _ => return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage }),
+            }
+            block.attributes.insert("type".to_string(), type_);
+            return Ok(block);
+        }
+
+        if id == 26 {//bed
+            let facing = index_to_torch_facing(damage & 0b11);
+            debug_assert!(!facing.is_empty());
+            let occupied = (damage & 0x4) != 0;
+            let part_head = (damage & 0x8) != 0;
+            block.set_property("facing", facing);
+            block.set_property("occupied", &occupied);
+            block.set_property("part", if part_head { "head" } else { "foot" });
+            return Ok(block);
+        }
+
+        if id == 31 {//grass (minecraft:tallgrass in 1.12
+            let type_: &str;
+            match damage {
+                0 => type_ = "dead_bush",
+                1 => type_ = "tall_grass",
+                2 => type_ = "fern",
+                _ => return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage }),
+            }
+            block.set_property("type", type_);
+            return Ok(block);
+        }
+
+        if id == 37 {//yellow_flower
+            block.set_property("type", "dandelion");
+            return Ok(block);
+        }
+        if id == 38 {//red_flower
+            let type_: &str;
+            match damage {
+                0 => type_ = "poppy",
+                1 => type_ = "orchid",
+                2 => type_ = "allium",
+                3 => type_ = "houstonia",
+                4 => type_ = "tulip_red",
+                5 => type_ = "tulip_orange",
+                6 => type_ = "tulip_white",
+                7 => type_ = "tulip_pink",
+                8 => type_ = "oxeye",
+                _ => return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage }),
+            }
+            block.set_property("type", type_);
+            return Ok(block);
+        }
+
+        if id == 175 {//double plant
+            let lower = damage >= 8;
+            block.set_property("half", if lower { "lower" } else { "upper" });
+            if !lower {
+                let variant: &str;
+                match damage {
+                    0 => variant = "sunflower",
+                    1 => variant = "syringa",
+                    2 => variant = "grass",
+                    3 => variant = "fern",
+                    4 => variant = "rose",
+                    5 => variant = "paeonia",
+                    _ => return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage }),
+                }
+                block.set_property("variant", variant);
+            }
+            return Ok(block);
+        }
+
+        if [29, 33].contains(&id) {//piston and sticky piston (main body)
+            let facing = index_to_torch_facing(damage & 0b111);
+            debug_assert!(!facing.is_empty());
+            let extended = (damage & 0x8) != 0;
+            block.set_property("facing", facing);
+            block.set_property("extended", &extended);
+            return Ok(block);
+        }
+
+        if [34, 36].contains(&id) {//piston_head and piston_extension (b36)
+            let facing = index_to_torch_facing(damage & 0b111);
+            debug_assert!(!facing.is_empty());
+            let sticky = (damage & 0x8) != 0;
+            block.set_property("facing", facing);
+            block.set_property("sticky", if sticky { "sticky" } else { "normal" });
+            return Ok(block);
+        }
+
+        if [53, 67, 108, 109, 114, 128, 134, 135, 136, 156, 163, 164, 180, 203].contains(&id) {//stairs
+            let facing = index_to_stairs_facing(damage & 0b11);
+            debug_assert!(!facing.is_empty());
+            let is_top = (damage & 0x4) != 0;
+            block.set_property("facing", facing);
+            block.set_property("half", if is_top { "top" } else { "bottom" });
+            return Ok(block);
+        }
 
         //return Ok(block);
         !todo!();

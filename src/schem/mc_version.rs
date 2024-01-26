@@ -1,5 +1,5 @@
 #[allow(non_camel_case_types)]
-#[derive(Debug)]
+#[derive(Debug, PartialEq, PartialOrd)]
 #[repr(i32)]
 #[allow(dead_code)]
 pub enum DataVersion {

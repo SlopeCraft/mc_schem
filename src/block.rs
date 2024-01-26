@@ -335,6 +335,10 @@ impl Block {
 
         return nbt;
     }
+
+    pub fn set_property(&mut self, key: &str, value: &str) {
+        self.attributes.insert(key.to_string(), value.to_string());
+    }
 }
 
 impl Hash for Block {

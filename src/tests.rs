@@ -169,61 +169,62 @@ fn litematica_3d_array_decode() {
 }
 
 
-fn parse_raw_data(raw: &str) -> Option<u16> {
-    let mut result: u16 = 0;
-    for part in raw.split(',') {
-        if !part.contains('-') {
-            let parsed;
-            match str::parse::<u16>(part) {
-                Ok(p) => { parsed = p; }
-                Err(_) => return None,
-            }
-            assert!(parsed <= 15);
-            result |= (1u16) << parsed;
-        } else {
-            let splitted = part.split('-');
-            // check if valid
-            if splitted.clone().count() != 2 {
-                return None;
-            }
-            let mut first_str: &str = "";
-            let mut last_str: &str = "";
-            for (idx, s) in splitted.enumerate() {
-                if idx == 0 {
-                    first_str = s;
-                }
-                if idx == 1 {
-                    last_str = s;
-                }
-            }
-
-            // get begin and end
-            let first: u16;
-            match str::parse::<u16>(first_str) {
-                Ok(n) => first = n,
-                Err(_) => return None,
-            }
-            let last: u16;
-            match str::parse::<u16>(last_str) {
-                Ok(n) => last = n,
-                Err(_) => return None,
-            }
-            assert!(first <= last);
-            assert!(last <= 15);
-            for n in first..(last + 1) {
-                result |= (1u16) << n;
-            }
-        }
-    }
-
-    return Some(result);
-}
-
+// generate value for VALID_DAMAGE_LUT in old_blocks.rs
 #[test]
 fn process_mc12_damage_data() {
     let raw_data = ["0-0", "0-0", "0-0", "0-0", "0-0", "0-5", "0-15", "0-0", "0-15", "0-15", "0-15", "0-15", "0-1", "0-0", "0-0", "0-0", "0-0", "0-5", "0-5", "0-1", "0-0", "0-0", "0-0", "0-5", "0-2", "0-0", "0-15", "0-15", "0-15", "0-5,8-13", "0-0", "0-1", "0-0", "0-5,8-13", "0-5,8-13", "0-15", "0-5,8-13", "0-8", "0-8", "0-0", "0-0", "0-0", "0-0", "0-7", "0-15", "0-0", "0-0", "0-0", "0-0", "0-0", "0-5", "0-15", "0-0", "0-3", "2-5", "0-15", "0-0", "0-0", "0-0", "0-7", "0-8", "2-5", "2-5", "0-15", "0-15", "2-5", "0-9", "0-3", "2-5", "0-15", "0-1", "0-15", "0-1", "0-0", "0-0", "0-5", "0-5", "0-15", "0-7", "0-0", "0-15", "0-15", "0-0", "0-15", "0-1", "0-0", "0-3", "0-0", "0-0", "0-0", "0-2", "0-3", "0-6", "0-15", "0-15", "0-15", "0-7", "0-5", "0-3", "0-15", "0-15", "0-0", "0-0", "0-0", "0-7", "0-7", "0-15", "0-15", "0-3", "0-3", "0-0", "0-0", "0-0", "0-0", "0-3", "0-3", "0-0", "0-7", "0-15", "0-0", "0-7", "0-0", "0-0", "0-0", "0-0", "0-5", "0-13", "0-15", "0-3", "0-0", "2-5", "0-15", "0-15", "0-0", "0-3", "0-3", "0-3", "0-15", "0-0", "0-1", "0-13", "0-7", "0-7", "0-15", "1-5", "0-11", "2-5", "0-15", "0-15", "0-15", "0-15", "0-15", "0-0", "0-0", "0,2-5", "0-15", "0-3", "0-15", "0-5", "0-0", "0-0", "0-5", "0-5", "0-3", "0-3", "0-0", "0-0", "0-7", "0-2", "0-0", "0-0", "0-15", "0-15", "0-0", "0-0", "0-5,8-13", "0-15", "2-5", "0-15", "0-2", "0-3", "0-0", "0,8", "0-15", "0-15", "0-15", "0-15", "0-15", "0-0", "0-0", "0-0", "0-0", "0-0", "0-15", "0-15", "0-15", "0-15", "0-15", "0-5", "0-0", "0-5", "0-0", "0-0", "0-3", "0-3", "0-3", "0-0", "0-3", "0-0", "0-0", "0-15", "0-15", "0-0", "0-0", "0-0", "0-0", "0-0", "0-0", "0-5", "0-0", "0-0", "0-0", "0-0", "0-0", "0-0", "0-0", "0-0", "0-0", "0-0", "0-0", "0-0", "0-0", "0-0", "0-0", "0-0", "0-3", "0-3", "0-3", "0-3", "0-3", "0-3", "0-3", "0-3", "0-3", "0-3", "0-3", "0-3", "0-3", "0-3", "0-3", "0-3", "0-15", "0-15", "0-0", "0-0", "0-5"];
 
     //let mut bit_represented = [0u16; 256];
+
+    fn parse_raw_data(raw: &str) -> Option<u16> {
+        let mut result: u16 = 0;
+        for part in raw.split(',') {
+            if !part.contains('-') {
+                let parsed;
+                match str::parse::<u16>(part) {
+                    Ok(p) => { parsed = p; }
+                    Err(_) => return None,
+                }
+                assert!(parsed <= 15);
+                result |= (1u16) << parsed;
+            } else {
+                let splitted = part.split('-');
+                // check if valid
+                if splitted.clone().count() != 2 {
+                    return None;
+                }
+                let mut first_str: &str = "";
+                let mut last_str: &str = "";
+                for (idx, s) in splitted.enumerate() {
+                    if idx == 0 {
+                        first_str = s;
+                    }
+                    if idx == 1 {
+                        last_str = s;
+                    }
+                }
+
+                // get begin and end
+                let first: u16;
+                match str::parse::<u16>(first_str) {
+                    Ok(n) => first = n,
+                    Err(_) => return None,
+                }
+                let last: u16;
+                match str::parse::<u16>(last_str) {
+                    Ok(n) => last = n,
+                    Err(_) => return None,
+                }
+                assert!(first <= last);
+                assert!(last <= 15);
+                for n in first..(last + 1) {
+                    result |= (1u16) << n;
+                }
+            }
+        }
+
+        return Some(result);
+    }
 
     print!("bit_represented = [");
     for idx in 0..256 {

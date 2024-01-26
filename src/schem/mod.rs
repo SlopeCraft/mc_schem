@@ -17,7 +17,7 @@ use crate::schem;
 use crate::region::{BlockEntity, Region};
 
 
-
+pub type DataVersion = mc_version::DataVersion;
 
 
 #[derive(Debug, Clone)]

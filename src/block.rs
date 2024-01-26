@@ -1,5 +1,6 @@
 use strum::{Display, EnumString};
 use std::collections::{BTreeMap, HashMap};
+use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 use fastnbt::Value;
 
@@ -336,7 +337,9 @@ impl Block {
         return nbt;
     }
 
-    pub fn set_property(&mut self, key: &str, value: &str) {
+
+    pub fn set_property<V: ?Sized>(&mut self, key: &str, value: &V)
+        where for<'a> &'a V: Display {
         self.attributes.insert(key.to_string(), value.to_string());
     }
 }

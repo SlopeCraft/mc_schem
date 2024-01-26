@@ -98,6 +98,51 @@ pub fn index_to_axis(idx: u8) -> &'static str {
     }
 }
 
+pub fn index_to_color_old(idx: u8) -> &'static str {
+    let lut = ["white",
+        "orange",
+        "magenta",
+        "light_blue",
+        "yellow",
+        "lime",
+        "pink",
+        "gray",
+        "silver",
+        "cyan",
+        "purple",
+        "blue",
+        "brown",
+        "green",
+        "red",
+        "black"];
+    if idx >= 16 { return ""; }
+    return lut[idx as usize];
+}
+
+pub fn index_to_torch_facing(idx: u8) -> &'static str {
+    return match idx {
+        1 => "east",
+        2 => "west",
+        3 => "south",
+        4 => "north",
+        _ => "",
+    }
+}
+
+pub fn index_to_stone_variant(idx: u8) -> &'static str {
+    return match idx {
+        0 => "stone",
+        1 => "sandstone",
+        2 => "wooden",
+        3 => "cobblestone",
+        4 => "brick",
+        5 => "stone_brick",
+        6 => "nether_brick",
+        7 => "quartz",
+        _ => "",
+    }
+}
+
 #[allow(dead_code)]
 impl Block {
     pub fn from_old(id: u8, damage: u8, version: DataVersion) -> Result<Block, OldBlockParseError> {
@@ -222,7 +267,108 @@ impl Block {
         }
 
         if id == 18 || id == 161 {//leaves and leaves2
+            let variant_idx;
+            if id == 18 {
+                variant_idx = damage & 0b11;
+            } else {
+                variant_idx = (damage & 0b11) + 4;
+            }
+            let variant = index_to_wood_variant(variant_idx);
+            if variant.is_empty() { return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage }); }
+
+            let decayable;
+            let check_decay;
+            if id == 18 {
+                decayable = (damage >= 4 && damage <= 7) || (damage >= 12 && damage <= 15);
+                check_decay = damage >= 8;
+            } else {
+                decayable = (damage >= 4 && damage <= 5) || (damage >= 12 && damage <= 13);
+                check_decay = damage >= 8;
+            }
+            block.set_property("variant", variant);
+            block.set_property("check_decay", &check_decay);
+            block.set_property("decayable", &decayable);
+            return Ok(block);
         }
+
+        if [35, 159, 95, 171].contains(&id) {//wool, hardened clay, carpet, stained glass
+            let color = index_to_color_old(damage);
+            debug_assert!(!color.is_empty());
+            block.set_property("color", color);
+            return Ok(block);
+        }
+
+        if [50, 75, 76].contains(&id) { // torch, redstone torch and unlit redstone torch
+
+            if damage == 5 {//standing torch
+                return Ok(block);
+            }
+            // wall torch
+            let facing = index_to_torch_facing(damage);
+            debug_assert!(!facing.is_empty());
+            block.set_property("facing", facing);
+            return Ok(block);
+        }
+
+        if [43, 181, 44, 182, ].contains(&id) {//stone slab
+            let variant: &str;
+            if [43, 44].contains(&id) {
+                let variant_idx = damage & 0b111;
+                variant = index_to_stone_variant(variant_idx);
+            } else {
+                variant = "red_sandstone";
+            }
+            debug_assert!(!variant.is_empty());
+            let is_top: bool;
+            let is_double: bool;
+            match id {
+                43 => {
+                    is_top = false;
+                    is_double = true;
+                },
+                44 => {
+                    is_top = damage >= 8;
+                    is_double = false;
+                },
+                181 => {
+                    is_double = true;
+                    is_top = false;
+                },
+                182 => {
+                    is_double = false;
+                    is_top = damage >= 8;
+                },
+                _ => { panic!("Unreachable"); }
+            }
+            block.set_property("variant", variant);
+            if is_double {
+                return Ok(block);
+            }
+            block.set_property("half", if is_top { "top" } else { "bottom" });
+            return Ok(block);
+        }
+
+        if [125, 126].contains(&id) {// wooded slab
+            let variant_index = damage & 0b111;
+            let variant = index_to_wood_variant(variant_index);
+            debug_assert!(!variant.is_empty());
+            let is_double;
+            let is_top;
+            if id == 125 {//double wood slab
+                is_double = true;
+                is_top = false;
+            } else {
+                is_double = false;
+                is_top = damage >= 8;
+            }
+            block.set_property("variant", variant);
+            if is_double {
+                return Ok(block);
+            }
+            block.set_property("half", if is_top { "top" } else { "bottom" });
+            return Ok(block);
+        }
+
 
         //return Ok(block);
         !todo!();

@@ -1,4 +1,3 @@
-use ndarray::s;
 use strum::Display;
 use crate::block::Block;
 use crate::schem::DataVersion;
@@ -154,6 +153,18 @@ pub fn index_to_bed_facing(idx: u8) -> &'static str {
     }
 }
 
+pub fn index_to_end_portal_frame_facing(idx: u8) -> &'static str {
+    return index_to_bed_facing(idx);
+}
+
+pub fn index_to_tripwire_hook_facing(idx: u8) -> &'static str {
+    return index_to_bed_facing(idx);
+}
+
+pub fn index_to_fence_gate_facing(idx: u8) -> &'static str {
+    return index_to_bed_facing(idx);
+}
+
 pub fn index_to_pumpkin_facing(idx: u8) -> &'static str {
     return index_to_bed_facing(idx);
 }
@@ -220,12 +231,27 @@ pub fn index_to_repeater_facing(idx: u8) -> &'static str {
     }
 }
 
+pub fn index_to_cocoa_facing(idx: u8) -> &'static str {
+    return index_to_repeater_facing(idx);
+}
+
 pub fn index_to_trapdoor_facing(idx: u8) -> &'static str {
     return match idx {
         0 => "south",
         1 => "north",
         2 => "east",
         3 => "west",
+        _ => "",
+    }
+}
+
+pub fn index_to_skull_facing(idx: u8) -> &'static str {
+    return match idx {
+        1 => "up",
+        2 => "north",
+        3 => "south",
+        4 => "east",
+        5 => "west",
         _ => "",
     }
 }
@@ -778,6 +804,170 @@ impl Block {
             return Ok(block);
         }
 
+        if id == 98 {//stonebrick
+            let variant = match damage {
+                0 => "stonebrick",
+                1 => "mossy_stonebrick",
+                2 => "cracked_stonebrick",
+                3 => "chiseled_stonebrick",
+                _ => { return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage }); },
+            };
+            block.set_property("variant", variant);
+            return Ok(block);
+        }
+
+        if id == 168 {//prismarine
+            let variant = match damage {
+                0 => "prismarine",
+                1 => "dark_prismarine",
+                2 => "prismarine_bricks",
+                _ => { return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage }); },
+            };
+            block.set_property("variant", variant);
+            return Ok(block);
+        }
+
+        if id == 19 {//sponge
+            debug_assert!(damage < 2);
+            let wet = damage != 0;
+            block.set_property("wet", &wet);
+            return Ok(block);
+        }
+
+        if [39, 40].contains(&id) {//mushroom blocks
+            let variant = match damage {
+                0 => "all_outside",
+                1 => "north_west",
+                2 => "north",
+                3 => "north_east",
+                4 => "west",
+                5 => "center",
+                6 => "east",
+                7 => "south_west",
+                8 => "south",
+                9 => "south_east",
+                10 => "stem",
+                11 | 12 | 13 => "all_inside",
+                14 => "all_outside",
+                15 => "all_stem",
+                _ => { return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage }); },
+            };
+            block.set_property("variant", variant);
+            return Ok(block);
+        }
+
+        if [104, 105].contains(&id) {//stems
+            debug_assert!(damage < 8);
+            block.set_property("age", &damage);
+            return Ok(block);
+        }
+
+        if id == 106 {//vine
+            block.set_property("south", &((damage & 0x1) != 0));
+            block.set_property("west", &((damage & 0x2) != 0));
+            block.set_property("north", &((damage & 0x4) != 0));
+            block.set_property("east", &((damage & 0x8) != 0));
+            return Ok(block);
+        }
+
+        if [107, 183, 184, 185, 186, 187].contains(&id) {//fence gate
+            let facing = index_to_fence_gate_facing(damage & 0b11);
+            let open = (damage & 0x4) != 0;
+            let powered = (damage & 0x8) != 0;
+            block.set_property("facing", facing);
+            block.set_property("open", &open);
+            block.set_property("powered", &powered);
+            return Ok(block);
+        }
+
+        if id == 115 {//nether wart
+            debug_assert!(damage < 4);
+            block.set_property("age", &damage);
+            return Ok(block);
+        }
+
+        if id == 117 {//brewing stand
+            for bottle in 0..3 {
+                let has_bottle = (damage & (0b1 << bottle)) != 0;
+                block.attributes.insert(format!("has_bottle_{}", bottle), has_bottle.to_string());
+            }
+            return Ok(block);
+        }
+        if id == 118 {//cauldron
+            debug_assert!(damage < 8);
+            block.set_property("level", &damage);
+            return Ok(block);
+        }
+
+        if id == 90 {//nether portal
+            let axis = match damage {
+                0 | 1 => 'x',
+                2 => 'z',
+                _ => { return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage }); },
+            };
+            block.set_property("axis", &axis);
+            return Ok(block);
+        }
+
+        if id == 120 {//end portal frame
+            let facing = index_to_end_portal_frame_facing(damage & 0b11);
+            debug_assert!(!facing.is_empty());
+            let eye = (damage & 0x4) != 0;
+            block.set_property("facing", facing);
+            block.set_property("eye", &eye);
+            return Ok(block);
+        }
+
+        if id == 127 {//cocoa
+            let facing = index_to_cocoa_facing(damage & 0b11);
+            let age = (damage & 0b1100) >> 2;
+            debug_assert!(age < 3);
+            block.set_property("facing", facing);
+            block.set_property("age", &age);
+            return Ok(block);
+        }
+
+        if id == 131 {//tripwire hook
+            let facing = index_to_tripwire_hook_facing(damage & 0b11);
+            let attached = (damage & 0x4) != 0;
+            let powered = (damage & 0x8) != 0;
+            debug_assert!(!facing.is_empty());
+            block.set_property("facing", facing);
+            block.set_property("attached", &attached);
+            block.set_property("powered", &powered);
+            return Ok(block);
+        }
+
+        if id == 132 {//tripwire
+            let powered = (damage & 0x1) != 0;
+            let attached = (damage & 0x4) != 0;
+            let disarmed = (damage & 0x8) != 0;
+            block.set_property("powered", &powered);
+            block.set_property("attached", &attached);
+            block.set_property("disarmed", &disarmed);
+            return Ok(block);
+        }
+
+        if id == 139 {//cobblestone wall
+            let variant = match damage {
+                0 => "cobblestone",
+                1 => "mossy_cobblestone",
+                _ => { return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage }); },
+            };
+            block.set_property("variant", variant);
+            return Ok(block);
+        }
+
+        if id == 140 {//minecraft:flower_pot
+            return Ok(block);
+        }
+
+        if id == 144 {//skull
+            let facing = index_to_skull_facing(damage);
+            debug_assert!(!facing.is_empty());
+            block.set_property("facing", facing);
+            return Ok(block);
+        }
 
         //return Ok(block);
         !todo!();

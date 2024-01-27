@@ -1,3 +1,4 @@
+use ndarray::s;
 use strum::Display;
 use crate::block::Block;
 use crate::schem::DataVersion;
@@ -153,6 +154,10 @@ pub fn index_to_bed_facing(idx: u8) -> &'static str {
     }
 }
 
+pub fn index_to_pumpkin_facing(idx: u8) -> &'static str {
+    return index_to_bed_facing(idx);
+}
+
 pub fn index_to_piston_facing(idx: u8) -> &'static str {
     return match idx {
         0 => "down",
@@ -165,6 +170,65 @@ pub fn index_to_piston_facing(idx: u8) -> &'static str {
     }
 }
 
+pub fn index_to_wooden_door_facing(idx: u8) -> &'static str {
+    return match idx {
+        0 => "east",
+        1 => "south",
+        2 => "west",
+        3 => "north",
+        _ => "",
+    }
+}
+
+pub fn index_to_rail_shape(idx: u8) -> &'static str {
+    return match idx {
+        0 => "north_south",
+        1 => "east_south",
+        2 => "ascending_east",
+        3 => "ascending_west",
+        4 => "ascending_north",
+        5 => "ascending_south",
+        6 => "south_east",
+        7 => "south_west",
+        8 => "north_west",
+        9 => "north_east",
+        _ => "",
+    }
+}
+
+pub fn index_to_lever_facing(idx: u8) -> &'static str {
+    return match idx {
+        0 => "down_x",
+        1 => "east",
+        2 => "west",
+        3 => "south",
+        4 => "north",
+        5 => "up_z",
+        6 => "up_x",
+        7 => "down_z",
+        _ => "",
+    }
+}
+
+pub fn index_to_repeater_facing(idx: u8) -> &'static str {
+    return match idx {
+        0 => "north",
+        1 => "east",
+        2 => "south",
+        3 => "west",
+        _ => "",
+    }
+}
+
+pub fn index_to_trapdoor_facing(idx: u8) -> &'static str {
+    return match idx {
+        0 => "south",
+        1 => "north",
+        2 => "east",
+        3 => "west",
+        _ => "",
+    }
+}
 
 #[allow(dead_code)]
 impl Block {
@@ -513,6 +577,207 @@ impl Block {
             block.set_property("half", if is_top { "top" } else { "bottom" });
             return Ok(block);
         }
+
+        if id == 55 {//redstone wire
+            block.set_property("power", &damage);
+            return Ok(block);
+        }
+
+        if [151, 178].contains(&id) { // day light detector
+            block.set_property("power", &damage);
+            return Ok(block);
+        }
+
+        if [59, 141, 142, 207].contains(&id) {//crops
+            block.set_property("age", &damage);
+            return Ok(block);
+        }
+
+        if id == 60 {
+            block.set_property("moisture", &damage);
+            return Ok(block);
+        }
+        if [176, 63].contains(&id) {//minecraft:standing_banner and standing_sign
+            block.set_property("rotation", &damage);
+            return Ok(block);
+        }
+        if [177, 68].contains(&id) {//minecraft:wall_banner and wall_sign
+            if damage < 2 || damage > 5 {
+                return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage });
+            }
+            let facing = index_to_piston_facing(id);
+            debug_assert!(!facing.is_empty());
+            block.set_property("facing", facing);
+            return Ok(block);
+        }
+
+        if [64, 71, 193, 194, 195, 196, 197].contains(&id) {// doors
+            let is_upper = (damage & 0x8) != 0;
+            block.set_property("half", if is_upper { "upper" } else { "lower" });
+            if is_upper {
+                let is_hing_right = (damage & 0b1) != 0;
+                let is_powered = (damage & 0b10) != 0;
+                block.set_property("hing", if is_hing_right { "right" } else { "left" });
+                block.set_property("powered", &is_powered);
+            } else {
+                let facing = index_to_wooden_door_facing(damage & 0b11);
+                let is_open = (damage & 0x4) != 0;
+                block.set_property("facing", facing);
+                block.set_property("open", &is_open);
+            }
+            return Ok(block);
+        }
+
+        if id == 66 {//rail
+            let shape = index_to_rail_shape(damage);
+            debug_assert!(!shape.is_empty());
+            block.set_property("shape", shape);
+            return Ok(block);
+        }
+
+        if [27, 28, 157].contains(&id) {// golden, detector and activation rails
+            let shape_idx = damage & 0b111;
+            if shape_idx > 5 {
+                return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage });
+            }
+            let shape = index_to_rail_shape(shape_idx);
+            debug_assert!(!shape.is_empty());
+            let powered = (damage & 0x8) != 0;
+            block.set_property("shape", shape);
+            block.set_property("powered", &powered);
+            return Ok(block);
+        }
+
+        if [54, 146, 65, 61].contains(&id) {
+            if damage < 2 || damage > 5 {
+                return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage });
+            }
+            let facing = index_to_piston_facing(damage);
+            debug_assert!(!facing.is_empty());
+            block.set_property("facing", facing);
+            return Ok(block);
+        }
+
+        if [23, 158].contains(&id) {//dispenser and dropper
+            let facing = index_to_piston_facing(damage & 0b111);
+            debug_assert!(!facing.is_empty());
+            let triggered = (damage & 0x8) != 0;
+            block.set_property("facing", facing);
+            block.set_property("triggered", &triggered);
+            return Ok(block);
+        }
+
+        if id == 154 {//hopper
+            let facing = index_to_piston_facing(damage & 0b111);
+            debug_assert!(!facing.is_empty());
+            let enabled = (damage & 0x8) == 0;
+            block.set_property("facing", facing);
+            block.set_property("enabled", &enabled);
+            return Ok(block);
+        }
+
+        if id == 69 {//lever
+            let facing = index_to_lever_facing(damage & 0b111);
+            debug_assert!(!facing.is_empty());
+            let powered = (damage & 0x8) != 0;
+            block.set_property("facing", facing);
+            block.set_property("powered", &powered);
+            return Ok(block);
+        }
+
+        if [70, 72].contains(&id) {//wooden and stone pressure plate
+            debug_assert!(damage < 2);
+            let powered = damage != 0;
+            block.set_property("powered", &powered);
+            return Ok(block);
+        }
+
+        if [147, 148].contains(&id) {//weighted pressure plate
+            block.set_property("power", &damage);
+            return Ok(block);
+        }
+
+        if [77, 143].contains(&id) {//buttons
+            let facing = index_to_piston_facing(damage & 0b111);
+            debug_assert!(!facing.is_empty());
+            let powered = (damage & 0x8) != 0;
+            block.set_property("facing", facing);
+            block.set_property("powered", &powered);
+            return Ok(block);
+        }
+
+        if id == 78 {//snow layers
+            block.set_property("layers", &(damage + 1));
+            return Ok(block);
+        }
+
+        if [81, 83].contains(&id) {//cactus, reeds
+            block.set_property("age", &damage);
+            return Ok(block);
+        }
+
+        if id == 84 {//jukebox
+            block.set_property("has_record", &(damage != 0));
+            return Ok(block);
+        }
+
+        if [86, 104].contains(&id) {//pumpkin and pumpkin light
+            let facing = index_to_pumpkin_facing(damage);
+            debug_assert!(!facing.is_empty());
+            block.set_property("facing", facing);
+            return Ok(block);
+        }
+
+        if id == 92 {//cake
+            debug_assert!(damage <= 6);
+            block.set_property("bites", &damage);
+            return Ok(block);
+        }
+
+        if [93, 94].contains(&id) {//repeater
+            let facing = index_to_repeater_facing(damage & 0b11);
+            debug_assert!(!facing.is_empty());
+            let delay = 1 + ((damage & 0b1100) >> 2);
+            block.set_property("facing", facing);
+            block.set_property("delay", &delay);
+            return Ok(block);
+        }
+
+        if [149, 150].contains(&id) {//comparator
+            let facing = index_to_repeater_facing(damage & 0b11);
+            debug_assert!(!facing.is_empty());
+            let subtract_mode = (damage & 0x4) != 0;
+            let powered = (damage & 0x8) != 0;
+            block.set_property("facing", facing);
+            block.set_property("mode", if subtract_mode { "subtract" } else { "compare" });
+            block.set_property("powered", &powered);
+            return Ok(block);
+        }
+
+        if [96, 167].contains(&id) {//trapdoors
+            let facing = index_to_trapdoor_facing(damage & 0b11);
+            let open = (damage & 0x4) != 0;
+            let top = (damage & 0x8) != 0;
+            block.set_property("facing", facing);
+            block.set_property("open", &open);
+            block.set_property("half", if top { "top" } else { "bottom" });
+            return Ok(block);
+        }
+
+        if id == 97 {//monster egg
+            let variant = match damage {
+                0 => "stone",
+                1 => "cobblestone",
+                2 => "stone_brick",
+                3 => "mossy_stone_brick",
+                4 => "cracked_stone_brick",
+                5 => "chiseled_stone_brick",
+                _ => { return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage }); },
+            };
+            block.set_property("variant", variant);
+            return Ok(block);
+        }
+
 
         //return Ok(block);
         !todo!();

@@ -4,6 +4,8 @@ use crate::schem::DataVersion;
 
 pub const OLD_BLOCK_ID: [&'static str; 256] = ["air", "stone", "grass", "dirt", "cobblestone", "planks", "sapling", "bedrock", "flowing_water", "water", "flowing_lava", "lava", "sand", "gravel", "gold_ore", "iron_ore", "coal_ore", "log", "leaves", "sponge", "glass", "lapis_ore", "lapis_block", "dispenser", "sandstone", "noteblock", "bed", "golden_rail", "detector_rail", "sticky_piston", "web", "tallgrass", "deadbush", "piston", "piston_head", "wool", "piston_extension", "yellow_flower", "red_flower", "brown_mushroom", "red_mushroom", "gold_block", "iron_block", "double_stone_slab", "stone_slab", "brick_block", "tnt", "bookshelf", "mossy_cobblestone", "obsidian", "torch", "fire", "mob_spawner", "oak_stairs", "chest", "redstone_wire", "diamond_ore", "diamond_block", "crafting_table", "wheat", "farmland", "furnace", "lit_furnace", "standing_sign", "wooden_door", "ladder", "rail", "stone_stairs", "wall_sign", "lever", "stone_pressure_plate", "iron_door", "wooden_pressure_plate", "redstone_ore", "lit_redstone_ore", "unlit_redstone_torch", "redstone_torch", "stone_button", "snow_layer", "ice", "snow", "cactus", "clay", "reeds", "jukebox", "fence", "pumpkin", "netherrack", "soul_sand", "glowstone", "portal", "lit_pumpkin", "cake", "unpowered_repeater", "powered_repeater", "stained_glass", "trapdoor", "monster_egg", "stonebrick", "brown_mushroom_block", "red_mushroom_block", "iron_bars", "glass_pane", "melon_block", "pumpkin_stem", "melon_stem", "vine", "fence_gate", "brick_stairs", "stone_brick_stairs", "mycelium", "waterlily", "nether_bricks", "nether_brick_fence", "nether_brick_stairs", "nether_wart", "enchanting_table", "brewing_stand", "cauldron", "end_portal", "end_portal_frame", "end_stone", "dragon_egg", "redstone_lamp", "lit_redstone_lamp", "double_wooden_slab", "wooden_slab", "cocoa", "sandstone_stairs", "emerald_ore", "ender_chest", "tripwire_hook", "tripwire", "emerald_block", "spruce_stairs", "birch_stairs", "jungle_stairs", "command_block", "beacon", "cobblestone_wall", "flower_pot", "carrots", "potatoes", "wooden_button", "skull", "anvil", "trapped_chest", "light_weighted_pressure_plate", "heavy_weighted_pressure_plate", "unpowered_comparator", "powered_comparator", "daylight_detector", "redstone_block", "quartz_ore", "hopper", "quartz_block", "quartz_stairs", "activator_rail", "dropper", "stained_hardened_clay", "stained_glass_pane", "leaves2", "log2", "acacia_stairs", "dark_oak_stairs", "slime", "barrier", "iron_trapdoor", "prismarine", "sea_lantern", "hay_block", "carpet", "hardened_clay", "coal_block", "packed_ice", "double_plant", "standing_banner", "wall_banner", "daylight_detector_inverted", "red_sandstone", "red_sandstone_stairs", "double_stone_slab2", "stone_slab2", "spruce_fence_gate", "birch_fence_gate", "jungle_fence_gate", "dark_oak_fence_gate", "acacia_fence_gate", "spruce_fence", "birch_fence", "jungle_fence", "dark_oak_fence", "acacia_fence", "spruce_door", "birch_door", "jungle_door", "acacia_door", "dark_oak_door", "end_rod", "chorus_plant", "chorus_flower", "purpur_block", "purpur_pillar", "purpur_stairs", "purpur_double_slab", "purpur_slab", "end_bricks", "beetroots", "grass_path", "end_gateway", "repeating_command_block", "chain_command_block", "frosted_ice", "magma", "nether_wart_block", "red_nether_bricks", "bone_block", "structure_void", "observer", "white_shulker_box", "orange_shulker_box", "magenta_shulker_box", "light_blue_shulker_box", "yellow_shulker_box", "lime_shulker_box", "pink_shulker_box", "gray_shulker_box", "silver_shulker_box", "cyan_shulker_box", "purple_shulker_box", "blue_shulker_box", "brown_shulker_box", "green_shulker_box", "red_shulker_box", "black_shulker_box", "white_glazed_terracotta", "orange_glazed_terracotta", "magenta_glazed_terracotta", "light_blue_glazed_terracotta", "yellow_glazed_terracotta", "lime_glazed_terracotta", "pink_glazed_terracotta", "gray_glazed_terracotta", "silver_glazed_terracotta", "cyan_glazed_terracotta", "purple_glazed_terracotta", "blue_glazed_terracotta", "brown_glazed_terracotta", "green_glazed_terracotta", "red_glazed_terracotta", "black_glazed_terracotta", "concrete", "concrete_powder", "", "", "structure_block"];
 
+const VALID_DAMAGE_LUT: [u16; 256] = [0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000111111, 0b11111100111111, 0b00000000000001, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b00000000000011, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000111111, 0b00000000111111, 0b00000000000011, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000111111, 0b00000000000111, 0b00000000000001, 0b1111111111111111, 0b11111100111111, 0b11111100111111, 0b11111100111111, 0b00000000000001, 0b00000000000011, 0b00000000000001, 0b11111100111111, 0b11111100111111, 0b1111111111111111, 0b11111100111111, 0b00000111111111, 0b00000111111111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000011111111, 0b1111111111111111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000111110, 0b1111111111111111, 0b00000000000001, 0b00000000001111, 0b00000000111100, 0b1111111111111111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000011111111, 0b00000111111111, 0b00000000111100, 0b00000000111100, 0b1111111111111111, 0b1111111111111111, 0b00000000111100, 0b00001111111111, 0b00000000001111, 0b00000000111100, 0b1111111111111111, 0b00000000000011, 0b1111111111111111, 0b00000000000011, 0b00000000000001, 0b00000000000001, 0b00000000111110, 0b00000000111110, 0b11111100111111, 0b00000011111111, 0b00000000000001, 0b00000000000001, 0b1111111111111111, 0b00000000000001, 0b1111111111111111, 0b00000000000011, 0b00000000000001, 0b00000000001111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000111, 0b00000000001111, 0b00000001111111, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b00000011111111, 0b00000000111111, 0b00000000001111, 0b1111111111111111, 0b1111111111111111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000011111111, 0b00000011111111, 0b1111111111111111, 0b1111111111111111, 0b00000000001111, 0b00000000001111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000001111, 0b00000000001111, 0b00000000000001, 0b00000011111111, 0b00000000001111, 0b00000000000001, 0b00000011111111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000111111, 0b11111111111111, 0b00111111111111, 0b00000000001111, 0b00000000000001, 0b00000000111100, 0b1111111111111111, 0b1111111111111111, 0b00000000000001, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b11111100111111, 0b00000000000001, 0b00000000000011, 0b11111111111111, 0b00000011111111, 0b00000011111111, 0b11111100111111, 0b00000000111110, 0b00111111111111, 0b00000000111100, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b00000000000001, 0b00000000000001, 0b00000000111101, 0b00000000011111, 0b00000000001111, 0b11111100111111, 0b00000000111111, 0b00000000000001, 0b00000000000001, 0b11001100110011, 0b11001100110011, 0b00000000001111, 0b00000000001111, 0b00000000000001, 0b00000000000001, 0b00000011111111, 0b00000000000111, 0b00000000000001, 0b00000000000001, 0b1111111111111111, 0b1111111111111111, 0b00000000000001, 0b00000000000001, 0b11111100111111, 0b1111111111111111, 0b00000000111100, 0b1111111111111111, 0b00000000000111, 0b00000000001111, 0b00000000000001, 0b00000100000001, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b00000000111111, 0b00000000000001, 0b00000000111111, 0b00000000000001, 0b00000000000001, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000000001, 0b00000000001111, 0b00000000000001, 0b00000000000001, 0b11111100111111, 0b11111100111111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b11111100111111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b1111111111111111, 0b1111111111111111, 0b00000000000001, 0b00000000000001, 0b00000000001111, ];
+
 #[derive(Debug, Display)]
 pub enum OldBlockParseError {
     ReservedBlockId { id: u8 },
@@ -20,8 +22,6 @@ pub fn is_number_id_valid(id: u8) -> Result<(), OldBlockParseError> {
     }
     return Ok(());
 }
-
-const VALID_DAMAGE_LUT: [u16; 256] = [0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000111111, 0b1111111111111111, 0b00000000000001, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b00000000000011, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000111111, 0b00000000111111, 0b00000000000011, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000111111, 0b00000000000111, 0b00000000000001, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b11111100111111, 0b00000000000001, 0b00000000000011, 0b00000000000001, 0b11111100111111, 0b11111100111111, 0b1111111111111111, 0b11111100111111, 0b00000111111111, 0b00000111111111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000011111111, 0b1111111111111111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000111111, 0b1111111111111111, 0b00000000000001, 0b00000000001111, 0b00000000111100, 0b1111111111111111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000011111111, 0b00000111111111, 0b00000000111100, 0b00000000111100, 0b1111111111111111, 0b1111111111111111, 0b00000000111100, 0b00001111111111, 0b00000000001111, 0b00000000111100, 0b1111111111111111, 0b00000000000011, 0b1111111111111111, 0b00000000000011, 0b00000000000001, 0b00000000000001, 0b00000000111111, 0b00000000111111, 0b1111111111111111, 0b00000011111111, 0b00000000000001, 0b1111111111111111, 0b1111111111111111, 0b00000000000001, 0b1111111111111111, 0b00000000000011, 0b00000000000001, 0b00000000001111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000111, 0b00000000001111, 0b00000001111111, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b00000011111111, 0b00000000111111, 0b00000000001111, 0b1111111111111111, 0b1111111111111111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000011111111, 0b00000011111111, 0b1111111111111111, 0b1111111111111111, 0b00000000001111, 0b00000000001111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000001111, 0b00000000001111, 0b00000000000001, 0b00000011111111, 0b1111111111111111, 0b00000000000001, 0b00000011111111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000111111, 0b11111111111111, 0b1111111111111111, 0b00000000001111, 0b00000000000001, 0b00000000111100, 0b1111111111111111, 0b1111111111111111, 0b00000000000001, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b1111111111111111, 0b00000000000001, 0b00000000000011, 0b11111111111111, 0b00000011111111, 0b00000011111111, 0b1111111111111111, 0b00000000111110, 0b00111111111111, 0b00000000111100, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b00000000000001, 0b00000000000001, 0b00000000111101, 0b1111111111111111, 0b00000000001111, 0b1111111111111111, 0b00000000111111, 0b00000000000001, 0b00000000000001, 0b00000000111111, 0b00000000111111, 0b00000000001111, 0b00000000001111, 0b00000000000001, 0b00000000000001, 0b00000011111111, 0b00000000000111, 0b00000000000001, 0b00000000000001, 0b1111111111111111, 0b1111111111111111, 0b00000000000001, 0b00000000000001, 0b11111100111111, 0b1111111111111111, 0b00000000111100, 0b1111111111111111, 0b00000000000111, 0b00000000001111, 0b00000000000001, 0b00000100000001, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b00000000111111, 0b00000000000001, 0b00000000111111, 0b00000000000001, 0b00000000000001, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000000001, 0b00000000001111, 0b00000000000001, 0b00000000000001, 0b1111111111111111, 0b1111111111111111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000111111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b1111111111111111, 0b1111111111111111, 0b00000000000001, 0b00000000000001, 0b00000000111111, ];
 
 pub fn is_damage_valid(id: u8, damage: u8) -> Result<(), OldBlockParseError> {
     is_number_id_valid(id)?;
@@ -127,7 +127,7 @@ pub fn index_to_torch_facing(idx: u8) -> &'static str {
 }
 
 pub fn index_to_stairs_facing(idx: u8) -> &'static str {
-    return index_to_torch_facing(idx);
+    return index_to_torch_facing(idx + 1);
 }
 
 pub fn index_to_stone_variant(idx: u8) -> &'static str {
@@ -297,75 +297,74 @@ impl Block {
 
         if id == 5 {    // planks
             let variant = index_to_wood_variant(damage);
-            if !variant.is_empty() {
-                block.set_property("variant", variant);
-            } else {
-                return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage })
-            }
+            debug_assert!(!variant.is_empty());
+            block.set_property("variant", variant);
             return Ok(block);
         }
 
         if id == 1 {  //stone
-            match damage {
-                0 => block.set_property("variant", "stone"),
-                1 => block.set_property("variant", "granite"),
-                2 => block.set_property("variant", "smooth_granite"),
-                3 => block.set_property("variant", "diorite"),
-                4 => block.set_property("variant", "smooth_diorite"),
-                5 => block.set_property("variant", "andesite"),
-                6 => block.set_property("variant", "smooth_andesite"),
-                _ => return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage }),
+            let variant = match damage {
+                0 => "stone",
+                1 => "granite",
+                2 => "smooth_granite",
+                3 => "diorite",
+                4 => "smooth_diorite",
+                5 => "andesite",
+                6 => "smooth_andesite",
+                _ => "",
             };
+            debug_assert!(!variant.is_empty());
+            block.set_property("variant", variant);
             return Ok(block);
         }
 
         if id == 3 {    //dirt
             block.set_property("snowy", "false");
-            match damage {
-                0 => block.set_property("variant", "dirt"),
-                1 => block.set_property("variant", "coarse_dirt"),
-                2 => block.set_property("variant", "podzol"),
-                _ => return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage }),
+            let variant = match damage {
+                0 => "dirt",
+                1 => "coarse_dirt",
+                2 => "podzol",
+                _ => "",
             };
+            debug_assert!(!variant.is_empty());
+            block.set_property("variant", variant);
             return Ok(block);
         }
 
         if id == 6 {//sapling
             let variant = index_to_wood_variant(damage & 0b111);
-            if !variant.is_empty() {
-                block.set_property("variant", variant);
-            } else {
-                return return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage });
-            }
+            debug_assert!(!variant.is_empty());
             return Ok(block);
         }
 
         if id == 8 {//flowing_water
             block.id = "water".to_string();
-            block.attributes.insert("level".to_string(), damage.to_string());
+            block.set_property("level", &damage);
             return Ok(block);
         }
         if id == 9 {//water
-            block.attributes.insert("level".to_string(), "0".to_string());
+            block.set_property("level", "0");
             return Ok(block);
         }
 
         if id == 10 {//flowing_lava
             block.id = "lava".to_string();
-            block.attributes.insert("level".to_string(), damage.to_string());
+            block.set_property("level", &damage);
             return Ok(block);
         }
         if id == 11 {//lava
-            block.attributes.insert("level".to_string(), "0".to_string());
+            block.set_property("level", "0");
             return Ok(block);
         }
 
         if id == 12 {//sand
-            match damage {
-                0 => block.set_property("variant", "sand"),
-                1 => block.set_property("variant", "red_sand"),
-                _ => return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage }),
+            let variant = match damage {
+                0 => "sand",
+                1 => "red_sand",
+                _ => "",
             };
+            debug_assert!(!variant.is_empty());
+            block.set_property("variant", variant);
             return Ok(block);
         }
 
@@ -378,7 +377,7 @@ impl Block {
                 let variant_idx = damage & 0b11 + 4;
                 variant = index_to_wood_variant(variant_idx);
             }
-            if variant.is_empty() { return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage }); }
+            debug_assert!(!variant.is_empty());
             let direction_idx = (damage & 0b1100) >> 2;
 
             if direction_idx == 3 {   // wood block.
@@ -402,7 +401,7 @@ impl Block {
                 variant_idx = (damage & 0b11) + 4;
             }
             let variant = index_to_wood_variant(variant_idx);
-            if variant.is_empty() { return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage }); }
+            debug_assert!(!variant.is_empty());
 
             let decayable;
             let check_decay;
@@ -419,7 +418,7 @@ impl Block {
             return Ok(block);
         }
 
-        if [35, 159, 95, 171, 251, 252].contains(&id) {//wool, hardened clay, carpet, stained-glass, concrete, concrete powder,
+        if [35, 159, 95, 171, 172, 251, 252].contains(&id) {//wool, hardened clay, carpet, stained-glass, concrete, concrete powder,
             let color = index_to_color_old(damage);
             debug_assert!(!color.is_empty());
             block.set_property("color", color);
@@ -478,7 +477,7 @@ impl Block {
         }
 
         if [125, 126].contains(&id) {// wooded slab
-            let variant_index = damage & 0b111;
+            let variant_index = damage % 6;
             let variant = index_to_wood_variant(variant_index);
             debug_assert!(!variant.is_empty());
             let is_double;
@@ -517,19 +516,19 @@ impl Block {
         }
 
         if [24, 179].contains(&id) {//sandstone, red_sandstone
-            let type_: String;
-            match id {
-                0 => type_ = block.id.to_string(),
-                1 => type_ = format!("chiseled_{}", block.id),
-                2 => type_ = format!("smooth_{}", block.id),
-                _ => return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage }),
-            }
+            let type_: String = match damage {
+                0 => block.id.to_string(),
+                1 => format!("chiseled_{}", block.id),
+                2 => format!("smooth_{}", block.id),
+                _ => String::new(),
+            };
+            debug_assert!(!type_.is_empty());
             block.attributes.insert("type".to_string(), type_);
             return Ok(block);
         }
 
         if id == 26 {//bed
-            let facing = index_to_torch_facing(damage & 0b11);
+            let facing = index_to_bed_facing(damage & 0b11);
             debug_assert!(!facing.is_empty());
             let occupied = (damage & 0x4) != 0;
             let part_head = (damage & 0x8) != 0;
@@ -540,13 +539,13 @@ impl Block {
         }
 
         if id == 31 {//grass (minecraft:tallgrass in 1.12
-            let type_: &str;
-            match damage {
-                0 => type_ = "dead_bush",
-                1 => type_ = "tall_grass",
-                2 => type_ = "fern",
-                _ => return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage }),
-            }
+            let type_ = match damage {
+                0 => "dead_bush",
+                1 => "tall_grass",
+                2 => "fern",
+                _ => "",
+            };
+            debug_assert!(!type_.is_empty());
             block.set_property("type", type_);
             return Ok(block);
         }
@@ -556,19 +555,19 @@ impl Block {
             return Ok(block);
         }
         if id == 38 {//red_flower
-            let type_: &str;
-            match damage {
-                0 => type_ = "poppy",
-                1 => type_ = "orchid",
-                2 => type_ = "allium",
-                3 => type_ = "houstonia",
-                4 => type_ = "tulip_red",
-                5 => type_ = "tulip_orange",
-                6 => type_ = "tulip_white",
-                7 => type_ = "tulip_pink",
-                8 => type_ = "oxeye",
-                _ => return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage }),
-            }
+            let type_ = match damage {
+                0 => "poppy",
+                1 => "orchid",
+                2 => "allium",
+                3 => "houstonia",
+                4 => "tulip_red",
+                5 => "tulip_orange",
+                6 => "tulip_white",
+                7 => "tulip_pink",
+                8 => "oxeye",
+                _ => "",
+            };
+            debug_assert!(!type_.is_empty());
             block.set_property("type", type_);
             return Ok(block);
         }
@@ -577,23 +576,23 @@ impl Block {
             let lower = damage >= 8;
             block.set_property("half", if lower { "lower" } else { "upper" });
             if !lower {
-                let variant: &str;
-                match damage {
-                    0 => variant = "sunflower",
-                    1 => variant = "syringa",
-                    2 => variant = "grass",
-                    3 => variant = "fern",
-                    4 => variant = "rose",
-                    5 => variant = "paeonia",
-                    _ => return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage }),
-                }
+                let variant = match damage {
+                    0 => "sunflower",
+                    1 => "syringa",
+                    2 => "grass",
+                    3 => "fern",
+                    4 => "rose",
+                    5 => "paeonia",
+                    _ => "",
+                };
+                debug_assert!(!variant.is_empty());
                 block.set_property("variant", variant);
             }
             return Ok(block);
         }
 
         if [29, 33].contains(&id) {//piston and sticky piston (main body)
-            let facing = index_to_torch_facing(damage & 0b111);
+            let facing = index_to_piston_facing(damage & 0b111);
             debug_assert!(!facing.is_empty());
             let extended = (damage & 0x8) != 0;
             block.set_property("facing", facing);
@@ -602,7 +601,7 @@ impl Block {
         }
 
         if [34, 36].contains(&id) {//piston_head and piston_extension (b36)
-            let facing = index_to_torch_facing(damage & 0b111);
+            let facing = index_to_piston_facing(damage & 0b111);
             debug_assert!(!facing.is_empty());
             let sticky = (damage & 0x8) != 0;
             block.set_property("facing", facing);
@@ -643,10 +642,8 @@ impl Block {
             return Ok(block);
         }
         if [177, 68].contains(&id) {//minecraft:wall_banner and wall_sign
-            if damage < 2 || damage > 5 {
-                return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage });
-            }
-            let facing = index_to_piston_facing(id);
+            debug_assert!(damage >= 2 && damage <= 5);
+            let facing = index_to_piston_facing(damage);
             debug_assert!(!facing.is_empty());
             block.set_property("facing", facing);
             return Ok(block);
@@ -678,9 +675,7 @@ impl Block {
 
         if [27, 28, 157].contains(&id) {// golden, detector and activation rails
             let shape_idx = damage & 0b111;
-            if shape_idx > 5 {
-                return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage });
-            }
+            debug_assert!(shape_idx <= 5);
             let shape = index_to_rail_shape(shape_idx);
             debug_assert!(!shape.is_empty());
             let powered = (damage & 0x8) != 0;
@@ -689,10 +684,8 @@ impl Block {
             return Ok(block);
         }
 
-        if [54, 146, 65, 61].contains(&id) {
-            if damage < 2 || damage > 5 {
-                return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage });
-            }
+        if [54, 146, 65, 61, 62, 130].contains(&id) {//chest, trapped chest, ladder, furnaces
+            debug_assert!(damage >= 2 && damage <= 5);
             let facing = index_to_piston_facing(damage);
             debug_assert!(!facing.is_empty());
             block.set_property("facing", facing);
@@ -762,7 +755,7 @@ impl Block {
             return Ok(block);
         }
 
-        if [86, 104].contains(&id) {//pumpkin and pumpkin light
+        if [86, 91].contains(&id) {//pumpkin and pumpkin light
             let facing = index_to_pumpkin_facing(damage);
             debug_assert!(!facing.is_empty());
             block.set_property("facing", facing);
@@ -813,8 +806,9 @@ impl Block {
                 3 => "mossy_stone_brick",
                 4 => "cracked_stone_brick",
                 5 => "chiseled_stone_brick",
-                _ => { return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage }); },
+                _ => "",
             };
+            debug_assert!(!variant.is_empty());
             block.set_property("variant", variant);
             return Ok(block);
         }
@@ -825,8 +819,9 @@ impl Block {
                 1 => "mossy_stonebrick",
                 2 => "cracked_stonebrick",
                 3 => "chiseled_stonebrick",
-                _ => { return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage }); },
+                _ => "",
             };
+            debug_assert!(!variant.is_empty());
             block.set_property("variant", variant);
             return Ok(block);
         }
@@ -836,8 +831,9 @@ impl Block {
                 0 => "prismarine",
                 1 => "dark_prismarine",
                 2 => "prismarine_bricks",
-                _ => { return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage }); },
+                _ => "",
             };
+            debug_assert!(!variant.is_empty());
             block.set_property("variant", variant);
             return Ok(block);
         }
@@ -849,7 +845,7 @@ impl Block {
             return Ok(block);
         }
 
-        if [39, 40].contains(&id) {//mushroom blocks
+        if [99, 100].contains(&id) {//mushroom blocks
             let variant = match damage {
                 0 => "all_outside",
                 1 => "north_west",
@@ -865,8 +861,9 @@ impl Block {
                 11 | 12 | 13 => "all_inside",
                 14 => "all_outside",
                 15 => "all_stem",
-                _ => { return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage }); },
+                _ => "",
             };
+            debug_assert!(!variant.is_empty());
             block.set_property("variant", variant);
             return Ok(block);
         }
@@ -918,8 +915,9 @@ impl Block {
             let axis = match damage {
                 0 | 1 => 'x',
                 2 => 'z',
-                _ => { return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage }); },
+                _ => '\0',
             };
+            debug_assert!(axis != '\0');
             block.set_property("axis", &axis);
             return Ok(block);
         }
@@ -967,8 +965,9 @@ impl Block {
             let variant = match damage {
                 0 => "cobblestone",
                 1 => "mossy_cobblestone",
-                _ => { return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage }); },
+                _ => "",
             };
+            debug_assert!(!variant.is_empty());
             block.set_property("variant", variant);
             return Ok(block);
         }
@@ -991,8 +990,9 @@ impl Block {
                 2 => "lines_y",
                 3 => "lines_x",
                 4 => "lines_z",
-                _ => { return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage }); },
+                _ => "",
             };
+            debug_assert!(!variant.is_empty());
             block.set_property("variant", variant);
             return Ok(block);
         }
@@ -1046,6 +1046,15 @@ impl Block {
             let facing = index_to_glazed_terracotta_facing(damage & 0b11);
             debug_assert!(!facing.is_empty());
             block.set_property("facing", facing);
+            return Ok(block);
+        }
+
+        if [137, 210, 211].contains(&id) {//command blocks
+            let facing = index_to_piston_facing(damage & 0b111);
+            debug_assert!(!facing.is_empty());
+            let conditional = (damage & 0x8) != 0;
+            block.set_property("facing", facing);
+            block.set_property("conditional", &conditional);
             return Ok(block);
         }
 

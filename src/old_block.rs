@@ -11,6 +11,7 @@ pub enum OldBlockParseError {
     DamageMoreThan15 { damage: u8 },
     NotAnOldVersion { version: DataVersion },
     UnsupportedVersion { version: DataVersion },
+    NotImplemented { id: u8, damage: u8, version: DataVersion }
 }
 
 pub fn is_number_id_valid(id: u8) -> Result<(), OldBlockParseError> {
@@ -157,6 +158,10 @@ pub fn index_to_end_portal_frame_facing(idx: u8) -> &'static str {
     return index_to_bed_facing(idx);
 }
 
+pub fn index_to_anvil_facing(idx: u8) -> &'static str {
+    return index_to_bed_facing(idx);
+}
+
 pub fn index_to_tripwire_hook_facing(idx: u8) -> &'static str {
     return index_to_bed_facing(idx);
 }
@@ -252,6 +257,16 @@ pub fn index_to_skull_facing(idx: u8) -> &'static str {
         3 => "south",
         4 => "east",
         5 => "west",
+        _ => "",
+    }
+}
+
+pub fn index_to_glazed_terracotta_facing(idx: u8) -> &'static str {
+    return match idx {
+        0 => "south",
+        1 => "west",
+        2 => "east",
+        3 => "north",
         _ => "",
     }
 }
@@ -404,7 +419,7 @@ impl Block {
             return Ok(block);
         }
 
-        if [35, 159, 95, 171].contains(&id) {//wool, hardened clay, carpet, stained glass
+        if [35, 159, 95, 171, 251, 252].contains(&id) {//wool, hardened clay, carpet, stained-glass, concrete, concrete powder,
             let color = index_to_color_old(damage);
             debug_assert!(!color.is_empty());
             block.set_property("color", color);
@@ -969,7 +984,71 @@ impl Block {
             return Ok(block);
         }
 
-        //return Ok(block);
-        !todo!();
+        if id == 155 {//quartz block
+            let variant = match damage {
+                0 => "default",
+                1 => "chiseled",
+                2 => "lines_y",
+                3 => "lines_x",
+                4 => "lines_z",
+                _ => { return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage }); },
+            };
+            block.set_property("variant", variant);
+            return Ok(block);
+        }
+
+        if id == 145 {//anvil
+            let facing = index_to_anvil_facing(damage & 0b11);
+            debug_assert!(!facing.is_empty());
+            let anvil_damage = (damage & 0b1100) >> 2;
+            debug_assert!(anvil_damage < 3);
+            block.set_property("facing", facing);
+            block.set_property("damage", &anvil_damage);
+            return Ok(block);
+        }
+
+        if id == 218 {//observer
+            let facing = index_to_piston_facing(damage & 0b111);
+            debug_assert!(!facing.is_empty());
+            let powered = (damage & 0x8) != 0;
+            block.set_property("facing", facing);
+            block.set_property("powered", &powered);
+            return Ok(block);
+        }
+
+        if id == 255 {//structure block
+            let mode = match damage {
+                0 => "data",
+                1 => "save",
+                2 => "load",
+                3 => "corner",
+                _ => "",
+            };
+            debug_assert!(!mode.is_empty());
+            block.set_property("mode", mode);
+            return Ok(block);
+        }
+
+        if id == 200 {//chorus flower
+            debug_assert!(damage <= 5);
+            block.set_property("age", &damage);
+            return Ok(block);
+        }
+
+        if id == 198 {//end rod
+            let facing = index_to_piston_facing(damage);
+            debug_assert!(!facing.is_empty());
+            block.set_property("facing", facing);
+            return Ok(block);
+        }
+
+        if id >= 235 && id <= 250 {//glazed terracotta
+            let facing = index_to_glazed_terracotta_facing(damage & 0b11);
+            debug_assert!(!facing.is_empty());
+            block.set_property("facing", facing);
+            return Ok(block);
+        }
+
+        return Err(OldBlockParseError::NotImplemented { id, damage, version });
     }
 }

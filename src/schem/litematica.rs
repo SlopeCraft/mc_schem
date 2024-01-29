@@ -150,6 +150,7 @@ impl Region {
         {
             let palette = unwrap_opt_tag!(nbt.get("BlockStatePalette"),List,vec![],format!("{}/BlockStatePalette",tag_path));
             region.palette.reserve(palette.len());
+            region.palette.clear();
             for (idx, blk_nbt) in palette.iter().enumerate() {
                 let cur_tag_path = format!("{}/BlockStatePalette[{}]", tag_path, idx);
                 let blk_nbt = unwrap_tag!(blk_nbt,Compound,HashMap::new(),&cur_tag_path);
@@ -254,9 +255,9 @@ impl Region {
         }
 
         // PendingFluidTicks
-        {
+        if let Some(pft_tag) = nbt.get("PendingFluidTicks") {
             let pft_tag_path = format!("{}/PendingFluidTicks", tag_path);
-            let pft_list = unwrap_opt_tag!(nbt.get("PendingFluidTicks"),List,vec![],pft_tag_path);
+            let pft_list = unwrap_tag!(pft_tag,List,vec![],pft_tag_path);
             region.pending_ticks.reserve(region.pending_ticks.len() + pft_list.len());
 
             for (idx, pft_comp) in pft_list.iter().enumerate() {
@@ -275,9 +276,9 @@ impl Region {
         }
 
         // PendingBlockTicks
-        {
+        if let Some(pbt_tag) = nbt.get("PendingFluidTicks") {
             let pbt_tag_path = format!("{}/PendingBlockTicks", tag_path);
-            let pbt_list = unwrap_opt_tag!(nbt.get("PendingBlockTicks"),List,vec![],pbt_tag_path);
+            let pbt_list = unwrap_tag!(pbt_tag,List,vec![],pbt_tag_path);
             region.pending_ticks.reserve(region.pending_ticks.len() + pbt_list.len());
             for (idx, pbt_comp) in pbt_list.iter().enumerate() {
                 let cur_tag_path = format!("{}/[{}]", pbt_tag_path, idx);

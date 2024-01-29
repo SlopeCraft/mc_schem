@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 use std::env;
-use std::fs::create_dir_all;
+use std::fs::{create_dir_all, File};
 use fastnbt::Value;
+use flate2::read::GzDecoder;
 use rand::Rng;
 use crate::schem;
-use crate::schem::{DataVersion, LitematicaSaveOption, MetaDataIR, Schematic, WorldEdit13SaveOption};
+use crate::schem::{DataVersion, LitematicaLoadOption, LitematicaSaveOption, MetaDataIR, Schematic, WorldEdit13SaveOption};
 use crate::old_block;
 use crate::region::{BlockEntity, Region};
 use crate::block::Block;
@@ -257,6 +258,48 @@ fn test_old_block_number_id_damage() {
         }
     }
 }
+
+#[test]
+fn parse_full_blocks_mc12() {
+    let num_id_array;
+    {
+        let decoder = GzDecoder::new(File::open("./test_files/schematic/full-blocks-1.12.2.schematic").unwrap());
+        let nbt = fastnbt::from_reader(decoder).unwrap();
+        num_id_array = Schematic::parse_number_id_from_we12(&nbt).unwrap();
+    }
+    let litematic = Schematic::from_litematica_file("./test_files/litematica/full-blocks-1.12.2.litematic", &LitematicaLoadOption::default()).unwrap();
+    let lite_region = &litematic.regions()[0];
+    for dim in 0..3 {
+        assert_eq!(num_id_array.shape()[dim], lite_region.shape()[dim] as usize);
+    }
+
+    let mut hash: HashMap<(u8, u8), String> = HashMap::new();
+    hash.reserve(256 * 16);
+
+    for x in 0..num_id_array.shape()[0] {
+        for y in 0..num_id_array.shape()[1] {
+            for z in 0..num_id_array.shape()[2] {
+                let (id, damage) = num_id_array[[x, y, z]];
+                if hash.contains_key(&(id, damage)) {
+                    continue;
+                }
+
+                let block = litematic.first_block_at([x as i32, y as i32, z as i32]).unwrap();
+
+                hash.insert((id, damage), block.full_id());
+            }
+        }
+    }
+    println!(" id \t damage \t string id");
+    for ((id, damage), val) in hash {
+        println!("{id}\t{damage}\t{val}");
+    }
+
+    // for (id, damage) in num_id_array {
+    //     Block::from_old(id, damage, DataVersion::Java_1_12_2).unwrap();
+    // }
+}
+
 #[test]
 fn load_save_vanilla_structure() {
     use schem::{VanillaStructureLoadOption, VanillaStructureSaveOption};
@@ -393,4 +436,37 @@ fn make_test_litematic() {
     }
     create_dir_all("./target/test/make_test_litematic").unwrap();
     schem.save_litematica_file("./target/test/make_test_litematic/out.litematic", &LitematicaSaveOption::default()).unwrap();
+}
+
+#[test]
+fn correct_test_litematica() {
+    let pos_block = [
+        ([0, 0, 0], "white_concrete"),
+        ([10, 0, 0], "light_gray_concrete"),
+        ([0, 10, 0], "gray_concrete"),
+        ([0, 0, 10], "black_concrete"),
+        ([10, 10, 0], "brown_concrete"),
+        ([10, 0, 10], "red_concrete"),
+        ([0, 10, 10], "orange_concrete"),
+        ([10, 10, 10], "yellow_concrete"),
+    ];
+
+    let schem = Schematic::from_litematica_file("./test_files/litematica/correct_test.litematic", &LitematicaLoadOption::default()).unwrap();
+
+    for x in 0..schem.shape()[0] {
+        for y in 0..schem.shape()[1] {
+            for z in 0..schem.shape()[2] {
+                let blk = schem.first_block_at([x, y, z]).unwrap();
+                if blk.is_air() {
+                    continue;
+                }
+                println!("[{x}, {y}, {z}] => {}", blk.id);
+            }
+        }
+    }
+
+    for (pos, id) in pos_block {
+        let parsed_id = schem.first_block_at(pos).unwrap();
+        assert_eq!(parsed_id.id, id);
+    }
 }

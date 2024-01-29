@@ -73,7 +73,7 @@ impl PendingTickInfo {
 #[allow(dead_code)]
 impl Region {
     pub fn new() -> Region {
-        return Region {
+        let mut result = Region {
             name: String::from("NewRegion"),
             array: Array3::zeros([1, 1, 1]),
             palette: Vec::new(),
@@ -82,6 +82,8 @@ impl Region {
             entities: Vec::new(),
             offset: [0, 0, 0],
         };
+        result.find_or_append_to_palette(&Block::air());
+        return result;
     }
     pub fn array(&self) -> &Array3<u16> {
         return &self.array;
@@ -326,14 +328,24 @@ impl Region {
         self.array.fill(blk_id);
     }
 
-    pub fn block_entity_at(&self, r_pos: [i32; 3]) -> Option<&BlockEntity> {
+    pub fn get_block_entity(&self, r_pos: [i32; 3]) -> Option<&BlockEntity> {
         return self.block_entities.get(&r_pos);
     }
-    pub fn block_entity_at_mut(&mut self, r_pos: [i32; 3]) -> Option<&mut BlockEntity> {
+    pub fn get_block_entity_mut(&mut self, r_pos: [i32; 3]) -> Option<&mut BlockEntity> {
         return self.block_entities.get_mut(&r_pos);
     }
 
-    pub fn set_block_entity_at(&mut self, r_pos: [i32; 3], be: BlockEntity) {
-        self.block_entities.insert(r_pos, be);
+    pub fn set_block_entity_at(&mut self, r_pos: [i32; 3], be: BlockEntity) -> Option<BlockEntity> {
+        return self.block_entities.insert(r_pos, be);
+    }
+
+    pub fn get_pending_tick(&self, r_pos: [i32; 3]) -> Option<&PendingTick> {
+        return self.pending_ticks.get(&r_pos);
+    }
+    pub fn get_pending_tick_mut(&mut self, r_pos: [i32; 3]) -> Option<&mut PendingTick> {
+        return self.pending_ticks.get_mut(&r_pos);
+    }
+    pub fn set_pending_tick(&mut self, r_pos: [i32; 3], value: PendingTick) -> Option<PendingTick> {
+        return self.pending_ticks.insert(r_pos, value);
     }
 }

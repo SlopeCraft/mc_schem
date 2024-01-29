@@ -1,10 +1,13 @@
+use std::collections::HashMap;
 use std::env;
 use std::fs::create_dir_all;
+use fastnbt::Value;
 use rand::Rng;
-use crate::block::Block;
 use crate::schem;
-use crate::schem::{DataVersion, LitematicaSaveOption, Schematic, WorldEdit13SaveOption};
+use crate::schem::{DataVersion, LitematicaSaveOption, MetaDataIR, Schematic, WorldEdit13SaveOption};
 use crate::old_block;
+use crate::region::{BlockEntity, Region};
+use crate::block::Block;
 
 
 #[test]
@@ -241,12 +244,9 @@ fn process_mc12_damage_data() {
 #[test]
 fn test_old_block_number_id_damage() {
     let mut valid_damages = Vec::with_capacity(16);
-    let skip_id = [];
+    let skip_id = [253, 254];
     for id in 0..256 {
         let id = id as u8;
-        if old_block::is_number_id_valid(id).is_err() {
-            continue;
-        }
         if skip_id.contains(&id) {
             continue;
         }
@@ -321,4 +321,76 @@ fn load_save_world_edit13() {
 
         //println!("Metadata: \n{:?}", schem.metadata_litematica());
     }
+}
+
+#[test]
+fn make_test_litematic() {
+    let mut commands = Vec::with_capacity(16 * 16 * 16);
+    for id in 0..256 {
+        let x = (id / 16) * 2;
+        let z = (id % 16) * 2;
+        let str_id = old_block::OLD_BLOCK_ID[id as usize];
+        for damage in 0..16 {
+            let y = damage * 2;
+            commands.push(format!("execute @p ~ ~ ~ setblock ~{x} ~{y} ~{z} {str_id} {damage} replace"));
+        }
+    }
+    assert_eq!(commands.len(), 16 * 16 * 16);
+    let schem_shape = [64, 1, 64];
+
+    let mut schem = Schematic::new();
+    {
+        let mut region = Region::new();
+        region.reshape(&schem_shape);
+        region.fill_with(&Block::air());
+        region.name = "main".to_string();
+
+        let blk_first = Block::from_id("command_block[conditional=false,facing=east]").unwrap();
+        let blk_x_positive = Block::from_id("chain_command_block[conditional=false,facing=east]").unwrap();
+        let blk_x_negative = Block::from_id("chain_command_block[conditional=false,facing=west]").unwrap();
+        let blk_z_positive = Block::from_id("chain_command_block[conditional=false,facing=south]").unwrap();
+
+        let mut command_block_nbt = HashMap::new();
+        command_block_nbt.insert("conditionMet".to_string(), Value::Byte(0));
+        command_block_nbt.insert("auto".to_string(), Value::Byte(1));//always active
+        command_block_nbt.insert("CustomName".to_string(), Value::String("@".to_string()));
+        command_block_nbt.insert("id".to_string(), Value::String("minecraft:command_block".to_string()));
+        command_block_nbt.insert("SuccessCount".to_string(), Value::Int(0));
+        command_block_nbt.insert("TrackOutput".to_string(), Value::Byte(1));
+        command_block_nbt.insert("UpdateLastExecution".to_string(), Value::Byte(1));
+
+        let mut counter = 0;
+        for z in 0..64 {
+            for x_offset in 0..64 {
+                let is_first_block = (x_offset == 0) && (z == 0);
+                let x = if z % 2 == 0 { x_offset } else { 63 - x_offset };
+                let cur_blk: &Block =
+                    if is_first_block {
+                        &blk_first
+                    } else if x_offset == 63 {
+                        &blk_z_positive
+                    } else if z % 2 == 0 {
+                        &blk_x_positive
+                    } else {
+                        &blk_x_negative
+                    };
+                region.set_block([x, 0, z], cur_blk).expect("Failed to set block");
+                command_block_nbt.insert("Command".to_string(), Value::String(commands[counter].to_string()));
+
+                let mut be = BlockEntity::new();
+                *(command_block_nbt.get_mut("auto").unwrap()) = Value::Byte(if is_first_block { 0 } else { 1 });
+                be.tags = command_block_nbt.clone();
+                region.set_block_entity_at([x, 0, z], be);
+                counter += 1;
+            }
+        }
+        schem.regions_mut().push(region);
+    }
+    {
+        let mut md = MetaDataIR::default();
+        md.mc_data_version = DataVersion::Java_1_12_2 as i32;
+        schem.set_metadata(md);
+    }
+    create_dir_all("./target/test/make_test_litematic").unwrap();
+    schem.save_litematica_file("./target/test/make_test_litematic/out.litematic", &LitematicaSaveOption::default()).unwrap();
 }

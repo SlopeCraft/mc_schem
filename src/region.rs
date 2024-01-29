@@ -307,4 +307,33 @@ impl Region {
 
         return Ok(());
     }
+
+    pub fn find_or_append_to_palette(&mut self, block: &Block) -> u16 {
+        let mut blk_idx = self.palette.len();
+        for (idx, blk) in self.palette.iter().enumerate() {
+            if blk == block {
+                return idx as u16;
+            }
+        }
+        if blk_idx >= self.palette.len() {
+            self.palette.push(block.clone());
+        }
+        return self.palette.len() as u16;
+    }
+
+    pub fn fill_with(&mut self, block: &Block) {
+        let blk_id = self.find_or_append_to_palette(block);
+        self.array.fill(blk_id);
+    }
+
+    pub fn block_entity_at(&self, r_pos: [i32; 3]) -> Option<&BlockEntity> {
+        return self.block_entities.get(&r_pos);
+    }
+    pub fn block_entity_at_mut(&mut self, r_pos: [i32; 3]) -> Option<&mut BlockEntity> {
+        return self.block_entities.get_mut(&r_pos);
+    }
+
+    pub fn set_block_entity_at(&mut self, r_pos: [i32; 3], be: BlockEntity) {
+        self.block_entities.insert(r_pos, be);
+    }
 }

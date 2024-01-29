@@ -22,10 +22,10 @@ impl MetaDataIR {
         return result;
     }
 
-    pub fn to_vanilla_structure(&self) -> VanillaStructureMetaData {
-        let mut result = VanillaStructureMetaData::new();
+    pub fn to_vanilla_structure(&self) -> Result<VanillaStructureMetaData, WriteError> {
+        let mut result = VanillaStructureMetaData::from_data_version_i32(self.mc_data_version)?;
         result.data_version = self.mc_data_version;
-        return result;
+        return Ok(result);
     }
 }
 
@@ -177,7 +177,7 @@ impl Schematic {
         let mut schem = Schematic::new();
 
         {
-            let mut md = VanillaStructureMetaData::new();
+            let mut md = VanillaStructureMetaData::default();
             md.data_version = *unwrap_opt_tag!(nbt.get("DataVersion"),Int,0,"/DataVersion");
             schem.metadata = MetaDataIR::from_vanilla_structure(&md);
             schem.raw_metadata = Some(VanillaStructure(md));

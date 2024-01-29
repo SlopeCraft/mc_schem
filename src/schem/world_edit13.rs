@@ -65,7 +65,7 @@ impl MetaDataIR {
 
 fn parse_metadata(root: &HashMap<String, Value>, _option: &WorldEdit13LoadOption)
                   -> Result<WE13MetaData, LoadError> {
-    let mut we13 = WE13MetaData::new();
+    let mut we13 = WE13MetaData::default();
 
     we13.version = *unwrap_opt_tag!(root.get("Version"),Int,0,"/Version".to_string());
     we13.data_version = *unwrap_opt_tag!(root.get("DataVersion"),Int,0,"/DataVersion".to_string());
@@ -296,8 +296,8 @@ fn parse_block_entity(nbt: &HashMap<String, Value>, tag_path: &str, region_size:
 }
 
 impl Schematic {
-    pub fn metadata_world_edit_13(&self) -> WE13MetaData {
-        let mut result = WE13MetaData::new();
+    pub fn metadata_world_edit_13(&self) -> Result<WE13MetaData, WriteError> {
+        let mut result = WE13MetaData::from_data_version_i32(self.metadata.mc_data_version)?;
         if let Some(raw_md) = &self.raw_metadata {
             if let RawMetaData::WE13(raw) = &raw_md {
                 result = raw.clone();
@@ -307,14 +307,14 @@ impl Schematic {
         result.data_version = self.metadata.mc_data_version;
         result.offset = [0, 0, 0];
 
-        return result;
+        return Ok(result);
     }
     pub fn to_nbt_world_edit_13(&self, option: &WorldEdit13SaveOption) -> Result<HashMap<String, Value>, WriteError> {
         let mut root = HashMap::new();
 
         // metadata
         {
-            let md = self.metadata_world_edit_13();
+            let md = self.metadata_world_edit_13()?;
             let mut md_nbt = HashMap::new();
             let pos_letter = ['X', 'Y', 'Z'];
             for dim in 0..3 {

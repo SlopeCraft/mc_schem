@@ -105,13 +105,37 @@ pub struct WE13MetaData {
 
 #[allow(dead_code)]
 impl WE13MetaData {
-    pub fn new() -> WE13MetaData {
+    pub fn default() -> WE13MetaData {
         return WE13MetaData {
             data_version: DataVersion::new() as i32,
             version: 5,
             we_offset: [0, 0, 0],
             offset: [0, 0, 0],
         };
+    }
+
+    pub fn from_data_version(dv: DataVersion) -> Result<WE13MetaData, WriteError> {
+        return Self::from_data_version_i32(dv as i32);
+    }
+
+    pub fn from_data_version_i32(dv: i32) -> Result<WE13MetaData, WriteError> {
+        let mut result = Self::default();
+        result.data_version = dv;
+        if dv < DataVersion::Java_1_13 as i32 {
+            return Err(WriteError::UnsupportedVersion { data_version_i32: dv });
+        }
+        // 1.13.2 => 2
+        // 1.14.4 => 2
+        // 1.18.2 => 2
+        // 1.19.4 => 2
+        // 1.20.2 => 3
+        result.version = if dv < DataVersion::Java_1_20 as i32 {
+            2
+        } else {
+            3
+        };
+
+        return Ok(result);
     }
 }
 
@@ -122,10 +146,21 @@ pub struct VanillaStructureMetaData {
 }
 
 impl VanillaStructureMetaData {
-    pub fn new() -> VanillaStructureMetaData {
+    pub fn default() -> VanillaStructureMetaData {
         return VanillaStructureMetaData {
             data_version: DataVersion::new() as i32,
         };
+    }
+
+
+    pub fn from_data_version(dv: DataVersion) -> Result<VanillaStructureMetaData, WriteError> {
+        return Self::from_data_version_i32(dv as i32);
+    }
+
+    pub fn from_data_version_i32(dv: i32) -> Result<VanillaStructureMetaData, WriteError> {
+        return Ok(VanillaStructureMetaData {
+            data_version: dv
+        });
     }
 }
 

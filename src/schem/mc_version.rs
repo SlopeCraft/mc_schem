@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use strum::Display;
 
 #[allow(non_camel_case_types)]
@@ -1037,5 +1038,17 @@ impl DataVersion {
 
     pub fn new() -> DataVersion {
         return DataVersion::Java_1_20_4;
+    }
+}
+
+impl PartialEq<i32> for DataVersion {
+    fn eq(&self, other: &i32) -> bool {
+        return (*self as i32) == *other;
+    }
+}
+
+impl PartialOrd<i32> for DataVersion {
+    fn partial_cmp(&self, other: &i32) -> Option<Ordering> {
+        return (*self as i32).partial_cmp(other);
     }
 }

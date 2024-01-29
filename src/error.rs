@@ -131,7 +131,8 @@ pub enum WriteError {
     BlockIndexOfOfRange { r_pos: [i32; 3], block_index: u16, max_index: u16 },
     FileCreateError(std::io::Error),
     DuplicatedRegionName { name: String },
-    SizeTooLarge { size: [u64; 3], max_size: [u64; 3] }
+    SizeTooLarge { size: [u64; 3], max_size: [u64; 3] },
+    UnsupportedVersion { data_version_i32: i32 },
 }
 
 impl Display for WriteError {
@@ -149,6 +150,8 @@ impl Display for WriteError {
             => write!(f, "More than one region used name \"{}\"", name),
             WriteError::SizeTooLarge { size, max_size }
             => write!(f, "Schematic size {} exceeds maximum size {} of current format.", format_size(size), format_size(max_size)),
+            WriteError::UnsupportedVersion { data_version_i32 }
+            => write!(f, "Data version {data_version_i32} is not supported."),
         }
     }
 }

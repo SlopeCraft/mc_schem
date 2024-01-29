@@ -74,7 +74,7 @@ impl Schematic {
 
 
 fn parse_metadata(root: &HashMap<String, Value>) -> Result<LitematicaMetaData, LoadError> {
-    let mut result = LitematicaMetaData::new();
+    let mut result = LitematicaMetaData::default();
 
     result.data_version = *unwrap_opt_tag!(root.get("MinecraftDataVersion"),Int,0,"/MinecraftDataVersion");
     result.version = *unwrap_opt_tag!(root.get("Version"),Int,0,"/Version");
@@ -260,7 +260,7 @@ impl Region {
             region.pending_ticks.reserve(region.pending_ticks.len() + pft_list.len());
 
             for (idx, pft_comp) in pft_list.iter().enumerate() {
-                let cur_tag_path = format!("{}/[{}]", tag_path, idx);
+                let cur_tag_path = format!("{}/[{}]", pft_tag_path, idx);
                 let pft_comp = unwrap_tag!(pft_comp,Compound,HashMap::new(),cur_tag_path);
                 match parse_pending_tick(pft_comp, &cur_tag_path, &region.shape(), false) {
                     Ok((pos, pft)) => {
@@ -280,7 +280,7 @@ impl Region {
             let pbt_list = unwrap_opt_tag!(nbt.get("PendingBlockTicks"),List,vec![],pbt_tag_path);
             region.pending_ticks.reserve(region.pending_ticks.len() + pbt_list.len());
             for (idx, pbt_comp) in pbt_list.iter().enumerate() {
-                let cur_tag_path = format!("{}/[{}]", tag_path, idx);
+                let cur_tag_path = format!("{}/[{}]", pbt_tag_path, idx);
                 let pbt_comp = unwrap_tag!(pbt_comp,Compound,HashMap::new(),cur_tag_path);
                 match parse_pending_tick(pbt_comp, &cur_tag_path, &region.shape(), true) {
                     Ok((pos, pbt)) => {
@@ -630,11 +630,17 @@ fn parse_pending_tick(nbt: &HashMap<String, Value>, tag_path: &str, region_size:
 
 #[allow(dead_code)]
 impl Schematic {
-    pub fn metadata_litematica(&self) -> LitematicaMetaData {
-        let mut md = LitematicaMetaData::new();
+    pub fn metadata_litematica(&self) -> Result<LitematicaMetaData, WriteError> {
+        let mut md =
+            match LitematicaMetaData::from_data_version_i32(self.metadata.mc_data_version) {
+                Ok(md_) => md_,
+                Err(e) => return Err(e),
+            };
         if let Some(raw) = &self.raw_metadata {
             if let RawMetaData::Litematica(raw) = &raw {
-                md = raw.clone();
+                if raw.data_version == md.data_version {
+                    md = raw.clone();
+                }
             }
         }
 
@@ -644,7 +650,7 @@ impl Schematic {
         md.description = self.metadata.description.clone();
 
 
-        return md;
+        return Ok(md);
     }
 
     fn find_non_duplicate_name<T>(saved_regions: &HashMap<String, T>, old_name: &str) -> String {
@@ -685,7 +691,10 @@ impl Schematic {
 
         // meta data
         {
-            let md = self.metadata_litematica();
+            let md = match self.metadata_litematica() {
+                Ok(md_) => md_,
+                Err(e) => return Err(e),
+            };
             nbt.insert("MinecraftDataVersion".to_string(), Value::Int(md.data_version));
             nbt.insert("Version".to_string(), Value::Int(md.version));
             if let Some(sv) = md.sub_version {

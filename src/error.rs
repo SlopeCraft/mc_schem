@@ -1,4 +1,5 @@
 use std::fmt::{Display, Formatter};
+use strum::Display;
 use crate::block::BlockIdParseError;
 use crate::schem::common::format_size;
 
@@ -153,5 +154,24 @@ impl Display for WriteError {
             WriteError::UnsupportedVersion { data_version_i32 }
             => write!(f, "Data version {data_version_i32} is not supported."),
         }
+    }
+}
+
+#[repr(u8)]
+#[derive(Debug, Display)]
+#[allow(dead_code)]
+pub enum ErrorHandleResult {
+    HandledWithoutWarning,
+    HandledWithWarning,
+    NotHandled,
+}
+
+pub mod error_handler {
+    use crate::error::{ErrorHandleResult, LoadError};
+    use crate::schem::Schematic;
+
+    // don't handle any error, any mistake in schematic will be considered as terrible
+    pub fn strict(_: &mut Schematic, _: &LoadError) -> ErrorHandleResult {
+        return ErrorHandleResult::NotHandled;
     }
 }

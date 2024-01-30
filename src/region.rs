@@ -36,13 +36,13 @@ pub struct PendingTick {
 pub struct Region {
     pub name: String,
     //XYZ
-    pub(in crate) array: Array3<u16>,
-    pub(in crate) palette: Vec<Block>,
-    pub(in crate) block_entities: HashMap<[i32; 3], BlockEntity>,
-    pub(in crate) pending_ticks: HashMap<[i32; 3], PendingTick>,
-    pub(in crate) entities: Vec<Entity>,
+    pub array: Array3<u16>,
+    pub palette: Vec<Block>,
+    pub block_entities: HashMap<[i32; 3], BlockEntity>,
+    pub pending_ticks: HashMap<[i32; 3], PendingTick>,
+    pub entities: Vec<Entity>,
 
-    pub(in crate) offset: [i32; 3],
+    pub offset: [i32; 3],
 }
 
 impl Entity {
@@ -85,28 +85,28 @@ impl Region {
         result.find_or_append_to_palette(&Block::air());
         return result;
     }
-    pub fn array(&self) -> &Array3<u16> {
-        return &self.array;
-    }
-    pub fn palette(&self) -> &[Block] {
-        return &self.palette;
-    }
-    pub fn block_entities(&self) -> &HashMap<[i32; 3], BlockEntity> {
-        return &self.block_entities;
-    }
-    pub fn pending_ticks(&self) -> &HashMap<[i32; 3], PendingTick> {
-        return &self.pending_ticks;
-    }
-    pub fn entities(&self) -> &[Entity] {
-        return &self.entities;
-    }
-    pub fn offset(&self) -> &[i32; 3] {
-        return &self.offset;
-    }
-
-    pub fn set_offset(&mut self, new_offset: [i32; 3]) {
-        self.offset = new_offset;
-    }
+    // pub fn array(&self) -> &Array3<u16> {
+    //     return &self.array;
+    // }
+    // pub fn palette(&self) -> &[Block] {
+    //     return &self.palette;
+    // }
+    // pub fn block_entities(&self) -> &HashMap<[i32; 3], BlockEntity> {
+    //     return &self.block_entities;
+    // }
+    // pub fn pending_ticks(&self) -> &HashMap<[i32; 3], PendingTick> {
+    //     return &self.pending_ticks;
+    // }
+    // pub fn entities(&self) -> &[Entity] {
+    //     return &self.entities;
+    // }
+    // pub fn offset(&self) -> &[i32; 3] {
+    //     return &self.offset;
+    // }
+    //
+    // pub fn set_offset(&mut self, new_offset: [i32; 3]) {
+    //     self.offset = new_offset;
+    // }
 
     pub fn i32_to_usize(pos: &[i32; 3]) -> [usize; 3] {
         let x = pos[0] as usize;
@@ -121,7 +121,7 @@ impl Region {
             return Err(());
         }
         let mut blkid = self.palette.len();
-        for (idx, blk) in self.palette().iter().enumerate() {
+        for (idx, blk) in self.palette.iter().enumerate() {
             if blk == block {
                 blkid = idx;
                 break;
@@ -145,7 +145,7 @@ impl Region {
         if !self.contains_coord(r_pos) {
             return Err(());
         }
-        if block_id as usize >= self.palette().len() {
+        if block_id as usize >= self.palette.len() {
             return Err(());
         }
         let pos_usize = Self::i32_to_usize(&r_pos);
@@ -310,6 +310,15 @@ impl Region {
         return Ok(());
     }
 
+    pub fn find_in_palette(&self, block: &Block) -> Option<u16> {
+        for (idx, blk) in self.palette.iter().enumerate() {
+            if blk == block {
+                return Some(idx as u16);
+            }
+        }
+        return None;
+    }
+
     pub fn find_or_append_to_palette(&mut self, block: &Block) -> u16 {
         let mut blk_idx = self.palette.len();
         for (idx, blk) in self.palette.iter().enumerate() {
@@ -328,10 +337,10 @@ impl Region {
         self.array.fill(blk_id);
     }
 
-    pub fn get_block_entity(&self, r_pos: [i32; 3]) -> Option<&BlockEntity> {
+    pub fn block_entity_at(&self, r_pos: [i32; 3]) -> Option<&BlockEntity> {
         return self.block_entities.get(&r_pos);
     }
-    pub fn get_block_entity_mut(&mut self, r_pos: [i32; 3]) -> Option<&mut BlockEntity> {
+    pub fn block_entity_at_mut(&mut self, r_pos: [i32; 3]) -> Option<&mut BlockEntity> {
         return self.block_entities.get_mut(&r_pos);
     }
 
@@ -339,13 +348,13 @@ impl Region {
         return self.block_entities.insert(r_pos, be);
     }
 
-    pub fn get_pending_tick(&self, r_pos: [i32; 3]) -> Option<&PendingTick> {
+    pub fn pending_tick_at(&self, r_pos: [i32; 3]) -> Option<&PendingTick> {
         return self.pending_ticks.get(&r_pos);
     }
-    pub fn get_pending_tick_mut(&mut self, r_pos: [i32; 3]) -> Option<&mut PendingTick> {
+    pub fn pending_tick_at_mut(&mut self, r_pos: [i32; 3]) -> Option<&mut PendingTick> {
         return self.pending_ticks.get_mut(&r_pos);
     }
-    pub fn set_pending_tick(&mut self, r_pos: [i32; 3], value: PendingTick) -> Option<PendingTick> {
+    pub fn set_pending_tick_at(&mut self, r_pos: [i32; 3], value: PendingTick) -> Option<PendingTick> {
         return self.pending_ticks.insert(r_pos, value);
     }
 }

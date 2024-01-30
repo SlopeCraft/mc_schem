@@ -12,13 +12,15 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use crate::block::{Block, CommonBlock};
 use fastnbt;
-use crate::error::WriteError;
+use crate::error::{error_handler, ErrorHandleResult, LoadError, WriteError};
 //use schem::mc_version;
 use crate::schem;
 use crate::region::{BlockEntity, Region};
 
 
 pub type DataVersion = mc_version::DataVersion;
+
+pub type ErrorHandlingCallBack = Box<dyn FnMut(&mut Schematic, &LoadError) -> ErrorHandleResult>;
 
 
 #[derive(Debug, Clone)]
@@ -280,7 +282,7 @@ impl Schematic {
         let mut result = Vec::with_capacity(self.regions.len());
         for reg in &self.regions {
             let cur_pos = reg.global_pos_to_relative_pos(pos);
-            if let Some(blk) = reg.block_entities().get(&cur_pos) {
+            if let Some(blk) = reg.block_entities.get(&cur_pos) {
                 result.push(blk);
             }
         }
@@ -308,14 +310,14 @@ impl Schematic {
             return None;
         }
         let reg = &self.regions[0];
-        return reg.block_entities().get(&reg.global_pos_to_relative_pos(pos));
+        return reg.block_entities.get(&reg.global_pos_to_relative_pos(pos));
     }
 
     pub fn shape(&self) -> [i32; 3] {
         let mut result = [0, 0, 0];
         for reg in &self.regions {
             for dim in 0..3 {
-                result[dim] = max(result[dim], reg.offset()[dim] + reg.shape()[dim]);
+                result[dim] = max(result[dim], reg.offset[dim] + reg.shape()[dim]);
             }
         }
         return result;
@@ -344,7 +346,7 @@ impl Schematic {
         {
             let mut pmps: usize = 0;
             for reg in &self.regions {
-                pmps = max(pmps, reg.palette().len());
+                pmps = max(pmps, reg.palette.len());
             }
             possible_max_palette_size = pmps;
         }
@@ -352,9 +354,9 @@ impl Schematic {
         let mut palette: Vec<(&Block, u64)> = Vec::with_capacity(possible_max_palette_size);
         let mut lut_lut: Vec<Vec<usize>> = Vec::with_capacity(self.regions.len());
         for reg in &self.regions {
-            let mut lut: Vec<usize> = Vec::with_capacity(reg.palette().len());
+            let mut lut: Vec<usize> = Vec::with_capacity(reg.palette.len());
 
-            for cur_blk in reg.palette() {
+            for cur_blk in &reg.palette {
                 let mut hasher = DefaultHasher::new();
                 cur_blk.hash(&mut hasher);
                 let cur_hash = hasher.finish();
@@ -425,19 +427,23 @@ impl VanillaStructureSaveOption {
     }
 }
 
-#[derive(Debug)]
-pub struct LitematicaLoadOption {}
+//#[derive(Debug)]
+pub struct LitematicaLoadOption {
+    pub error_handler: ErrorHandlingCallBack,
+}
 
 impl LitematicaLoadOption {
     pub fn default() -> LitematicaLoadOption {
-        return LitematicaLoadOption {};
+        return LitematicaLoadOption {
+            error_handler: Box::from(&error_handler::strict),
+        };
     }
 }
 
 
 #[derive(Debug)]
 pub struct LitematicaSaveOption {
-    rename_duplicated_regions: bool,
+    pub rename_duplicated_regions: bool,
 }
 
 impl LitematicaSaveOption {

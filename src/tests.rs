@@ -10,7 +10,6 @@ use crate::old_block;
 use crate::region::{BlockEntity, Region};
 use crate::block::Block;
 
-
 #[test]
 fn block_id_parse() {
 
@@ -291,8 +290,57 @@ fn parse_full_blocks_mc12() {
         }
     }
     println!(" id \t damage \t string id");
-    for ((id, damage), val) in hash {
+    for ((id, damage), val) in &hash {
         println!("{id}\t{damage}\t{val}");
+    }
+
+    let mut damage_list = [0u16; 256];
+    for ((id, damage), _) in &hash {
+        assert!(*damage < 16);
+        damage_list[*id as usize] |= 1u16 << damage;
+    }
+
+    println!("\n\n\n id \t damage");
+    for (id, damages) in damage_list.iter().enumerate() {
+        let string = damage_list_u16_to_string(*damages);
+        println!("{id}\t{string}");
+    }
+
+    fn damage_list_u16_to_string(damage_list: u16) -> String {
+        if damage_list == 0 {
+            return "".to_string();
+        }
+
+        let mut result = String::new();
+        let mut temp = Vec::with_capacity(32);
+        let mut prev: Option<u8> = None;
+        for damage in 0..16 {
+            if damage_list & (1u16 << damage) == 0 {
+                continue;
+            }
+            if let Some(prev_damage) = prev {
+                if damage - prev_damage > 1 {
+                    temp.push(255);
+                }
+            }
+            prev = Some(damage);
+            temp.push(damage);
+        }
+
+        for slice in temp.split(|x| *x == 255) {
+            assert!(slice.len() > 0);
+            if slice.len() == 1 {
+                result.push_str(&slice.first().unwrap().to_string());
+            } else {
+                result.push_str(&format!("{}-{}", slice.first().unwrap(), slice.last().unwrap()));
+            }
+            result.push(',');
+        }
+        if !result.is_empty() {
+            result.pop();
+        }
+
+        return result;
     }
 
     // for (id, damage) in num_id_array {

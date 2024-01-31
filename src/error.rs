@@ -1,6 +1,7 @@
 use std::fmt::{Display, Formatter};
 use strum::Display;
-use crate::block::BlockIdParseError;
+use crate::block::{Block, BlockIdParseError};
+use crate::region::Region;
 use crate::schem::common::format_size;
 
 #[derive(Debug)]
@@ -160,18 +161,79 @@ impl Display for WriteError {
 #[repr(u8)]
 #[derive(Debug, Display)]
 #[allow(dead_code)]
-pub enum ErrorHandleResult {
-    HandledWithoutWarning,
-    HandledWithWarning,
+pub enum ErrorHandleResult<T> {
+    HandledWithoutWarning(T),
+    HandledWithWarning(T),
     NotHandled,
 }
 
-pub mod error_handler {
-    use crate::error::{ErrorHandleResult, LoadError};
-    use crate::schem::Schematic;
+impl<T> ErrorHandleResult<T> {
+    pub fn has_value(&self) -> bool {
+        return if let ErrorHandleResult::NotHandled = self {
+            false
+        } else { true };
+    }
 
-    // don't handle any error, any mistake in schematic will be considered as terrible
-    pub fn strict(_: &mut Schematic, _: &LoadError) -> ErrorHandleResult {
+    pub fn has_warning(&self) -> bool {
+        return if let ErrorHandleResult::HandledWithWarning(_) = self {
+            true
+        } else { false };
+    }
+
+    pub fn to_option(self) -> Option<T> {
+        return match self {
+            ErrorHandleResult::NotHandled => None,
+            ErrorHandleResult::HandledWithWarning(val) => Some(val),
+            ErrorHandleResult::HandledWithoutWarning(val) => Some(val),
+        }
+    }
+}
+
+pub enum BlockPosOutOfRangeFixMethod {
+    IgnoreThisBlock,
+    FixPos([i32; 3]),
+}
+
+pub trait ErrorHandler {
+    // returns the fixed block index
+    fn fix_block_index_out_of_range(
+        _region: &mut Region,
+        _error: &LoadError) -> ErrorHandleResult<u16> {
+
         return ErrorHandleResult::NotHandled;
     }
+
+    fn fix_block_pos_out_of_range(_region: &mut Region, _error: &LoadError) -> ErrorHandleResult<BlockPosOutOfRangeFixMethod> {
+        return ErrorHandleResult::NotHandled;
+    }
+
+    fn fix_invalid_block_id(_region: &mut Region, _error: &LoadError) -> ErrorHandleResult<Block> {
+        return ErrorHandleResult::NotHandled;
+    }
+}
+
+pub struct StrictErrorHandler {}
+
+impl ErrorHandler for StrictErrorHandler {}
+
+pub struct DefaultErrorHandler {}
+
+impl ErrorHandler for DefaultErrorHandler {
+    fn fix_block_index_out_of_range(
+        region: &mut Region,
+        error: &LoadError) -> ErrorHandleResult<u16> {
+        if let LoadError::BlockIndexOutOfRange { .. } = error {
+            let air_id = region.find_or_append_to_palette(&Block::air());
+            return ErrorHandleResult::HandledWithWarning(air_id);
+        }
+        return ErrorHandleResult::NotHandled;
+    }
+
+    fn fix_block_pos_out_of_range(_region: &mut Region, _error: &LoadError) -> ErrorHandleResult<BlockPosOutOfRangeFixMethod> {
+        return ErrorHandleResult::HandledWithWarning(BlockPosOutOfRangeFixMethod::IgnoreThisBlock);
+    }
+
+    // fn fix_invalid_block_id(_region: &mut Region, _error: &LoadError) -> ErrorHandleResult<Block> {
+    //     return ErrorHandleResult::NotHandled;
+    // }
 }

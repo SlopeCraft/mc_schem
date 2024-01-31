@@ -12,15 +12,13 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use crate::block::{Block, CommonBlock};
 use fastnbt;
-use crate::error::{error_handler, ErrorHandleResult, LoadError, WriteError};
+use crate::error::WriteError;
 //use schem::mc_version;
 use crate::schem;
 use crate::region::{BlockEntity, Region};
 
 
 pub type DataVersion = mc_version::DataVersion;
-
-pub type ErrorHandlingCallBack = Box<dyn FnMut(&mut Schematic, &LoadError) -> ErrorHandleResult>;
 
 
 #[derive(Debug, Clone)]
@@ -429,13 +427,11 @@ impl VanillaStructureSaveOption {
 
 //#[derive(Debug)]
 pub struct LitematicaLoadOption {
-    pub error_handler: ErrorHandlingCallBack,
 }
 
 impl LitematicaLoadOption {
     pub fn default() -> LitematicaLoadOption {
         return LitematicaLoadOption {
-            error_handler: Box::from(&error_handler::strict),
         };
     }
 }

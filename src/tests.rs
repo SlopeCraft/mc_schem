@@ -267,7 +267,7 @@ fn parse_full_blocks_mc12() {
         num_id_array = Schematic::parse_number_id_from_we12(&nbt).unwrap();
     }
     let litematic = Schematic::from_litematica_file("./test_files/litematica/full-blocks-1.12.2.litematic", &LitematicaLoadOption::default()).unwrap();
-    let lite_region = &litematic.regions()[0];
+    let lite_region = &litematic.regions[0];
     for dim in 0..3 {
         assert_eq!(num_id_array.shape()[dim], lite_region.shape()[dim] as usize);
     }
@@ -475,12 +475,12 @@ fn make_test_litematic() {
                 counter += 1;
             }
         }
-        schem.regions_mut().push(region);
+        schem.regions.push(region);
     }
     {
         let mut md = MetaDataIR::default();
         md.mc_data_version = DataVersion::Java_1_12_2 as i32;
-        schem.set_metadata(md);
+        schem.metadata = md;
     }
     create_dir_all("./target/test/make_test_litematic").unwrap();
     schem.save_litematica_file("./target/test/make_test_litematic/out.litematic", &LitematicaSaveOption::default()).unwrap();

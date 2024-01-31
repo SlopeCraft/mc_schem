@@ -208,10 +208,10 @@ impl MetaDataIR {
 
 #[derive(Debug)]
 pub struct Schematic {
-    metadata: MetaDataIR,
+    pub metadata: MetaDataIR,
     raw_metadata: Option<RawMetaData>,
 
-    regions: Vec<Region>,
+    pub regions: Vec<Region>,
     //pub enclosing_size: [i64; 3],
 
 }
@@ -236,21 +236,21 @@ impl Schematic {
         };
     }
 
-    pub fn metadata(&self) -> &MetaDataIR {
-        return &self.metadata;
-    }
-
-    pub fn set_metadata(&mut self, md: MetaDataIR) {
-        self.metadata = md;
-    }
-
-    pub fn regions(&self) -> &[Region] {
-        return &self.regions;
-    }
-
-    pub fn regions_mut(&mut self) -> &mut Vec<Region> {
-        return &mut self.regions;
-    }
+    // pub fn metadata(&self) -> &MetaDataIR {
+    //     return &self.metadata;
+    // }
+    //
+    // pub fn set_metadata(&mut self, md: MetaDataIR) {
+    //     self.metadata = md;
+    // }
+    //
+    // pub fn regions(&self) -> &[Region] {
+    //     return &self.regions;
+    // }
+    //
+    // pub fn regions_mut(&mut self) -> &mut Vec<Region> {
+    //     return &mut self.regions;
+    // }
 
     pub fn raw_metadata(&self) -> &Option<RawMetaData> {
         return &self.raw_metadata;

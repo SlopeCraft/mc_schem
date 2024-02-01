@@ -523,7 +523,7 @@ fn correct_test_litematica() {
 
 #[test]
 fn correct_test_mc13_and_above() {
-    let test_versions = ["1.14.4", "1.18.2", "1.19.4", ];//,"1.20.2"
+    let test_versions = ["1.20.2", "1.14.4", "1.18.2", "1.19.4", ];//,
     let mut err_counter = 0;
     for ver in test_versions {
         let litematica_file = format!("./test_files/litematica/full-blocks-{ver}.litematic");

@@ -101,19 +101,48 @@ pub struct WE13MetaData {
     pub version: i32,
     pub we_offset: [i32; 3],
     pub offset: [i32; 3],
+    //time stamp in milliseconds
+    pub date: Option<i64>,
+    pub v3_extra: Option<WE13MetaDataV3Extra>,
 }
 
+// Introduced in 1.20, version 3
+#[derive(Debug, Clone)]
 #[allow(dead_code)]
-impl WE13MetaData {
-    pub fn default() -> WE13MetaData {
+pub struct WE13MetaDataV3Extra {
+    pub world_edit_version: String,
+    pub editing_platform: String,
+    pub origin: [i32; 3],
+
+}
+
+impl Default for WE13MetaData {
+    fn default() -> WE13MetaData {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
         return WE13MetaData {
             data_version: DataVersion::new() as i32,
             version: 5,
             we_offset: [0, 0, 0],
             offset: [0, 0, 0],
+            date: Some(time),
+            v3_extra: None,
         };
     }
+}
 
+impl Default for WE13MetaDataV3Extra {
+    fn default() -> Self {
+        return WE13MetaDataV3Extra {
+            world_edit_version: "(unknown)".to_string(),
+            editing_platform: "".to_string(),
+            origin: [0, 0, 0],
+        }
+    }
+}
+
+#[allow(dead_code)]
+impl WE13MetaData {
     pub fn from_data_version(dv: DataVersion) -> Result<WE13MetaData, WriteError> {
         return Self::from_data_version_i32(dv as i32);
     }

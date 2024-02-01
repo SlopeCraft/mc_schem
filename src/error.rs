@@ -135,6 +135,10 @@ pub enum WriteError {
     DuplicatedRegionName { name: String },
     SizeTooLarge { size: [u64; 3], max_size: [u64; 3] },
     UnsupportedVersion { data_version_i32: i32 },
+    UnsupportedWorldEdit13Version {
+        version: i32,
+        supported_versions: Vec<i32>,
+    }
 }
 
 impl Display for WriteError {
@@ -154,6 +158,8 @@ impl Display for WriteError {
             => write!(f, "Schematic size {} exceeds maximum size {} of current format.", format_size(size), format_size(max_size)),
             WriteError::UnsupportedVersion { data_version_i32 }
             => write!(f, "Data version {data_version_i32} is not supported."),
+            WriteError::UnsupportedWorldEdit13Version { version, supported_versions }
+            => write!(f, "World edit format version(not minecraft version) {version} is not supported, supported versions: {supported_versions:?}"),
         }
     }
 }

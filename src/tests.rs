@@ -540,8 +540,8 @@ fn correct_test_mc13_and_above() {
                     let blk_s = schem.first_block_at(pos).unwrap();
                     if blk_l != blk_s {
                         err_counter += 1;
-                        let id_l = lite.first_block_index_at(pos).unwrap();
-                        let id_s = schem.first_block_index_at(pos).unwrap();
+                        let id_l: u16 = lite.first_block_index_at(pos).unwrap();
+                        let id_s: u16 = schem.first_block_index_at(pos).unwrap();
                         panic!("In {ver}, block at [{x}, {y}, {z}] is different: \n litematica => {}, id= {id_l}\n schem => {}, id = {id_s}", blk_l, blk_s);
                     }
                     ok_counter += 1;

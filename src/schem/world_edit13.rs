@@ -214,6 +214,7 @@ impl Region {
                     }
                 }
             }
+            debug_assert!(idx == block_data.len());
         }
 
 
@@ -424,11 +425,11 @@ impl Schematic {
                         let cur_block_gindex = cur_block_gindex.unwrap_or_else(|| background_blk_index);
 
                         let encoded_index = encode_single_block(cur_block_gindex);
-                        if encoded_index[1] == 0 {
-                            block_data.push(encoded_index[0]);
-                        } else {
-                            block_data.push(encoded_index[0]);
-                            block_data.push(encoded_index[1]);
+                        for value in &encoded_index {
+                            block_data.push(*value);
+                            if *value >= 0 {
+                                break;
+                            }
                         }
                     }
                 }
@@ -508,16 +509,55 @@ impl Schematic {
 }
 
 
-fn encode_single_block(index: u16) -> [i8; 2] {
-    let index = index as i32;
-    if index <= 127 {
-        return [index as i8, 0];
+fn encode_single_block(value: u16) -> [i8; 8] {
+    // let index = index as i32;
+    //
+    // let first_byte = index % 128 - 128;
+    // let second_byte = (index - first_byte) / 128 - 1;
+    // debug_assert!(first_byte < 0);
+    // debug_assert!(second_byte >= 1);
+    //
+    // return [first_byte as i8, second_byte as i8];
+    let mut result = [0; 8];
+    if value <= 127 {
+        result[0] = value as i8;
+        return result;
     }
 
-    let first_byte = index % 128 - 128;
-    let second_byte = (index - first_byte) / 128 - 1;
-    debug_assert!(first_byte < 0);
-    debug_assert!(second_byte >= 1);
+    let mut value = value as i32;
+    let mut byte_idx = 0;
+    loop {
+        let cur_byte_val = value % 128;
+        value = value / 128;
+        let encoded_byte: i8;
+        if value > 0 {// not the last byte
+            encoded_byte = (cur_byte_val - 128) as i8;
+            debug_assert!(encoded_byte < 0);
+        } else {// the last byte of this block
+            encoded_byte = cur_byte_val as i8;
+            debug_assert!(encoded_byte > 0);
+        }
+        result[byte_idx] = encoded_byte;
+        byte_idx += 1;
+        if value <= 0 {
+            break;
+        }
+    }
+    return result;
+}
 
-    return [first_byte as i8, second_byte as i8];
+#[test]
+fn test_schem_encode_decoding() {
+    for id in 0..65536 {
+        let code = encode_single_block(id as u16);
+        let mut code_length = 0;
+        for val in code {
+            code_length += 1;
+            if val >= 0 {
+                break;
+            }
+        }
+        let decoded_id = parse_single_block(&code[0..code_length]);
+        assert_eq!(id, decoded_id);
+    }
 }

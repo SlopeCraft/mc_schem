@@ -1,6 +1,6 @@
 use strum::{Display, EnumString};
 use std::collections::{BTreeMap, HashMap};
-use std::fmt::Display;
+use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use fastnbt::Value;
 
@@ -352,6 +352,12 @@ impl Hash for Block {
             key.hash(state);
             val.hash(state);
         }
+    }
+}
+
+impl Display for Block {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        return write!(f, "{}", &self.full_id());
     }
 }
 

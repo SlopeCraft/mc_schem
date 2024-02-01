@@ -92,6 +92,32 @@ fn parse_metadata(root: &HashMap<String, Value>, _option: &WorldEdit13LoadOption
     return Ok(we13);
 }
 
+fn parse_single_block(src: &[i8]) -> i32 {
+    debug_assert!(src.len() > 0);
+    if src.len() == 1 {
+        debug_assert!(src[0] >= 0);
+        return src[0] as i32;
+    }
+
+    let mut result = 0;
+    for (idx, value) in src.iter().enumerate() {
+        if idx == src.len() - 1 {
+            debug_assert!(*value >= 1);
+        } else {
+            debug_assert!(*value < 0);
+        }
+        let value_fixed;
+        if idx != 0 {
+            value_fixed = *value as i32 + 1;
+        } else {
+            value_fixed = *value as i32;
+        }
+        result += value_fixed * (1 << (idx * 7));
+    }
+
+    return result;
+}
+
 #[allow(dead_code)]
 impl Region {
     pub fn from_world_edit_13(nbt: &HashMap<String, Value>, _option: &WorldEdit13LoadOption) -> Result<Region, LoadError> {
@@ -157,25 +183,24 @@ impl Region {
 
                         let cur_block_first_byte_index = idx;
 
-                        let decoded_block_index: i32;
-                        let first_byte = block_data[idx];
-                        idx += 1;
-
-                        if first_byte >= 0 {
-                            decoded_block_index = first_byte as i32;
-                        } else {
-                            if idx >= block_data.len() {
-                                return Err(LoadError::BlockDataIncomplete {
-                                    tag_path: "/BlockData".to_string(),
-                                    index: idx,
-                                    detail: format!("BlockData[{}] is {}, which expects one more element to represent a block, but the data ends; {} blocks decoded, {} blocks missing, {} blocks in total.", idx - 1, first_byte, decoded_blocks, total_blocks - decoded_blocks, total_blocks),
-                                });
+                        let mut cur_block_bytes = usize::MAX;
+                        for iidx in cur_block_first_byte_index..block_data.len() {
+                            if block_data[iidx] >= 0 {
+                                cur_block_bytes = iidx - cur_block_first_byte_index + 1;
+                                break;
                             }
-
-                            let second_byte = block_data[idx];
-                            idx += 1;
-                            decoded_block_index = 128 + 128 * second_byte as i32 + first_byte as i32;
                         }
+                        if cur_block_bytes >= block_data.len() {
+                            let first_byte = block_data[cur_block_first_byte_index];
+                            return Err(LoadError::BlockDataIncomplete {
+                                tag_path: "/BlockData".to_string(),
+                                index: idx,
+                                detail: format!("BlockData[{}] is {}, which expects one or more elements to represent a block, but the data ends; {} blocks decoded, {} blocks missing, {} blocks in total.", idx - 1, first_byte, decoded_blocks, total_blocks - decoded_blocks, total_blocks),
+                            });
+                        }
+                        idx += cur_block_bytes;
+                        let decoded_block_index = parse_single_block(&block_data[cur_block_first_byte_index..(cur_block_first_byte_index + cur_block_bytes)]);
+
                         assert!(decoded_block_index >= 0);
                         if decoded_block_index as usize >= region.palette.len() {
                             return Err(LoadError::BlockIndexOutOfRange {

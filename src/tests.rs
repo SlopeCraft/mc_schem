@@ -5,7 +5,7 @@ use fastnbt::Value;
 use flate2::read::GzDecoder;
 use rand::Rng;
 use crate::schem;
-use crate::schem::{DataVersion, LitematicaLoadOption, LitematicaSaveOption, MetaDataIR, Schematic, WorldEdit13SaveOption};
+use crate::schem::{DataVersion, LitematicaLoadOption, LitematicaSaveOption, MetaDataIR, Schematic, WorldEdit13LoadOption, WorldEdit13SaveOption};
 use crate::old_block;
 use crate::region::{BlockEntity, Region};
 use crate::block::Block;
@@ -519,4 +519,35 @@ fn correct_test_litematica() {
         let parsed_id = schem.first_block_at(pos).unwrap();
         assert_eq!(parsed_id.id, id);
     }
+}
+
+#[test]
+fn correct_test_mc13_and_above() {
+    let test_versions = ["1.18.2", "1.19.4", ];// "1.20.2",
+    let mut err_counter = 0;
+    for ver in test_versions {
+        let litematica_file = format!("./test_files/litematica/full-blocks-{ver}.litematic");
+        let schem_file = format!("./test_files/schem/full-blocks-{ver}.schem");
+        let lite = Schematic::from_litematica_file(&litematica_file, &LitematicaLoadOption::default()).unwrap();
+        let schem = Schematic::from_world_edit_13_file(&schem_file, &WorldEdit13LoadOption::default()).unwrap();
+        let mut ok_counter = 0;
+        assert_eq!(lite.shape(), schem.shape());
+        for x in 0..lite.shape()[0] {
+            for y in 0..lite.shape()[1] {
+                for z in 0..lite.shape()[2] {
+                    let pos = [x, y, z];
+                    let blk_l = lite.first_block_at(pos).unwrap();
+                    let blk_s = schem.first_block_at(pos).unwrap();
+                    if blk_l != blk_s {
+                        err_counter += 1;
+                        let id_l = lite.first_block_index_at(pos).unwrap();
+                        let id_s = schem.first_block_index_at(pos).unwrap();
+                        panic!("In {ver}, block at [{x}, {y}, {z}] is different: \n litematica => {}, id= {id_l}\n schem => {}, id = {id_s}", blk_l, blk_s);
+                    }
+                    ok_counter += 1;
+                }
+            }
+        }
+    }
+    assert_eq!(err_counter, 0);
 }

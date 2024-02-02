@@ -1,6 +1,7 @@
 use std::fmt::{Display, Formatter};
 use strum::Display;
 use crate::block::{Block, BlockIdParseError};
+use crate::old_block::OldBlockParseError;
 use crate::region::Region;
 use crate::schem::common::format_size;
 
@@ -56,6 +57,10 @@ pub enum LoadError {
         index: usize,
         detail: String,
     },
+    InvalidBlockNumberId {
+        tag_path: String,
+        detail: OldBlockParseError,
+    },
 }
 
 impl Display for LoadError {
@@ -86,6 +91,8 @@ impl Display for LoadError {
             => write!(f, "2 blocks have same id({}) in palette, \"{}\" and \"{}\"", index, former_block_id, latter_block_id),
             LoadError::BlockDataIncomplete { tag_path, index, detail }
             => write!(f, "The 3d block array stored in {} is incomplete, failed to decode at index {}, detail: {}", tag_path, index, detail),
+            LoadError::InvalidBlockNumberId { tag_path, detail }
+            => write!(f, "Invalid number id at {tag_path}, detail: {detail}"),
         }
     }
 }

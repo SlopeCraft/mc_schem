@@ -85,12 +85,20 @@ impl LitematicaMetaData {
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
-pub struct WE12MetaData {}
+pub struct WE12MetaData {
+    pub materials: String,
+    pub we_offset: [i32; 3],
+    pub we_origin: [i32; 3],
+}
 
 #[allow(dead_code)]
 impl WE12MetaData {
-    pub fn new() -> WE12MetaData {
-        return WE12MetaData {};
+    pub fn default() -> WE12MetaData {
+        return WE12MetaData {
+            materials: "Alpha".to_string(),
+            we_offset: [0, 0, 0],
+            we_origin: [0, 0, 0],
+        };
     }
 }
 
@@ -496,10 +504,25 @@ pub struct WorldEdit13SaveOption {
 }
 
 #[allow(dead_code)]
-impl WorldEdit13SaveOption {
-    pub fn default() -> WorldEdit13SaveOption {
+impl Default for WorldEdit13SaveOption {
+    fn default() -> WorldEdit13SaveOption {
         return WorldEdit13SaveOption {
             background_block: CommonBlock::Air,
         };
+    }
+}
+
+#[derive(Debug)]
+pub struct WorldEdit12LoadOption {
+    pub data_version: DataVersion,
+    pub fix_string_id_with_block_entity_data: bool,
+}
+
+impl Default for WorldEdit12LoadOption {
+    fn default() -> Self {
+        return WorldEdit12LoadOption {
+            data_version: DataVersion::Java_1_12_2,
+            fix_string_id_with_block_entity_data: true,
+        }
     }
 }

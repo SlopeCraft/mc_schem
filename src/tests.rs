@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 use std::env;
 use std::fs::{create_dir_all, File};
+use std::process::abort;
 use fastnbt::Value;
+use flate2::{Compression, GzBuilder};
 use flate2::read::GzDecoder;
 use rand::Rng;
 use crate::schem;
@@ -345,8 +347,47 @@ fn parse_full_blocks_mc12() {
         return result;
     }
 
-    // for (id, damage) in num_id_array {
-    //     Block::from_old(id, damage, DataVersion::Java_1_12_2).unwrap();
+    // {
+    //     fn unwrap_hashmap<'a>(src: &'a mut HashMap<String, Value>, key: &str) -> Option<&'a mut HashMap<String, Value>> {
+    //         if !src.contains_key(key) {
+    //             src.insert(key.to_string(), Value::Compound(HashMap::new()));
+    //         }
+    //
+    //         let id_ref = src.get_mut(key).unwrap();
+    //         return if let Value::Compound(id_ref) = id_ref {
+    //             Some(id_ref)
+    //         } else {
+    //             None
+    //         }
+    //     }
+    //     let mut nbt = HashMap::new();
+    //
+    //     for x in 0..num_id_array.shape()[0] {
+    //         for y in 0..num_id_array.shape()[1] {
+    //             for z in 0..num_id_array.shape()[2] {
+    //                 let (id, damage) = num_id_array[[x, y, z]];
+    //                 let pos = [x as i32, y as i32, z as i32];
+    //
+    //                 let block = litematic.first_block_at(pos).unwrap();
+    //                 let be = litematic.first_block_entity_at(pos);
+    //
+    //                 let nbt_id = unwrap_hashmap(&mut nbt, &id.to_string()).unwrap();
+    //                 let nbt_damage = unwrap_hashmap(nbt_id, &damage.to_string()).unwrap();
+    //                 let temp = if let Some(be) = be { be.tags.clone() } else { HashMap::new() };
+    //                 if !temp.is_empty() {
+    //                     assert!(true);
+    //                 }
+    //                 nbt_damage.insert(block.full_id(), Value::Compound(temp));
+    //             }
+    //         }
+    //     }
+    //     create_dir_all("./target/test/parse_full_blocks_mc12").unwrap();
+    //     let filename = "./target/test/parse_full_blocks_mc12/block_entities_to_id.nbt";
+    //     let file = File::create("./target/test/parse_full_blocks_mc12/block_entities_to_id.nbt").unwrap();
+    //     let mut encoder = GzBuilder::new().filename(filename).write(file, Compression::best());
+    //
+    //     let res: Result<(), fastnbt::error::Error> = fastnbt::to_writer(&mut encoder, &nbt);
+    //     res.unwrap();
     // }
 }
 

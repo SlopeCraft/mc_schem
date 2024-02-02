@@ -284,7 +284,7 @@ pub fn index_to_hay_block_axis(idx: u8) -> &'static str {
 #[allow(dead_code)]
 impl Block {
     pub fn from_old(id: u8, damage: u8, version: DataVersion) -> Result<Block, OldBlockParseError> {
-        if version > DataVersion::Java_1_12_2 {
+        if version > DataVersion::Java_1_12_2 as i32 {
             return Err(OldBlockParseError::NotAnOldVersion { version });
         }
 

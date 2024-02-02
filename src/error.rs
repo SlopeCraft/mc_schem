@@ -61,6 +61,9 @@ pub enum LoadError {
         tag_path: String,
         detail: OldBlockParseError,
     },
+    UnrecognisedExtension {
+        extension: String,
+    }
 }
 
 impl Display for LoadError {
@@ -93,6 +96,8 @@ impl Display for LoadError {
             => write!(f, "The 3d block array stored in {} is incomplete, failed to decode at index {}, detail: {}", tag_path, index, detail),
             LoadError::InvalidBlockNumberId { tag_path, detail }
             => write!(f, "Invalid number id at {tag_path}, detail: {detail}"),
+            LoadError::UnrecognisedExtension { extension }
+            => write!(f, "Unrecognised extension {extension}, can not deduce schematic format from filename extension, try loading with explicit format."),
         }
     }
 }

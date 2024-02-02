@@ -1,6 +1,8 @@
 use std::collections::HashMap;
+use std::fs::File;
 use std::mem;
 use fastnbt::Value;
+use flate2::read::GzDecoder;
 use ndarray::Array3;
 use crate::block::Block;
 use crate::error::LoadError;
@@ -76,6 +78,19 @@ impl Schematic {
         let mut md = MetaDataIR::default();
         md.mc_data_version = option.data_version as i32;
         return Ok((md, raw));
+    }
+
+    pub fn from_world_edit_12_file(filename: &str, option: &WorldEdit12LoadOption) -> Result<Schematic, LoadError> {
+        let file = match File::open(filename) {
+            Ok(f) => f,
+            Err(e) => return Err(LoadError::FileOpenError(e)),
+        };
+        let decoder = GzDecoder::new(file);
+        let nbt: HashMap<String, Value> = match fastnbt::from_reader(decoder) {
+            Ok(n) => n,
+            Err(e) => return Err(LoadError::NBTReadError(e)),
+        };
+        return Self::from_world_edit_12(nbt, option);
     }
 
     pub fn from_world_edit_12(mut nbt: HashMap<String, Value>, option: &WorldEdit12LoadOption) -> Result<Schematic, LoadError> {

@@ -12,7 +12,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use crate::block::{Block, CommonBlock};
 use fastnbt;
-use crate::error::WriteError;
+use crate::error::{LoadError, WriteError};
 //use schem::mc_version;
 use crate::schem;
 use crate::region::{BlockEntity, Region};
@@ -416,6 +416,27 @@ impl Schematic {
             lut_lut.push(lut);
         }
         return (palette, lut_lut);
+    }
+
+    pub fn from_file(filename: &str) -> Result<Schematic, LoadError> {
+        if filename.ends_with(".litematic") {
+            return Self::from_litematica_file(filename, &LitematicaLoadOption::default());
+        }
+        if filename.ends_with(".nbt") {
+            return Self::from_vanilla_structure_file(filename, &VanillaStructureLoadOption::default());
+        }
+        if filename.ends_with(".schem") {
+            return Self::from_world_edit_13_file(filename, &WorldEdit13LoadOption::default());
+        }
+        if filename.ends_with(".schematic") {
+            return Self::from_world_edit_12_file(filename, &WorldEdit12LoadOption::default());
+        }
+
+        let split = filename.split(".");
+        let extension = split.last().unwrap_or_else(|| "");
+
+
+        return Err(LoadError::UnrecognisedExtension { extension: extension.to_string() });
     }
 }
 

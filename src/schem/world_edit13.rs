@@ -566,7 +566,7 @@ impl Schematic {
         return Ok(be_list);
     }
 
-    pub fn to_nbt_world_edit_13_v2(&self, md: WE13MetaData, option: &WorldEdit13SaveOption) -> Result<(HashMap<String, Value>), WriteError> {
+    pub fn to_nbt_world_edit_13_v2(&self, md: WE13MetaData, option: &WorldEdit13SaveOption) -> Result<HashMap<String, Value>, WriteError> {
         let mut root = HashMap::new();
         // metadata
         Self::write_metadata_v2(&mut root, &md);

@@ -7,7 +7,7 @@ use flate2::{Compression, GzBuilder};
 use flate2::read::GzDecoder;
 use rand::Rng;
 use crate::schem;
-use crate::schem::{DataVersion, LitematicaLoadOption, LitematicaSaveOption, MetaDataIR, Schematic, WorldEdit13LoadOption, WorldEdit13SaveOption};
+use crate::schem::{DataVersion, LitematicaLoadOption, LitematicaSaveOption, MetaDataIR, Schematic, WorldEdit12LoadOption, WorldEdit13LoadOption, WorldEdit13SaveOption};
 use crate::old_block;
 use crate::region::{BlockEntity, Region};
 use crate::block::Block;
@@ -347,48 +347,48 @@ fn parse_full_blocks_mc12() {
         return result;
     }
 
-    // {
-    //     fn unwrap_hashmap<'a>(src: &'a mut HashMap<String, Value>, key: &str) -> Option<&'a mut HashMap<String, Value>> {
-    //         if !src.contains_key(key) {
-    //             src.insert(key.to_string(), Value::Compound(HashMap::new()));
-    //         }
-    //
-    //         let id_ref = src.get_mut(key).unwrap();
-    //         return if let Value::Compound(id_ref) = id_ref {
-    //             Some(id_ref)
-    //         } else {
-    //             None
-    //         }
-    //     }
-    //     let mut nbt = HashMap::new();
-    //
-    //     for x in 0..num_id_array.shape()[0] {
-    //         for y in 0..num_id_array.shape()[1] {
-    //             for z in 0..num_id_array.shape()[2] {
-    //                 let (id, damage) = num_id_array[[x, y, z]];
-    //                 let pos = [x as i32, y as i32, z as i32];
-    //
-    //                 let block = litematic.first_block_at(pos).unwrap();
-    //                 let be = litematic.first_block_entity_at(pos);
-    //
-    //                 let nbt_id = unwrap_hashmap(&mut nbt, &id.to_string()).unwrap();
-    //                 let nbt_damage = unwrap_hashmap(nbt_id, &damage.to_string()).unwrap();
-    //                 let temp = if let Some(be) = be { be.tags.clone() } else { HashMap::new() };
-    //                 if !temp.is_empty() {
-    //                     assert!(true);
-    //                 }
-    //                 nbt_damage.insert(block.full_id(), Value::Compound(temp));
-    //             }
-    //         }
-    //     }
-    //     create_dir_all("./target/test/parse_full_blocks_mc12").unwrap();
-    //     let filename = "./target/test/parse_full_blocks_mc12/block_entities_to_id.nbt";
-    //     let file = File::create("./target/test/parse_full_blocks_mc12/block_entities_to_id.nbt").unwrap();
-    //     let mut encoder = GzBuilder::new().filename(filename).write(file, Compression::best());
-    //
-    //     let res: Result<(), fastnbt::error::Error> = fastnbt::to_writer(&mut encoder, &nbt);
-    //     res.unwrap();
-    // }
+}
+
+#[test]
+fn make_mc12_numeric_lut() {
+    let schem_file = "./test_files/schematic/full-blocks-1.12.2.schematic";
+
+    let num_id_array;
+    {
+        let decoder = GzDecoder::new(File::open(schem_file).unwrap());
+        let nbt = fastnbt::from_reader(decoder).unwrap();
+        num_id_array = Schematic::parse_number_id_from_we12(&nbt).unwrap();
+    }
+    let schem = Schematic::from_world_edit_12_file(schem_file, &WorldEdit12LoadOption::default()).unwrap();
+    let lite = Schematic::from_litematica_file("./test_files/litematica/full-blocks-1.12.2.litematic", &LitematicaLoadOption::default()).unwrap();
+
+    for dim in 0..3 {
+        assert_eq!(num_id_array.shape()[dim], schem.shape()[dim] as usize);
+        assert_eq!(schem.shape()[dim], lite.shape()[dim]);
+    }
+    let shape = lite.shape();
+    let mut hash: HashMap<String, HashMap<String, HashMap<String, Value>>> = HashMap::new();
+    hash.reserve(256);
+    for x in 0..shape[0] as usize {
+        for y in 0..shape[1] as usize {
+            for z in 0..shape[2] as usize {
+                let (id, damage) = num_id_array[[x, y, z]];
+                let pos = [x as i32, y as i32, z as i32];
+                let full_id = lite.first_block_at(pos).unwrap().full_id();
+                let be_tags = match schem.first_block_entity_at(pos) {
+                    Some(be) => be.tags.clone(),
+                    None => HashMap::new(),
+                };
+                let hash = hash.entry(id.to_string()).or_insert(HashMap::new());
+                let hash = hash.entry(damage.to_string()).or_insert(HashMap::new());
+                hash.insert(full_id, Value::Compound(be_tags));
+            }
+        }
+    }
+    create_dir_all("./target/test/make_mc12_numeric_lut").unwrap();
+    let file = File::create("./target/test/make_mc12_numeric_lut/out.nbt").unwrap();
+    let encoder = GzBuilder::new().filename("out.nbt").write(file, Compression::best());
+    fastnbt::to_writer(encoder, &hash).unwrap();
 }
 
 #[test]
@@ -455,6 +455,15 @@ fn load_save_world_edit13() {
 
         //println!("Metadata: \n{:?}", schem.metadata_litematica());
     }
+}
+
+#[test]
+fn load_save_world_edit12() {
+    use schem::WorldEdit12LoadOption;
+    //let src_dir = "./test_files/schematic";
+    let out_dir = "./target/test/load_save_world_edit12";
+    create_dir_all(out_dir).unwrap();
+    let _ = Schematic::from_world_edit_12_file("./test_files/schematic/full-blocks-1.12.2.schematic", &WorldEdit12LoadOption::default()).unwrap();
 }
 
 #[test]
@@ -564,13 +573,21 @@ fn correct_test_litematica() {
 
 #[test]
 fn correct_test_mc13_and_above() {
-    let test_versions = ["1.20.2", "1.14.4", "1.18.2", "1.19.4", ];//,
+    let test_versions = ["1.12.2", "1.14.4", "1.18.2", "1.19.4", "1.20.2", ];//,
     let mut err_counter = 0;
     for ver in test_versions {
         let litematica_file = format!("./test_files/litematica/full-blocks-{ver}.litematic");
-        let schem_file = format!("./test_files/schem/full-blocks-{ver}.schem");
+
+        let schem;
+        if ver.starts_with("1.12") {
+            let schem_file = format!("./test_files/schematic/full-blocks-{ver}.schematic");
+            schem = Schematic::from_world_edit_12_file(&schem_file, &WorldEdit12LoadOption::default()).unwrap();
+        } else {
+            let schem_file = format!("./test_files/schem/full-blocks-{ver}.schem");
+            schem = Schematic::from_world_edit_13_file(&schem_file, &WorldEdit13LoadOption::default()).unwrap();
+        }
+
         let lite = Schematic::from_litematica_file(&litematica_file, &LitematicaLoadOption::default()).unwrap();
-        let schem = Schematic::from_world_edit_13_file(&schem_file, &WorldEdit13LoadOption::default()).unwrap();
         let mut ok_counter = 0;
         assert_eq!(lite.shape(), schem.shape());
         for x in 0..lite.shape()[0] {

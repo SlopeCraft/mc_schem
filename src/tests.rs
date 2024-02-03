@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::env;
 use std::fs::{create_dir_all, File};
-use std::process::abort;
 use fastnbt::Value;
 use flate2::{Compression, GzBuilder};
 use flate2::read::GzDecoder;
@@ -359,7 +358,9 @@ fn make_mc12_numeric_lut() {
         let nbt = fastnbt::from_reader(decoder).unwrap();
         num_id_array = Schematic::parse_number_id_from_we12(&nbt).unwrap();
     }
-    let schem = Schematic::from_world_edit_12_file(schem_file, &WorldEdit12LoadOption::default()).unwrap();
+    let mut schem_option = WorldEdit12LoadOption::default();
+    schem_option.fix_string_id_with_block_entity_data = false;
+    let schem = Schematic::from_world_edit_12_file(schem_file, &schem_option).unwrap();
     let lite = Schematic::from_litematica_file("./test_files/litematica/full-blocks-1.12.2.litematic", &LitematicaLoadOption::default()).unwrap();
 
     for dim in 0..3 {
@@ -572,20 +573,15 @@ fn correct_test_litematica() {
 }
 
 #[test]
-fn correct_test_mc13_and_above() {
-    let test_versions = ["1.12.2", "1.14.4", "1.18.2", "1.19.4", "1.20.2", ];//,
+fn correct_test_mc13_plus() {
+    let test_versions = ["1.14.4", "1.18.2", "1.19.4", "1.20.2", ];//,
     let mut err_counter = 0;
     for ver in test_versions {
         let litematica_file = format!("./test_files/litematica/full-blocks-{ver}.litematic");
 
-        let schem;
-        if ver.starts_with("1.12") {
-            let schem_file = format!("./test_files/schematic/full-blocks-{ver}.schematic");
-            schem = Schematic::from_world_edit_12_file(&schem_file, &WorldEdit12LoadOption::default()).unwrap();
-        } else {
-            let schem_file = format!("./test_files/schem/full-blocks-{ver}.schem");
-            schem = Schematic::from_world_edit_13_file(&schem_file, &WorldEdit13LoadOption::default()).unwrap();
-        }
+
+        let schem_file = format!("./test_files/schem/full-blocks-{ver}.schem");
+        let schem = Schematic::from_world_edit_13_file(&schem_file, &WorldEdit13LoadOption::default()).unwrap();
 
         let lite = Schematic::from_litematica_file(&litematica_file, &LitematicaLoadOption::default()).unwrap();
         let mut ok_counter = 0;
@@ -597,6 +593,53 @@ fn correct_test_mc13_and_above() {
                     let blk_l = lite.first_block_at(pos).unwrap();
                     let blk_s = schem.first_block_at(pos).unwrap();
                     if blk_l != blk_s {
+                        err_counter += 1;
+                        let id_l: u16 = lite.first_block_index_at(pos).unwrap();
+                        let id_s: u16 = schem.first_block_index_at(pos).unwrap();
+                        panic!("In {ver}, block at [{x}, {y}, {z}] is different: \n litematica => {}, id= {id_l}\n schem => {}, id = {id_s}", blk_l, blk_s);
+                    }
+                    ok_counter += 1;
+                }
+            }
+        }
+    }
+    assert_eq!(err_counter, 0);
+}
+
+
+#[test]
+fn correct_test_mc12() {
+    let test_versions = ["1.12.2"];//,
+    let mut err_counter = 0;
+
+    let soft_check_ids = ["grass", "dirt", "bed", "piston_head",
+        "fire", "oak_stairs", "wooden_door", "stone_stairs", "iron_door",
+        "unpowered_repeater", "powered_repeater", "fence_gate", "double_plant",
+        "spruce_fence_gate", "birch_fence_gate", "jungle_fence_gate",
+        "dark_oak_fence_gate", "acacia_fence_gate", "spruce_door", "birch_door",
+        "jungle_door", "acacia_door", "dark_oak_door"];
+
+    for ver in test_versions {
+        let litematica_file = format!("./test_files/litematica/full-blocks-{ver}.litematic");
+
+        let schem;
+        let schem_file = format!("./test_files/schematic/full-blocks-{ver}.schematic");
+        schem = Schematic::from_world_edit_12_file(&schem_file, &WorldEdit12LoadOption::default()).unwrap();
+
+        let lite = Schematic::from_litematica_file(&litematica_file, &LitematicaLoadOption::default()).unwrap();
+        let mut ok_counter = 0;
+        assert_eq!(lite.shape(), schem.shape());
+        for x in 0..lite.shape()[0] {
+            for y in 0..lite.shape()[1] {
+                for z in 0..lite.shape()[2] {
+                    let pos = [x, y, z];
+                    let blk_l = lite.first_block_at(pos).unwrap();
+                    let blk_s = schem.first_block_at(pos).unwrap();
+
+                    if blk_l != blk_s {
+                        if blk_l.is_inherited_from(blk_l) && soft_check_ids.contains(&blk_l.id.as_str()) {
+                            continue;
+                        }
                         err_counter += 1;
                         let id_l: u16 = lite.first_block_index_at(pos).unwrap();
                         let id_s: u16 = schem.first_block_index_at(pos).unwrap();

@@ -4,7 +4,7 @@ use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use fastnbt::Value;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq)]
 pub struct Block {
     pub namespace: String,
     pub id: String,
@@ -314,6 +314,14 @@ impl Block {
         }
     }
 
+    pub fn empty_block() -> Block {
+        return Block {
+            namespace: "".to_string(),
+            id: "".to_string(),
+            attributes: BTreeMap::new(),
+        }
+    }
+
     pub fn structure_void() -> Block {
         return Block {
             namespace: String::from("minecraft"),
@@ -342,6 +350,27 @@ impl Block {
         where for<'a> &'a V: Display {
         self.attributes.insert(key.to_string(), value.to_string());
     }
+
+    pub fn is_inherited_from(&self, blk_less_attr: &Block) -> bool {
+        if self.attributes.len() < blk_less_attr.attributes.len() {
+            return false;
+        }
+        if self.id != blk_less_attr.id {
+            return false;
+        }
+
+        for (key, val) in &blk_less_attr.attributes {
+            if let Some(val_self) = self.attributes.get(key) {
+                if val_self != val {
+                    return false;
+                }
+                continue;
+            } else {
+                return false;
+            }
+        }
+        return true;
+    }
 }
 
 impl Hash for Block {
@@ -360,6 +389,14 @@ impl Display for Block {
         return write!(f, "{}", &self.full_id());
     }
 }
+
+// impl<T> Borrow<T> for Block
+//     where T: ?Sized {
+//     fn borrow(&self) -> &T
+//     {
+//         return self;
+//     }
+// }
 
 #[repr(u8)]
 #[derive(Debug, Display)]

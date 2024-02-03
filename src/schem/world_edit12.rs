@@ -211,6 +211,60 @@ impl Region {
             region.block_entities.insert(pos, block_entity);
         }
 
+        if option.fix_string_id_with_block_entity_data {
+            let mut block_to_index: HashMap<Block, u16> = HashMap::new();
+            block_to_index.reserve(region.palette.len() + region.block_entities.len());
+            for (idx, blk) in region.palette.iter().enumerate() {
+                block_to_index.insert(blk.clone(), idx as u16);
+            }
+
+            for (pos, be) in &region.block_entities {
+                let pos_usize = [pos[0] as usize, pos[1] as usize, pos[2] as usize];
+                let original_blk = region.block_at(*pos);
+                debug_assert!(original_blk.is_some());
+                let original_blk = original_blk.unwrap();
+                let (id, damage) = id_damage_array[pos_usize];
+                let fixed_block = match original_blk.fix_block_property_with_block_entity(id, damage, be) {
+                    Ok(b) => b,
+                    Err(e) => return Err(LoadError::InvalidBlockNumberId {
+                        tag_path: "(unknown)".to_string(),
+                        detail: e,
+                    }),
+                };
+
+                if let Some(fixed_block) = fixed_block {
+                    debug_assert!(fixed_block != *original_blk);
+                    let fixed_id: u16;
+                    if block_to_index.contains_key(&fixed_block) {
+                        fixed_id = block_to_index[&fixed_block];
+                    } else {
+                        fixed_id = block_to_index.len() as u16;
+                        block_to_index.insert(fixed_block, fixed_id);
+                    }
+                    debug_assert!(region.array[pos_usize] != fixed_id);
+                    region.array[pos_usize] = fixed_id;
+                }
+            }
+            let original_pal_len = region.palette.len();
+            let full_pal_len = block_to_index.len();
+            region.palette.reserve(full_pal_len);
+            while region.palette.len() < full_pal_len {
+                region.palette.push(Block::empty_block());
+            }
+            for (block, index) in block_to_index.into_iter() {
+                let index = index as usize;
+                if index < original_pal_len {
+                    debug_assert!(region.palette[index] == block);
+                    continue;
+                }
+                region.palette[index] = block;
+            }
+
+            for blk in &region.palette {
+                debug_assert!(!blk.id.is_empty());
+            }
+        }
+
         return Ok(region);
     }
 }

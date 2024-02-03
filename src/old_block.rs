@@ -1,12 +1,18 @@
 use strum::Display;
 use crate::block::Block;
+use crate::region::BlockEntity;
 use crate::schem::DataVersion;
 
-pub const OLD_BLOCK_ID: [&'static str; 256] = ["air", "stone", "grass", "dirt", "cobblestone", "planks", "sapling", "bedrock", "flowing_water", "water", "flowing_lava", "lava", "sand", "gravel", "gold_ore", "iron_ore", "coal_ore", "log", "leaves", "sponge", "glass", "lapis_ore", "lapis_block", "dispenser", "sandstone", "noteblock", "bed", "golden_rail", "detector_rail", "sticky_piston", "web", "tallgrass", "deadbush", "piston", "piston_head", "wool", "piston_extension", "yellow_flower", "red_flower", "brown_mushroom", "red_mushroom", "gold_block", "iron_block", "double_stone_slab", "stone_slab", "brick_block", "tnt", "bookshelf", "mossy_cobblestone", "obsidian", "torch", "fire", "mob_spawner", "oak_stairs", "chest", "redstone_wire", "diamond_ore", "diamond_block", "crafting_table", "wheat", "farmland", "furnace", "lit_furnace", "standing_sign", "wooden_door", "ladder", "rail", "stone_stairs", "wall_sign", "lever", "stone_pressure_plate", "iron_door", "wooden_pressure_plate", "redstone_ore", "lit_redstone_ore", "unlit_redstone_torch", "redstone_torch", "stone_button", "snow_layer", "ice", "snow", "cactus", "clay", "reeds", "jukebox", "fence", "pumpkin", "netherrack", "soul_sand", "glowstone", "portal", "lit_pumpkin", "cake", "unpowered_repeater", "powered_repeater", "stained_glass", "trapdoor", "monster_egg", "stonebrick", "brown_mushroom_block", "red_mushroom_block", "iron_bars", "glass_pane", "melon_block", "pumpkin_stem", "melon_stem", "vine", "fence_gate", "brick_stairs", "stone_brick_stairs", "mycelium", "waterlily", "nether_bricks", "nether_brick_fence", "nether_brick_stairs", "nether_wart", "enchanting_table", "brewing_stand", "cauldron", "end_portal", "end_portal_frame", "end_stone", "dragon_egg", "redstone_lamp", "lit_redstone_lamp", "double_wooden_slab", "wooden_slab", "cocoa", "sandstone_stairs", "emerald_ore", "ender_chest", "tripwire_hook", "tripwire", "emerald_block", "spruce_stairs", "birch_stairs", "jungle_stairs", "command_block", "beacon", "cobblestone_wall", "flower_pot", "carrots", "potatoes", "wooden_button", "skull", "anvil", "trapped_chest", "light_weighted_pressure_plate", "heavy_weighted_pressure_plate", "unpowered_comparator", "powered_comparator", "daylight_detector", "redstone_block", "quartz_ore", "hopper", "quartz_block", "quartz_stairs", "activator_rail", "dropper", "stained_hardened_clay", "stained_glass_pane", "leaves2", "log2", "acacia_stairs", "dark_oak_stairs", "slime", "barrier", "iron_trapdoor", "prismarine", "sea_lantern", "hay_block", "carpet", "hardened_clay", "coal_block", "packed_ice", "double_plant", "standing_banner", "wall_banner", "daylight_detector_inverted", "red_sandstone", "red_sandstone_stairs", "double_stone_slab2", "stone_slab2", "spruce_fence_gate", "birch_fence_gate", "jungle_fence_gate", "dark_oak_fence_gate", "acacia_fence_gate", "spruce_fence", "birch_fence", "jungle_fence", "dark_oak_fence", "acacia_fence", "spruce_door", "birch_door", "jungle_door", "acacia_door", "dark_oak_door", "end_rod", "chorus_plant", "chorus_flower", "purpur_block", "purpur_pillar", "purpur_stairs", "purpur_double_slab", "purpur_slab", "end_bricks", "beetroots", "grass_path", "end_gateway", "repeating_command_block", "chain_command_block", "frosted_ice", "magma", "nether_wart_block", "red_nether_bricks", "bone_block", "structure_void", "observer", "white_shulker_box", "orange_shulker_box", "magenta_shulker_box", "light_blue_shulker_box", "yellow_shulker_box", "lime_shulker_box", "pink_shulker_box", "gray_shulker_box", "silver_shulker_box", "cyan_shulker_box", "purple_shulker_box", "blue_shulker_box", "brown_shulker_box", "green_shulker_box", "red_shulker_box", "black_shulker_box", "white_glazed_terracotta", "orange_glazed_terracotta", "magenta_glazed_terracotta", "light_blue_glazed_terracotta", "yellow_glazed_terracotta", "lime_glazed_terracotta", "pink_glazed_terracotta", "gray_glazed_terracotta", "silver_glazed_terracotta", "cyan_glazed_terracotta", "purple_glazed_terracotta", "blue_glazed_terracotta", "brown_glazed_terracotta", "green_glazed_terracotta", "red_glazed_terracotta", "black_glazed_terracotta", "concrete", "concrete_powder", "", "", "structure_block"];
+pub const OLD_BLOCK_ID: [&'static str; 256] = ["air", "stone", "grass", "dirt", "cobblestone", "planks", "sapling", "bedrock", "flowing_water", "water", "flowing_lava", "lava", "sand", "gravel", "gold_ore", "iron_ore", "coal_ore", "log", "leaves", "sponge", "glass", "lapis_ore", "lapis_block", "dispenser", "sandstone", "noteblock", "bed", "golden_rail", "detector_rail", "sticky_piston", "web", "tallgrass", "deadbush", "piston", "piston_head", "wool", "piston_extension", "yellow_flower", "red_flower", "brown_mushroom", "red_mushroom", "gold_block", "iron_block", "double_stone_slab", "stone_slab", "brick_block", "tnt", "bookshelf", "mossy_cobblestone", "obsidian", "torch", "fire", "mob_spawner", "oak_stairs", "chest", "redstone_wire", "diamond_ore", "diamond_block", "crafting_table", "wheat", "farmland", "furnace", "lit_furnace", "standing_sign", "wooden_door", "ladder", "rail", "stone_stairs", "wall_sign", "lever", "stone_pressure_plate", "iron_door", "wooden_pressure_plate", "redstone_ore", "lit_redstone_ore", "unlit_redstone_torch", "redstone_torch", "stone_button", "snow_layer", "ice", "snow", "cactus", "clay", "reeds", "jukebox", "fence", "pumpkin", "netherrack", "soul_sand", "glowstone", "portal", "lit_pumpkin", "cake", "unpowered_repeater", "powered_repeater", "stained_glass", "trapdoor", "monster_egg", "stonebrick", "brown_mushroom_block", "red_mushroom_block", "iron_bars", "glass_pane", "melon_block", "pumpkin_stem", "melon_stem", "vine", "fence_gate", "brick_stairs", "stone_brick_stairs", "mycelium", "waterlily", "nether_brick", "nether_brick_fence", "nether_brick_stairs", "nether_wart", "enchanting_table", "brewing_stand", "cauldron", "end_portal", "end_portal_frame", "end_stone", "dragon_egg", "redstone_lamp", "lit_redstone_lamp", "double_wooden_slab", "wooden_slab", "cocoa", "sandstone_stairs", "emerald_ore", "ender_chest", "tripwire_hook", "tripwire", "emerald_block", "spruce_stairs", "birch_stairs", "jungle_stairs", "command_block", "beacon", "cobblestone_wall", "flower_pot", "carrots", "potatoes", "wooden_button", "skull", "anvil", "trapped_chest", "light_weighted_pressure_plate", "heavy_weighted_pressure_plate", "unpowered_comparator", "powered_comparator", "daylight_detector", "redstone_block", "quartz_ore", "hopper", "quartz_block", "quartz_stairs", "activator_rail", "dropper", "stained_hardened_clay", "stained_glass_pane", "leaves2", "log2", "acacia_stairs", "dark_oak_stairs", "slime", "barrier", "iron_trapdoor", "prismarine", "sea_lantern", "hay_block", "carpet", "hardened_clay", "coal_block", "packed_ice", "double_plant", "standing_banner", "wall_banner", "daylight_detector_inverted", "red_sandstone", "red_sandstone_stairs", "double_stone_slab2", "stone_slab2", "spruce_fence_gate", "birch_fence_gate", "jungle_fence_gate", "dark_oak_fence_gate", "acacia_fence_gate", "spruce_fence", "birch_fence", "jungle_fence", "dark_oak_fence", "acacia_fence", "spruce_door", "birch_door", "jungle_door", "acacia_door", "dark_oak_door", "end_rod", "chorus_plant", "chorus_flower", "purpur_block", "purpur_pillar", "purpur_stairs", "purpur_double_slab", "purpur_slab", "end_bricks", "beetroots", "grass_path", "end_gateway", "repeating_command_block", "chain_command_block", "frosted_ice", "magma", "nether_wart_block", "red_nether_brick", "bone_block", "structure_void", "observer", "white_shulker_box", "orange_shulker_box", "magenta_shulker_box", "light_blue_shulker_box", "yellow_shulker_box", "lime_shulker_box", "pink_shulker_box", "gray_shulker_box", "silver_shulker_box", "cyan_shulker_box", "purple_shulker_box", "blue_shulker_box", "brown_shulker_box", "green_shulker_box", "red_shulker_box", "black_shulker_box", "white_glazed_terracotta", "orange_glazed_terracotta", "magenta_glazed_terracotta", "light_blue_glazed_terracotta", "yellow_glazed_terracotta", "lime_glazed_terracotta", "pink_glazed_terracotta", "gray_glazed_terracotta", "silver_glazed_terracotta", "cyan_glazed_terracotta", "purple_glazed_terracotta", "blue_glazed_terracotta", "brown_glazed_terracotta", "green_glazed_terracotta", "red_glazed_terracotta", "black_glazed_terracotta", "concrete", "concrete_powder", "", "", "structure_block"];
 
+
+pub const HORIZONTAL_DIRECTIONS: [&'static str; 4] = ["east", "north", "south", "west"];
+
+pub const ALL_DIRECTIONS: [&'static str; 6] = ["east", "north", "south", "west", "up", "down"];
 const VALID_DAMAGE_LUT: [u16; 256] = [0b00000000000001, 0b00000001111111, 0b00000000000001, 0b00000000000111, 0b00000000000001, 0b00000000111111, 0b11111100111111, 0b00000000000001, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b00000000000011, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b1111111111111111, 0b1111111111111111, 0b00000000000011, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b11111100111111, 0b00000000000111, 0b00000000000001, 0b1111111100001111, 0b11111100111111, 0b11111100111111, 0b11111100111111, 0b00000000000001, 0b00000000000111, 0b00000000000001, 0b11111100111111, 0b11111100111111, 0b1111111111111111, 0b11111100111111, 0b00000000000001, 0b00000111111111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b1111111111111111, 0b1111111111111111, 0b00000000000001, 0b00000000000011, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000111110, 0b1111111111111111, 0b00000000000001, 0b00000011111111, 0b00000000111100, 0b1111111111111111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000011111111, 0b00000011111111, 0b00000000111100, 0b00000000111100, 0b1111111111111111, 0b00111111111111, 0b00000000111100, 0b00001111111111, 0b00000011111111, 0b00000000111100, 0b1111111111111111, 0b00000000000011, 0b00111111111111, 0b00000000000011, 0b00000000000001, 0b00000000000001, 0b00000000111110, 0b00000000111110, 0b11111100111111, 0b00000011111111, 0b00000000000001, 0b00000000000001, 0b1111111111111111, 0b00000000000001, 0b1111111111111111, 0b00000000000011, 0b00000000000001, 0b00000000001111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000110, 0b00000000001111, 0b00000001111111, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b00000000111111, 0b00000000001111, 0b1100011111111111, 0b1100011111111111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000011111111, 0b00000011111111, 0b1111111111111111, 0b1111111111111111, 0b00000011111111, 0b00000011111111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000011111111, 0b00000000001111, 0b00000000000001, 0b00000011111111, 0b00000000001111, 0b00000000000001, 0b00000011111111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000111111, 0b11111100111111, 0b00111111111111, 0b00000011111111, 0b00000000000001, 0b00000000111100, 0b1111111111111111, 0b11001100110011, 0b00000000000001, 0b00000011111111, 0b00000011111111, 0b00000011111111, 0b11111100111111, 0b00000000000001, 0b00000000000011, 0b1111111111111111, 0b00000011111111, 0b00000011111111, 0b11111100111111, 0b11111100111111, 0b00111111111111, 0b00000000111100, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b00000000000001, 0b00000000000001, 0b11110100111101, 0b00000000011111, 0b00000011111111, 0b11111100111111, 0b11111100111111, 0b1111111111111111, 0b1111111111111111, 0b11001100110011, 0b11001100110011, 0b00000011111111, 0b00000011111111, 0b00000000000001, 0b00000000000001, 0b1111111111111111, 0b00000000000111, 0b00000000000001, 0b00000100010001, 0b1111111111111111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00111100111111, 0b1111111111111111, 0b00000000111100, 0b1111111111111111, 0b00000000000111, 0b00000011111111, 0b00000100000001, 0b00000100000001, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00111111111111, 0b00111111111111, 0b00111111111111, 0b00111111111111, 0b00111111111111, 0b00000000111111, 0b00000000000001, 0b00000000111111, 0b00000000000001, 0b00000100010001, 0b00000011111111, 0b00000000000001, 0b00000100000001, 0b00000000000001, 0b00000000001111, 0b00000000000001, 0b00000000000001, 0b11111100111111, 0b11111100111111, 0b00000000001111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000100010001, 0b00000000000001, 0b11111100111111, 0b00000000111111, 0b00000000111111, 0b00000000111111, 0b00000000111111, 0b00000000111111, 0b00000000111111, 0b00000000111111, 0b00000000111111, 0b00000000111111, 0b00000000111111, 0b00000000111111, 0b00000000111111, 0b00000000111111, 0b00000000111111, 0b00000000111111, 0b00000000111111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b1111111111111111, 0b1111111111111111, 0b00000000000000, 0b00000000000000, 0b00000000001111, ];
 
 #[derive(Debug, Display)]
+#[allow(dead_code)]
 pub enum OldBlockParseError {
     ReservedBlockId { id: u8 },
     DamageNotDefinedForThisBlock { id: u8, damage: u8 },
@@ -186,6 +192,18 @@ pub fn index_to_piston_facing(idx: u8) -> &'static str {
     }
 }
 
+pub fn index_to_button_facing(idx: u8) -> &'static str {
+    return match idx {
+        0 => "down",
+        1 => "east",
+        2 => "west",
+        3 => "south",
+        4 => "north",
+        5 => "up",
+        _ => "",
+    }
+}
+
 pub fn index_to_wooden_door_facing(idx: u8) -> &'static str {
     return match idx {
         0 => "east",
@@ -199,7 +217,7 @@ pub fn index_to_wooden_door_facing(idx: u8) -> &'static str {
 pub fn index_to_rail_shape(idx: u8) -> &'static str {
     return match idx {
         0 => "north_south",
-        1 => "east_south",
+        1 => "east_west",
         2 => "ascending_east",
         3 => "ascending_west",
         4 => "ascending_north",
@@ -211,6 +229,7 @@ pub fn index_to_rail_shape(idx: u8) -> &'static str {
         _ => "",
     }
 }
+
 
 pub fn index_to_lever_facing(idx: u8) -> &'static str {
     return match idx {
@@ -236,16 +255,32 @@ pub fn index_to_repeater_facing(idx: u8) -> &'static str {
     }
 }
 
+pub fn index_to_comparator_facing(idx: u8) -> &'static str {
+    return match idx {
+        0 => "south",
+        1 => "west",
+        2 => "north",
+        3 => "east",
+        _ => "",
+    }
+}
+
 pub fn index_to_cocoa_facing(idx: u8) -> &'static str {
-    return index_to_repeater_facing(idx);
+    return match idx {
+        0 => "south",
+        1 => "west",
+        2 => "north",
+        3 => "east",
+        _ => "",
+    }
 }
 
 pub fn index_to_trapdoor_facing(idx: u8) -> &'static str {
     return match idx {
-        0 => "south",
-        1 => "north",
-        2 => "east",
-        3 => "west",
+        0 => "north",
+        1 => "south",
+        2 => "west",
+        3 => "east",
         _ => "",
     }
 }
@@ -256,8 +291,8 @@ pub fn index_to_skull_facing(idx: u8) -> &'static str {
         1 => "up",
         2 => "north",
         3 => "south",
-        4 => "east",
-        5 => "west",
+        4 => "west",
+        5 => "east",
         _ => "",
     }
 }
@@ -300,7 +335,36 @@ impl Block {
 
         let allowed_damage_value_num = num_valid_damage_values(id);
         debug_assert!(allowed_damage_value_num > 0);
-        // no properties
+
+        // add properties without damage
+        if [2, 110].contains(&id) {//grass, mycelium
+            block.set_property("snowy", &false);
+        }
+
+
+        if id == 37 {//yellow_flower
+            block.set_property("type", "dandelion");
+        }
+
+        if [85, 101, 102, 113, 188, 189, 190, 191, 192].contains(&id) {
+            //fence, iron bars, glass pane, nether brick fence
+            for dir in HORIZONTAL_DIRECTIONS {
+                block.set_property(dir, &false);
+            }
+        }
+
+        if id == 199 {//chorus plant
+            for dir in ALL_DIRECTIONS {
+                block.set_property(dir, &false);
+            }
+        }
+
+        if id == 204 {//purpur_double_slab
+            block.set_property("variant", "default");
+        }
+
+//////////////////////////////////////////////////////////////////////////////
+        // no properties from damage
         if allowed_damage_value_num == 1 {
             return Ok(block);
         }
@@ -344,26 +408,14 @@ impl Block {
         if id == 6 {//sapling
             let variant = index_to_wood_variant(damage & 0b111);
             debug_assert!(!variant.is_empty());
+            let stage = (damage & 0x8) >> 3;
+            block.set_property("type", variant);
+            block.set_property("stage", &stage);
             return Ok(block);
         }
 
-        if id == 8 {//flowing_water
-            block.id = "water".to_string();
+        if [8, 9, 10, 11].contains(&id) {//flowing_water, water, flowing_lava, lava
             block.set_property("level", &damage);
-            return Ok(block);
-        }
-        if id == 9 {//water
-            block.set_property("level", "0");
-            return Ok(block);
-        }
-
-        if id == 10 {//flowing_lava
-            block.id = "lava".to_string();
-            block.set_property("level", &damage);
-            return Ok(block);
-        }
-        if id == 11 {//lava
-            block.set_property("level", "0");
             return Ok(block);
         }
 
@@ -384,16 +436,18 @@ impl Block {
                 let variant_idx = damage & 0b11;
                 variant = index_to_wood_variant(variant_idx);
             } else {
-                let variant_idx = damage & 0b11 + 4;
+                let variant_idx = (damage & 0b11) + 4;
+                debug_assert!(variant_idx <= 5);
                 variant = index_to_wood_variant(variant_idx);
             }
             debug_assert!(!variant.is_empty());
             let direction_idx = (damage & 0b1100) >> 2;
 
             if direction_idx == 3 {   // wood block.
-                block.id = format!("{}_wood", variant);
+                //block.id = format!("{}_wood", variant);
                 // Axis of wood block is not defined in 1.12-, in 1.13+ the default value is y
-                block.set_property("axis", "y");
+                block.set_property("axis", "none");
+                block.set_property("variant", variant);
                 return Ok(block);
             }
             let direction = index_to_axis(direction_idx);
@@ -416,10 +470,10 @@ impl Block {
             let decayable;
             let check_decay;
             if id == 18 {
-                decayable = (damage >= 4 && damage <= 7) || (damage >= 12 && damage <= 15);
+                decayable = !((damage >= 4 && damage <= 7) || (damage >= 12 && damage <= 15));
                 check_decay = damage >= 8;
             } else {
-                decayable = (damage >= 4 && damage <= 5) || (damage >= 12 && damage <= 13);
+                decayable = !((damage >= 4 && damage <= 5) || (damage >= 12 && damage <= 13));
                 check_decay = damage >= 8;
             }
             block.set_property("variant", variant);
@@ -428,10 +482,20 @@ impl Block {
             return Ok(block);
         }
 
-        if [35, 159, 95, 171, 172, 251, 252, 160].contains(&id) {//wool, hardened clay, carpet, stained-glass, concrete, concrete powder, stained-glass pane
+        if [35, 159, 95, 171, 172, 251, 252].contains(&id) {//wool, hardened clay, carpet, stained-glass, concrete, concrete powder
             let color = index_to_color_old(damage);
             debug_assert!(!color.is_empty());
             block.set_property("color", color);
+            return Ok(block);
+        }
+
+        if id == 160 {//stained-glass pane
+            let color = index_to_color_old(damage);
+            debug_assert!(!color.is_empty());
+            block.set_property("color", color);
+            for dir in HORIZONTAL_DIRECTIONS {
+                block.set_property(dir, &false);
+            }
             return Ok(block);
         }
 
@@ -487,7 +551,7 @@ impl Block {
         }
 
         if [125, 126].contains(&id) {// wooded slab
-            let variant_index = damage % 6;
+            let variant_index = damage & 0b111;
             let variant = index_to_wood_variant(variant_index);
             debug_assert!(!variant.is_empty());
             let is_double;
@@ -504,7 +568,8 @@ impl Block {
             }
             block.set_property("variant", variant);
             if is_double {
-                block.set_property("seamless", &is_seamless);
+                // It seems that wooden slabs don't have seamless attributes
+                //block.set_property("seamless", &is_seamless);
             } else {
                 block.set_property("half", if is_top { "top" } else { "bottom" });
             }
@@ -513,10 +578,9 @@ impl Block {
 
         if [204, 205].contains(&id) {// purpur_slab
             block.set_property("variant", "default");
-            if id == 204 {
-                let is_top = damage >= 8;
-                block.set_property("half", if is_top { "top" } else { "bottom" });
-            }
+            let is_top = damage >= 8;
+            block.set_property("half", if is_top { "top" } else { "bottom" });
+
             return Ok(block);
         }
 
@@ -560,21 +624,17 @@ impl Block {
             return Ok(block);
         }
 
-        if id == 37 {//yellow_flower
-            block.set_property("type", "dandelion");
-            return Ok(block);
-        }
         if id == 38 {//red_flower
             let type_ = match damage {
                 0 => "poppy",
-                1 => "orchid",
+                1 => "blue_orchid",
                 2 => "allium",
                 3 => "houstonia",
-                4 => "tulip_red",
-                5 => "tulip_orange",
-                6 => "tulip_white",
-                7 => "tulip_pink",
-                8 => "oxeye",
+                4 => "red_tulip",
+                5 => "orange_tulip",
+                6 => "white_tulip",
+                7 => "pink_tulip",
+                8 => "oxeye_daisy",
                 _ => "",
             };
             debug_assert!(!type_.is_empty());
@@ -583,13 +643,13 @@ impl Block {
         }
 
         if id == 175 {//double plant
-            let lower = damage >= 8;
+            let lower = damage < 8;
             block.set_property("half", if lower { "lower" } else { "upper" });
-            if !lower {
-                let variant = match damage {
+            if lower {
+                let variant = match damage & 0b111 {
                     0 => "sunflower",
                     1 => "syringa",
-                    2 => "grass",
+                    2 => "double_grass",
                     3 => "fern",
                     4 => "rose",
                     5 => "paeonia",
@@ -597,6 +657,11 @@ impl Block {
                 };
                 debug_assert!(!variant.is_empty());
                 block.set_property("variant", variant);
+            } else {
+                let facing_index = damage & 0b11;
+                let facing = index_to_bed_facing(facing_index);
+                debug_assert!(!facing.is_empty());
+                block.set_property("facing", facing);
             }
             return Ok(block);
         }
@@ -615,7 +680,7 @@ impl Block {
             debug_assert!(!facing.is_empty());
             let sticky = (damage & 0x8) != 0;
             block.set_property("facing", facing);
-            block.set_property("sticky", if sticky { "sticky" } else { "normal" });
+            block.set_property("type", if sticky { "sticky" } else { "normal" });
             return Ok(block);
         }
 
@@ -625,11 +690,16 @@ impl Block {
             let is_top = (damage & 0x4) != 0;
             block.set_property("facing", facing);
             block.set_property("half", if is_top { "top" } else { "bottom" });
+            block.set_property("shape", "straight");
             return Ok(block);
         }
 
         if id == 55 {//redstone wire
             block.set_property("power", &damage);
+            block.set_property("east", "none");
+            block.set_property("west", "none");
+            block.set_property("north", "none");
+            block.set_property("south", "none");
             return Ok(block);
         }
 
@@ -742,7 +812,7 @@ impl Block {
         }
 
         if [77, 143].contains(&id) {//buttons
-            let facing = index_to_piston_facing(damage & 0b111);
+            let facing = index_to_button_facing(damage & 0b111);
             debug_assert!(!facing.is_empty());
             let powered = (damage & 0x8) != 0;
             block.set_property("facing", facing);
@@ -788,7 +858,7 @@ impl Block {
         }
 
         if [149, 150].contains(&id) {//comparator
-            let facing = index_to_repeater_facing(damage & 0b11);
+            let facing = index_to_comparator_facing(damage & 0b11);
             debug_assert!(!facing.is_empty());
             let subtract_mode = (damage & 0x4) != 0;
             let powered = (damage & 0x8) != 0;
@@ -813,9 +883,9 @@ impl Block {
                 0 => "stone",
                 1 => "cobblestone",
                 2 => "stone_brick",
-                3 => "mossy_stone_brick",
-                4 => "cracked_stone_brick",
-                5 => "chiseled_stone_brick",
+                3 => "mossy_brick",
+                4 => "cracked_brick",
+                5 => "chiseled_brick",
                 _ => "",
             };
             debug_assert!(!variant.is_empty());
@@ -839,8 +909,8 @@ impl Block {
         if id == 168 {//prismarine
             let variant = match damage {
                 0 => "prismarine",
-                1 => "dark_prismarine",
-                2 => "prismarine_bricks",
+                1 => "prismarine_bricks",
+                2 => "dark_prismarine",
                 _ => "",
             };
             debug_assert!(!variant.is_empty());
@@ -857,7 +927,7 @@ impl Block {
 
         if [99, 100].contains(&id) {//mushroom blocks
             let variant = match damage {
-                0 => "all_outside",
+                0 => "all_inside",
                 1 => "north_west",
                 2 => "north",
                 3 => "north_east",
@@ -881,6 +951,7 @@ impl Block {
         if [104, 105].contains(&id) {//stems
             debug_assert!(damage < 8);
             block.set_property("age", &damage);
+            block.set_property("facing", "up");
             return Ok(block);
         }
 
@@ -889,6 +960,7 @@ impl Block {
             block.set_property("west", &((damage & 0x2) != 0));
             block.set_property("north", &((damage & 0x4) != 0));
             block.set_property("east", &((damage & 0x8) != 0));
+            block.set_property("up", &false);
             return Ok(block);
         }
 
@@ -968,6 +1040,9 @@ impl Block {
             block.set_property("powered", &powered);
             block.set_property("attached", &attached);
             block.set_property("disarmed", &disarmed);
+            for dir in HORIZONTAL_DIRECTIONS {
+                block.set_property(dir, &false);
+            }
             return Ok(block);
         }
 
@@ -979,10 +1054,34 @@ impl Block {
             };
             debug_assert!(!variant.is_empty());
             block.set_property("variant", variant);
+            for dir in HORIZONTAL_DIRECTIONS {
+                block.set_property(dir, &false);
+            }
+            block.set_property("up", &true);
             return Ok(block);
         }
 
         if id == 140 {//minecraft:flower_pot
+            let contents = match damage {
+                0 | 14 | 15 => "empty",
+                1 => "rose",
+                2 => "dandelion",
+                3 => "oak_sapling",
+                4 => "spruce_sapling",
+                5 => "birch_sapling",
+                6 => "jungle_sapling",
+                7 => "mushroom_red",
+                8 => "mushroom_brown",
+                9 => "cactus",
+                10 => "dead_bush",
+                11 => "fern",
+                12 => "acacia_sapling",
+                13 => "dark_oak_sapling",
+                _ => ""
+            };
+            debug_assert!(!contents.is_empty());
+            block.set_property("contents", contents);
+            block.set_property("legacy_data", &damage);
             return Ok(block);
         }
 
@@ -1078,9 +1177,9 @@ impl Block {
         }
 
         if [170, 202, 216].contains(&id) {//hay bale, purpur pillar, bone block
-            let facing = index_to_hay_block_axis((damage & 0b1100) >> 2);
-            debug_assert!(!facing.is_empty());
-            block.set_property("facing", facing);
+            let axis = index_to_hay_block_axis((damage & 0b1100) >> 2);
+            debug_assert!(!axis.is_empty());
+            block.set_property("axis", axis);
             return Ok(block);
         }
 
@@ -1099,5 +1198,13 @@ impl Block {
 
 
         return Err(OldBlockParseError::NotImplemented { id, damage, version });
+    }
+
+    // returns the fixed block. None means that the block don't need to be fixed
+    pub fn fix_block_property_with_block_entity(&self, _id: u8, _damage: u8, _be: &BlockEntity) -> Result<Option<Block>, OldBlockParseError> {
+        let mut _block = self.clone();
+
+
+        return Ok(None);
     }
 }

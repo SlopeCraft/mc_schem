@@ -602,7 +602,7 @@ impl Schematic {
         return Ok(root);
     }
 
-    pub fn to_nbt_world_edit_13_v3(&self, md: WE13MetaData, option: &WorldEdit13SaveOption) -> Result<(HashMap<String, Value>), WriteError> {
+    pub fn to_nbt_world_edit_13_v3(&self, md: WE13MetaData, option: &WorldEdit13SaveOption) -> Result<HashMap<String, Value>, WriteError> {
         let mut tag_schem = HashMap::new();
         // metadata
         Self::write_metadata_v3(&mut tag_schem, &md);
@@ -640,7 +640,7 @@ impl Schematic {
         return Ok(root);
     }
 
-    pub fn to_nbt_world_edit_13(&self, option: &WorldEdit13SaveOption) -> Result<(HashMap<String, Value>), WriteError> {
+    pub fn to_nbt_world_edit_13(&self, option: &WorldEdit13SaveOption) -> Result<HashMap<String, Value>, WriteError> {
         let md = self.metadata_world_edit_13()?;
         let schem_version = md.version;
 

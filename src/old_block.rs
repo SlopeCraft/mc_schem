@@ -301,8 +301,8 @@ pub fn index_to_glazed_terracotta_facing(idx: u8) -> &'static str {
     return match idx {
         0 => "south",
         1 => "west",
-        2 => "east",
-        3 => "north",
+        2 => "north",
+        3 => "east",
         _ => "",
     }
 }
@@ -1129,10 +1129,10 @@ impl Block {
 
         if id == 255 {//structure block
             let mode = match damage {
-                0 => "data",
-                1 => "save",
-                2 => "load",
-                3 => "corner",
+                0 => "save",
+                1 => "load",
+                2 => "corner",
+                3 => "data",
                 _ => "",
             };
             debug_assert!(!mode.is_empty());

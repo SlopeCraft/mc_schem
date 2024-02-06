@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <string.h>
 
 #define MC_SCHEM_DEFINE_BOX(content_type) \
 typedef struct {                          \
@@ -26,16 +27,30 @@ MC_SCHEM_EXPORT uint16_t MC_SCHEM_version_patch();
 
 MC_SCHEM_EXPORT uint16_t MC_SCHEM_version_tweak();
 
+/////////////////////////////////////////////
+
 typedef struct {
   const char *begin;
   const char *end;
 } MC_SCHEM_string_view;
 
+typedef struct MC_SCHEM_string_s MC_SCHEM_string;
+
+MC_SCHEM_EXPORT MC_SCHEM_string_view MC_SCHEM_string_unwrap(const MC_SCHEM_string *);
+
+inline MC_SCHEM_string_view MC_SCHEM_c_string_to_string_view(const char *str) {
+  const size_t len = strlen(str);
+  MC_SCHEM_string_view result;
+  result.begin = str;
+  result.end = str + len;
+  return result;
+}
+
+//////////////////////////////////
 
 typedef struct {
   size_t reserved[7];
 } MC_SCHEM_nbt_value;
-typedef struct MC_SCHEM_string_s MC_SCHEM_string;
 typedef struct MC_SCHEM_block_s MC_SCHEM_block;
 typedef struct MC_SCHEM_block_entity_s MC_SCHEM_block_entity;
 typedef struct MC_SCHEM_pending_tick_s MC_SCHEM_pending_tick;
@@ -231,6 +246,30 @@ MC_SCHEM_EXPORT void MC_SCHEM_block_set_namespace(MC_SCHEM_block *, MC_SCHEM_str
 MC_SCHEM_EXPORT void MC_SCHEM_block_set_id(MC_SCHEM_block *, MC_SCHEM_string_view id);
 
 MC_SCHEM_EXPORT void MC_SCHEM_block_set_attributes(MC_SCHEM_block *, MC_SCHEM_map_ref map, bool *ok);
+
+typedef enum : uint8_t {
+  MC_SCHEM_BIPE_too_many_colons = 0,
+  MC_SCHEM_BIPE_too_many_left_brackets = 1,
+  MC_SCHEM_BIPE_too_many_right_brackets = 2,
+  MC_SCHEM_BIPE_missing_block_id = 3,
+  MC_SCHEM_BIPE_brackets_not_in_pairs = 4,
+  MC_SCHEM_BIPE_bracket_in_wrong_position = 5,
+  MC_SCHEM_BIPE_colons_in_wrong_position = 6,
+  MC_SCHEM_BIPE_missing_equal_in_attributes = 7,
+  MC_SCHEM_BIPE_too_many_equals_in_attributes = 8,
+  MC_SCHEM_BIPE_missing_attribute_name = 9,
+  MC_SCHEM_BIPE_missing_attribute_value = 10,
+  MC_SCHEM_BIPE_extra_string_after_right_bracket = 11,
+  MC_SCHEM_BIPE_invalid_character = 12,
+} MC_SCHEM_block_id_parse_error;
+
+MC_SCHEM_EXPORT bool
+MC_SCHEM_parse_block(MC_SCHEM_string_view full_id, MC_SCHEM_block *dest, MC_SCHEM_block_id_parse_error *error_nullable);
+
+MC_SCHEM_EXPORT void
+MC_SCHEM_block_to_full_id(const MC_SCHEM_block *block, char *id_dest_nullable, size_t capacity, size_t *id_length);
+
+////////////////////////
 
 typedef struct MC_SCHEM_entity_s MC_SCHEM_entity;
 MC_SCHEM_DEFINE_BOX(MC_SCHEM_entity)

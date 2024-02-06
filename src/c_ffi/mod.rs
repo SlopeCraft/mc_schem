@@ -5,6 +5,7 @@ use std::str::from_utf8_unchecked;
 use static_assertions as sa;
 use std::mem::size_of;
 use fastnbt::Value;
+use crate::block::BlockIdParseError;
 use crate::region::{BlockEntity, PendingTick};
 
 mod map_ffi;
@@ -76,6 +77,13 @@ impl CStringView {
     }
 }
 
+#[no_mangle]
+extern "C" fn MC_SCHEM_string_unwrap(src: *const String) -> CStringView {
+    unsafe {
+        let src = &*src;
+        return CStringView::from(&src);
+    }
+}
 
 #[repr(u8)]
 #[derive(PartialEq, Copy, Clone)]
@@ -146,6 +154,8 @@ fn sizes() {
     println!("Size of CMapIterator = {}", size_of::<CMapIterator>());
 
     println!("Size of fastnbt::Value = {}", size_of::<Value>());
+
+    println!("Size of CBlockError = {}", size_of::<BlockIdParseError>());
 }
 
 #[repr(C)]

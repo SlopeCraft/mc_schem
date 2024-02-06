@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
-use std::ptr::drop_in_place;
-use crate::block::Block;
+use std::ffi::c_char;
+use std::intrinsics::copy_nonoverlapping;
+use std::ptr::{drop_in_place, null_mut};
+use crate::block::{Block, BlockIdParseError};
 use crate::c_ffi::{CMapRef, CStringView};
 
 #[no_mangle]
@@ -62,5 +64,44 @@ extern "C" fn MC_SCHEM_block_set_attributes(block: *mut Block, map: CMapRef, ok:
         } else {
             *ok = false;
         }
+    }
+}
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_parse_block(id: CStringView, block: *mut Block, error_nullable: *mut BlockIdParseError) -> bool {
+    unsafe {
+        let block = &mut *block;
+        return match Block::from_id(id.to_str()) {
+            Ok(blk) => {
+                *block = blk;
+                true
+            },
+            Err(e) => {
+                if error_nullable != null_mut() {
+                    *error_nullable = e;
+                }
+                false
+            }
+        }
+    }
+}
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_block_to_full_id(block: *const Block,
+                                        dest: *mut c_char,
+                                        dest_capacity: usize,
+                                        id_length: *mut usize) {
+    unsafe {
+        let block = &*block;
+        let mut id = block.full_id();
+        id.push('\0');
+        let required_bytes = id.as_bytes().len();
+        *id_length = required_bytes;
+
+        if dest == null_mut() || dest_capacity < required_bytes {
+            return;
+        }
+
+        copy_nonoverlapping(id.as_ptr() as *const c_char, dest, id.as_bytes().len());
     }
 }

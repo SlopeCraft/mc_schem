@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 use std::ffi::{c_double, c_float};
-use std::ops::Deref;
-use std::ptr::{drop_in_place, null, null_mut, read};
-use fastnbt::{nbt, Value};
+use std::ptr::{drop_in_place, null, null_mut};
+use fastnbt::{Value};
 use crate::c_ffi::{CArrayView, CByteArrayView, CEnumNBTType, CIntArrayView, CLongArrayView, CMapRef, CNBTListView, CStringView, CValueBox};
 
 #[no_mangle]

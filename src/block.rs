@@ -12,22 +12,22 @@ pub struct Block {
 
 }
 
-
+#[repr(u8)]
 #[derive(Debug,EnumString,Display,PartialEq,Copy,Clone)]
 pub enum BlockIdParseError {
-    TooManyColons,
-    TooManyLeftBrackets,
-    TooManyRightBrackets,
-    MissingBlockId,
-    BracketsNotInPairs,
-    BracketInWrongPosition,
-    ColonsInWrongPosition,
-    MissingEqualInAttributes,
-    TooManyEqualsInAttributes,
-    MissingAttributeName,
-    MissingAttributeValue,
-    ExtraStringAfterRightBracket,
-    InvalidCharacter,
+    TooManyColons = 0,
+    TooManyLeftBrackets = 1,
+    TooManyRightBrackets = 2,
+    MissingBlockId = 3,
+    BracketsNotInPairs = 4,
+    BracketInWrongPosition = 5,
+    ColonsInWrongPosition = 6,
+    MissingEqualInAttributes = 7,
+    TooManyEqualsInAttributes = 8,
+    MissingAttributeName = 9,
+    MissingAttributeValue = 10,
+    ExtraStringAfterRightBracket = 11,
+    InvalidCharacter = 12,
 }
 
 fn check_blockid_characters(blkid:&str) ->Result<(),BlockIdParseError> {

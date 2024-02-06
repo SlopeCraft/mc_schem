@@ -21,6 +21,9 @@ void check_fun_ptr(void *fun_addr) {
 }
 void test_link() {
 
+  check_fun_ptr(MC_SCHEM_string_unwrap);
+  check_fun_ptr(MC_SCHEM_c_string_to_string_view);
+
   check_fun_ptr(MC_SCHEM_version_string);
   check_fun_ptr(MC_SCHEM_version_major);
   check_fun_ptr(MC_SCHEM_version_minor);
@@ -79,7 +82,7 @@ void test_link() {
   check_fun_ptr(MC_SCHEM_block_set_namespace);
   check_fun_ptr(MC_SCHEM_block_set_id);
   check_fun_ptr(MC_SCHEM_block_set_attributes);
-  //  check_fun_ptr();
-  //  check_fun_ptr(MC_SCHEM_create_schem);
+  check_fun_ptr(MC_SCHEM_parse_block);
+  check_fun_ptr(MC_SCHEM_block_to_full_id);
   //  check_fun_ptr(MC_SCHEM_destroy_schem);
 }

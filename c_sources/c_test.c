@@ -1,6 +1,7 @@
 #include <mc_schem.h>
 #include <stdio.h>
 #include <assert.h>
+#include <stdlib.h>
 
 void test_link();
 
@@ -8,48 +9,77 @@ int main(int argc, char **argv) {
   printf("version of mc_schem: %s\n", MC_SCHEM_version_string());
 
   test_link();
-  MC_SCHEM_schematic schem = MC_SCHEM_create_schem();
-  MC_SCHEM_destroy_schem(&schem);
+//  MC_SCHEM_schematic schem = MC_SCHEM_create_schem();
+//  MC_SCHEM_destroy_schem(&schem);
   return 0;
 }
 
+void check_fun_ptr(void *fun_addr) {
+  if (fun_addr == NULL) {
+    abort();
+  }
+}
 void test_link() {
-  assert(MC_SCHEM_version_string);
-  assert(MC_SCHEM_rust_object_get_null);
-  assert(MC_SCHEM_rust_object_manual_init);
-  assert(MC_SCHEM_rust_object_is_reference);
-  assert(MC_SCHEM_rust_object_is_null);
-  assert(MC_SCHEM_map_get_key_type);
-  assert(MC_SCHEM_map_get_value_type);
-  assert(MC_SCHEM_map_get_size);
-  assert(MC_SCHEM_map_find_const);
-  assert(MC_SCHEM_map_find_mut);
-  assert(MC_SCHEM_map_contains_key);
-  assert(MC_SCHEM_map_insert);
-  assert(MC_SCHEM_nbt_create_scalar);
-  assert(MC_SCHEM_nbt_release_value);
-  assert(MC_SCHEM_nbt_get_type);
-  assert(MC_SCHEM_nbt_is_null);
-  assert(MC_SCHEM_nbt_is_reference);
-  assert(MC_SCHEM_nbt_get_scalar);
-  assert(MC_SCHEM_nbt_get_length);
-  assert(MC_SCHEM_nbt_get_list_element_const);
-  assert(MC_SCHEM_nbt_get_list_element_mut);
-  assert(MC_SCHEM_nbt_get_string);
-  assert(MC_SCHEM_nbt_get_scalar_array_const);
-  assert(MC_SCHEM_nbt_get_scalar_array_mut);
-  assert(MC_SCHEM_nbt_get_compound_const);
-  assert(MC_SCHEM_nbt_get_compound_mut);
-//  assert();
-//  assert();
-//  assert();
-//  assert();
-//  assert();
-//  assert();
-//  assert();
-//  assert();
-//  assert();
-//  assert();
-  assert(MC_SCHEM_create_schem);
-  assert(MC_SCHEM_destroy_schem);
+
+  check_fun_ptr(MC_SCHEM_version_string);
+  check_fun_ptr(MC_SCHEM_version_major);
+  check_fun_ptr(MC_SCHEM_version_minor);
+  check_fun_ptr(MC_SCHEM_version_patch);
+  check_fun_ptr(MC_SCHEM_version_tweak);
+
+  check_fun_ptr(MC_SCHEM_map_unwrap_box);
+  check_fun_ptr(MC_SCHEM_map_get_key_type);
+  check_fun_ptr(MC_SCHEM_map_get_value_type);
+  check_fun_ptr(MC_SCHEM_create_map);
+  check_fun_ptr(MC_SCHEM_release_map);
+  check_fun_ptr(MC_SCHEM_map_find);
+  check_fun_ptr(MC_SCHEM_map_iterator_first);
+  check_fun_ptr(MC_SCHEM_map_iterator_next);
+  check_fun_ptr(MC_SCHEM_map_iterator_length);
+  check_fun_ptr(MC_SCHEM_map_iterator_is_end);
+  check_fun_ptr(MC_SCHEM_map_contains_key);
+  check_fun_ptr(MC_SCHEM_map_length);
+  check_fun_ptr(MC_SCHEM_map_reserve);
+  //////////
+  check_fun_ptr(MC_SCHEM_nbt_create);
+  check_fun_ptr(MC_SCHEM_nbt_release);
+
+  check_fun_ptr(MC_SCHEM_nbt_get_type);
+  check_fun_ptr(MC_SCHEM_nbt_get_byte);
+  check_fun_ptr(MC_SCHEM_nbt_get_short);
+  check_fun_ptr(MC_SCHEM_nbt_get_int);
+  check_fun_ptr(MC_SCHEM_nbt_get_long);
+  check_fun_ptr(MC_SCHEM_nbt_get_float);
+  check_fun_ptr(MC_SCHEM_nbt_get_double);
+  check_fun_ptr(MC_SCHEM_nbt_get_string);
+  check_fun_ptr(MC_SCHEM_nbt_get_byte_array);
+  check_fun_ptr(MC_SCHEM_nbt_get_int_array);
+  check_fun_ptr(MC_SCHEM_nbt_get_long_array);
+  check_fun_ptr(MC_SCHEM_nbt_get_list);
+  check_fun_ptr(MC_SCHEM_nbt_set_byte);
+  check_fun_ptr(MC_SCHEM_nbt_set_short);
+  check_fun_ptr(MC_SCHEM_nbt_set_int);
+  check_fun_ptr(MC_SCHEM_nbt_set_long);
+  check_fun_ptr(MC_SCHEM_nbt_set_float);
+  check_fun_ptr(MC_SCHEM_nbt_set_double);
+  check_fun_ptr(MC_SCHEM_nbt_set_string);
+  check_fun_ptr(MC_SCHEM_nbt_set_byte_array);
+  check_fun_ptr(MC_SCHEM_nbt_set_int_array);
+  check_fun_ptr(MC_SCHEM_nbt_set_long_array);
+  check_fun_ptr(MC_SCHEM_nbt_set_list);
+  check_fun_ptr(MC_SCHEM_nbt_get_compound);
+  check_fun_ptr(MC_SCHEM_nbt_set_compound);
+  ////////////////////////////////////
+  //blocks
+  check_fun_ptr(MC_SCHEM_create_block);
+  check_fun_ptr(MC_SCHEM_release_block);
+  check_fun_ptr(MC_SCHEM_block_get_namespace);
+  check_fun_ptr(MC_SCHEM_block_get_id);
+  check_fun_ptr(MC_SCHEM_block_get_attributes);
+  check_fun_ptr(MC_SCHEM_block_set_namespace);
+  check_fun_ptr(MC_SCHEM_block_set_id);
+  check_fun_ptr(MC_SCHEM_block_set_attributes);
+  //  check_fun_ptr();
+  //  check_fun_ptr(MC_SCHEM_create_schem);
+  //  check_fun_ptr(MC_SCHEM_destroy_schem);
 }

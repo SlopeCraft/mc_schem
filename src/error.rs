@@ -185,6 +185,7 @@ pub enum ErrorHandleResult<T> {
     NotHandled,
 }
 
+#[allow(dead_code)]
 impl<T> ErrorHandleResult<T> {
     pub fn has_value(&self) -> bool {
         return if let ErrorHandleResult::NotHandled = self {
@@ -207,6 +208,7 @@ impl<T> ErrorHandleResult<T> {
     }
 }
 
+#[allow(dead_code)]
 pub enum BlockPosOutOfRangeFixMethod {
     IgnoreThisBlock,
     FixPos([i32; 3]),

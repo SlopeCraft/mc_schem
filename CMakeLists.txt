@@ -72,14 +72,23 @@ else ()
             $<BUILD_INTERFACE:${export_lib_loc}>
             $<INSTALL_INTERFACE:${export_lib_name}>)
 endif ()
-target_compile_features(mc_schem PRIVATE c_std_17)
+
+if (${CMAKE_C_COMPILER_ID} STREQUAL "MSVC")
+    message(WARNING "Up til 2024/2/4, MSVC doesn't support c23, build may fail. It's suggested to use clang-cl 17+ instead")
+endif ()
 
 if (MSVC)
-    add_compile_options("/Zc:__cplusplus")
+    target_compile_options(mc_schem PUBLIC "/Zc:__cplusplus")
+    target_compile_options(mc_schem PRIVATE "/std:clatest")
+else ()
+    target_compile_features(mc_schem PUBLIC c_std_23)
 endif ()
 
 add_executable(c_test c_sources/c_test.c)
 target_link_libraries(c_test PRIVATE mc_schem)
+if (MSVC)
+    target_compile_options(c_test PRIVATE "/std:clatest")
+endif ()
 
 add_executable(cpp_test c_sources/cpp_test.cpp)
 target_compile_features(cpp_test PRIVATE cxx_std_23)

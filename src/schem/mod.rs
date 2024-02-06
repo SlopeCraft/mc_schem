@@ -35,6 +35,7 @@ pub struct LitematicaMetaData {
     //pub total_volume: i64,
 }
 
+#[allow(dead_code)]
 impl LitematicaMetaData {
     // pub fn new() -> LitematicaMetaData {
     //     return Self::default();
@@ -182,6 +183,7 @@ pub struct VanillaStructureMetaData {
     pub data_version: i32,
 }
 
+#[allow(dead_code)]
 impl VanillaStructureMetaData {
     pub fn default() -> VanillaStructureMetaData {
         return VanillaStructureMetaData {
@@ -475,8 +477,8 @@ pub struct VanillaStructureSaveOption {
     pub keep_air: bool,
 }
 
-impl VanillaStructureSaveOption {
-    pub fn default() -> VanillaStructureSaveOption {
+impl Default for VanillaStructureSaveOption {
+    fn default() -> VanillaStructureSaveOption {
         return VanillaStructureSaveOption {
             keep_air: true
         }
@@ -500,8 +502,8 @@ pub struct LitematicaSaveOption {
     pub rename_duplicated_regions: bool,
 }
 
-impl LitematicaSaveOption {
-    pub fn default() -> LitematicaSaveOption {
+impl Default for LitematicaSaveOption {
+    fn default() -> LitematicaSaveOption {
         return LitematicaSaveOption {
             rename_duplicated_regions: true,
         };

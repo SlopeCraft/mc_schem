@@ -313,6 +313,7 @@ fn pos_to_nbt(pos: &[i32; 3]) -> Value {
     return Value::List(pos_list);
 }
 
+#[allow(dead_code)]
 impl Schematic {
     pub fn to_nbt_vanilla_structure(&self, option: &VanillaStructureSaveOption) -> Result<HashMap<String, Value>, WriteError> {
         let mut nbt: HashMap<String, Value> = HashMap::new();

@@ -1,270 +1,321 @@
 use std::collections::HashMap;
-use std::ffi::c_void;
-use std::mem::size_of;
-use std::ptr::null_mut;
-use fastnbt::Value;
-use crate::c_ffi::{CEnumNBTType, CMapRef, CNBTValue, RsObjWrapper, SchemString};
+use std::ffi::{c_double, c_float};
+use std::ops::Deref;
+use std::ptr::{drop_in_place, null, null_mut, read};
+use fastnbt::{nbt, Value};
+use crate::c_ffi::{CArrayView, CByteArrayView, CEnumNBTType, CIntArrayView, CLongArrayView, CMapRef, CNBTListView, CStringView, CValueBox};
 
 #[no_mangle]
-extern "C" fn MC_SCHEM_nbt_create_scalar(
-    tag_type: CEnumNBTType, value: *const c_void, dst_success: *mut bool) -> CNBTValue {
-    let val: Value;
-    let mut success: bool = true;
-    unsafe {
-        match tag_type {
-            CEnumNBTType::MC_SCHEM_nbt_type_byte => val = Value::from(*(value as *const i8)),
-            CEnumNBTType::MC_SCHEM_nbt_type_short => val = Value::from(*(value as *const i16)),
-            CEnumNBTType::MC_SCHEM_nbt_type_int => val = Value::from(*(value as *const i32)),
-            CEnumNBTType::MC_SCHEM_nbt_type_long => val = Value::from(*(value as *const i64)),
-            CEnumNBTType::MC_SCHEM_nbt_type_float => val = Value::from(*(value as *const f32)),
-            CEnumNBTType::MC_SCHEM_nbt_type_double => val = Value::from(*(value as *const f64)),
-            _ => {
-                val = Value::from(0i8);
-                success = false;
-            }
-        }
-    }
-    unsafe {
-        if dst_success != null_mut() {
-            *dst_success = success;
-        }
-    }
-    if !success {
-        return CNBTValue::Ref(null_mut());
-    }
-
-    return CNBTValue::Owned(Box::new(val));
+extern "C" fn MC_SCHEM_nbt_create() -> CValueBox {
+    return CValueBox::new(Value::Byte(0));
 }
 
 #[no_mangle]
-extern "C" fn MC_SCHEM_nbt_release_value(value: *mut CNBTValue) {
-    if value == null_mut() {
-        return;
-    }
+extern "C" fn MC_SCHEM_nbt_release(nbt_box: *mut CValueBox) {
     unsafe {
-        let val_ref = &mut *value;
-        val_ref.release();
+        drop_in_place(nbt_box);
+        //let nbt_box = &mut *nbt_box;
     }
 }
 
 #[no_mangle]
-extern "C" fn MC_SCHEM_nbt_get_type(value: *const CNBTValue) -> CEnumNBTType {
+extern "C" fn MC_SCHEM_nbt_get_type(nbt: *const Value) -> CEnumNBTType {
     unsafe {
-        let val_ref = &*value;
-        let val_ref = val_ref.get_ref();
-
-        return match val_ref {
-            Value::Byte(_) => CEnumNBTType::MC_SCHEM_nbt_type_byte,
-            Value::Short(_) => CEnumNBTType::MC_SCHEM_nbt_type_short,
-            Value::Int(_) => CEnumNBTType::MC_SCHEM_nbt_type_int,
-            Value::Long(_) => CEnumNBTType::MC_SCHEM_nbt_type_long,
-            Value::Float(_) => CEnumNBTType::MC_SCHEM_nbt_type_float,
-            Value::Double(_) => CEnumNBTType::MC_SCHEM_nbt_type_double,
-            Value::ByteArray(_) => CEnumNBTType::MC_SCHEM_nbt_type_byte_array,
-            Value::String(_) => CEnumNBTType::MC_SCHEM_nbt_type_string,
-            Value::List(_) => CEnumNBTType::MC_SCHEM_nbt_type_list,
-            Value::Compound(_) => CEnumNBTType::MC_SCHEM_nbt_type_compound,
-            Value::IntArray(_) => CEnumNBTType::MC_SCHEM_nbt_type_int_array,
-            Value::LongArray(_) => CEnumNBTType::MC_SCHEM_nbt_type_long_array,
-        };
-    }
-}
-
-
-#[no_mangle]
-extern "C" fn MC_SCHEM_nbt_get_scalar(value: *const CNBTValue, dest: *mut c_void, dest_capacity: usize) -> bool {
-    if dest == null_mut() {
-        return false;
-    }
-
-    unsafe {
-        let val_ref = &*value;
-        let val_ref = val_ref.get_ref();
-
-        return match val_ref {
-            Value::Byte(val) => {
-                if dest_capacity < size_of::<bool>() {
-                    return false;
-                }
-                *(dest as *mut i8) = *val;
-                true
-            }
-            Value::Short(val) => {
-                if dest_capacity < size_of::<bool>() {
-                    return false;
-                }
-                *(dest as *mut i16) = *val;
-                true
-            }
-            Value::Int(val) => {
-                if dest_capacity < size_of::<bool>() {
-                    return false;
-                }
-                *(dest as *mut i32) = *val;
-                true
-            }
-            Value::Long(val) => {
-                if dest_capacity < size_of::<bool>() {
-                    return false;
-                }
-                *(dest as *mut i64) = *val;
-                true
-            }
-            Value::Float(val) => {
-                if dest_capacity < size_of::<bool>() {
-                    return false;
-                }
-                *(dest as *mut f32) = *val;
-                true
-            }
-            Value::Double(val) => {
-                if dest_capacity < size_of::<bool>() {
-                    return false;
-                }
-                *(dest as *mut f64) = *val;
-                true
-            }
-            _ => {
-                false
-            }
+        return match &*nbt {
+            Value::Byte(_) => CEnumNBTType::Byte,
+            Value::Short(_) => CEnumNBTType::Short,
+            Value::Int(_) => CEnumNBTType::Int,
+            Value::Long(_) => CEnumNBTType::Long,
+            Value::Float(_) => CEnumNBTType::Float,
+            Value::Double(_) => CEnumNBTType::Double,
+            Value::ByteArray(_) => CEnumNBTType::ByteArray,
+            Value::String(_) => CEnumNBTType::String,
+            Value::List(_) => CEnumNBTType::List,
+            Value::Compound(_) => CEnumNBTType::Compound,
+            Value::IntArray(_) => CEnumNBTType::IntArray,
+            Value::LongArray(_) => CEnumNBTType::LongArray,
         };
     }
 }
 
 #[no_mangle]
-extern "C" fn MC_SCHEM_nbt_get_length(value: *const CNBTValue, dst_length: *mut usize) -> bool {
+extern "C" fn MC_SCHEM_nbt_get_byte(nbt: *const Value, ok: *mut bool) -> i8 {
     unsafe {
-        let val_ref = &*value;
-        let val_ref = val_ref.get_ref();
-
-        let length: usize;
-        match val_ref {
-            Value::ByteArray(ba) => length = ba.len(),
-            Value::String(s) => length = s.len(),
-            Value::List(l) => length = l.len(),
-            Value::Compound(c) => length = c.len(),
-            Value::IntArray(ia) => length = ia.len(),
-            Value::LongArray(la) => length = la.len(),
-            _ => {
-                //length = 0;
-                return false;
-            }
+        return if let Value::Byte(val) = &*nbt {
+            *ok = true;
+            *val
+        } else {
+            *ok = false;
+            0
         }
-
-        if dst_length == null_mut() {
-            return false;
-        }
-        *dst_length = length;
     }
-
-    return true;
 }
 
 #[no_mangle]
-extern "C" fn MC_SCHEM_nbt_get_list_element_const(
-    list: *const CNBTValue, index: usize) -> CNBTValue {
-    if list == null_mut() {
-        return CNBTValue::Ref(null_mut());
-    }
-
-    let list_ref;
+extern "C" fn MC_SCHEM_nbt_get_short(nbt: *const Value, ok: *mut bool) -> i16 {
     unsafe {
-        let val_ref = &*list;
-        let val_ref = val_ref.get_ref();
-        match &val_ref {
-            Value::List(l_ref) => list_ref = l_ref,
-            _ => return CNBTValue::Ref(null_mut()),
+        return if let Value::Short(val) = &*nbt {
+            *ok = true;
+            *val
+        } else {
+            *ok = false;
+            0
         }
     }
-    if index >= list_ref.len() { return CNBTValue::Ref(null_mut()); }
-
-    let element_ptr: *mut Value = list_ref.as_ptr().wrapping_add(index) as *mut Value;
-    return CNBTValue::Ref(element_ptr);
 }
 
 #[no_mangle]
-extern "C" fn MC_SCHEM_nbt_get_list_element_mut(
-    list: *mut CNBTValue, index: usize) -> CNBTValue {
-    return MC_SCHEM_nbt_get_list_element_const(list, index);
-}
-
-#[no_mangle]
-extern "C" fn MC_SCHEM_nbt_get_string(
-    list: *const CNBTValue, dest: *mut SchemString) -> bool {
+extern "C" fn MC_SCHEM_nbt_get_int(nbt: *const Value, ok: *mut bool) -> i32 {
     unsafe {
-        let val_ref = &*list;
-        let val_ref = val_ref.get_ref();
-        return match val_ref {
-            Value::String(s) => {
-                *dest = SchemString::new(&s);
-                true
-            }
-            _ => false,
-        };
+        return if let Value::Int(val) = &*nbt {
+            *ok = true;
+            *val
+        } else {
+            *ok = false;
+            0
+        }
     }
 }
 
 #[no_mangle]
-extern "C" fn MC_SCHEM_nbt_get_scalar_array_const(
-    tag: *const CNBTValue,
-    dest_ptr: *mut *const c_void,
-    dest_num_elements: *mut usize) -> bool {
+extern "C" fn MC_SCHEM_nbt_get_long(nbt: *const Value, ok: *mut bool) -> i64 {
     unsafe {
-        let val_ref = &*tag;
-        let val_ref = val_ref.get_ref();
-
-        let data: *const c_void;
-        let len: usize;
-        match val_ref {
-            Value::ByteArray(a) => {
-                data = a.as_ptr() as *const c_void;
-                len = a.len();
-            }
-            Value::IntArray(a) => {
-                data = a.as_ptr() as *const c_void;
-                len = a.len();
-            }
-            Value::LongArray(a) => {
-                data = a.as_ptr() as *const c_void;
-                len = a.len();
-            }
-            _ => {
-                return false;
-            }
-        }
-
-        if dest_ptr != null_mut() {
-            *dest_ptr = data;
-        }
-        if dest_num_elements != null_mut() {
-            *dest_num_elements = len;
+        return if let Value::Long(val) = &*nbt {
+            *ok = true;
+            *val
+        } else {
+            *ok = false;
+            0
         }
     }
-    return true;
 }
 
 #[no_mangle]
-extern "C" fn MC_SCHEM_nbt_get_scalar_array_mut(
-    tag: *mut CNBTValue,
-    dest_ptr: *mut *mut c_void,
-    dest_num_elements: *mut usize) -> bool {
-    return MC_SCHEM_nbt_get_scalar_array_const(tag, dest_ptr as *mut *const c_void, dest_num_elements);
-}
-
-#[no_mangle]
-extern "C" fn MC_SCHEM_nbt_get_compound_const(tag: *const CNBTValue, ok: *mut bool) -> CMapRef {
+extern "C" fn MC_SCHEM_nbt_get_float(nbt: *const Value, ok: *mut bool) -> c_float {
     unsafe {
-        let tag = (*tag).get_ref();
-        if let Value::Compound(map) = tag {
-            if ok != null_mut() { *ok = true; }
-            return CMapRef::StrValue(map as *const HashMap<String, Value> as *mut HashMap<String, Value>);
+        return if let Value::Float(val) = &*nbt {
+            *ok = true;
+            *val
+        } else {
+            *ok = false;
+            0.0
         }
-        if ok != null_mut() { *ok = false; }
-        return CMapRef::StrValue(null_mut());
     }
 }
 
 #[no_mangle]
-extern "C" fn MC_SCHEM_nbt_get_compound_mut(tag: *mut CNBTValue, ok: *mut bool) -> CMapRef {
-    return MC_SCHEM_nbt_get_compound_const(tag, ok);
+extern "C" fn MC_SCHEM_nbt_get_double(nbt: *const Value, ok: *mut bool) -> c_double {
+    unsafe {
+        return if let Value::Double(val) = &*nbt {
+            *ok = true;
+            *val
+        } else {
+            *ok = false;
+            0.0
+        }
+    }
+}
+
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_nbt_get_string(nbt: *const Value, ok: *mut bool) -> *const String {
+    unsafe {
+        return if let Value::String(val) = &*nbt {
+            *ok = true;
+            val as *const String
+        } else {
+            *ok = false;
+            null()
+        }
+    }
+}
+
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_nbt_get_byte_array(nbt: *const Value, ok: *mut bool) -> CByteArrayView {
+    unsafe {
+        return if let Value::ByteArray(arr) = &*nbt {
+            *ok = true;
+            CArrayView::from_slice(arr.as_ref())
+        } else {
+            *ok = false;
+            CArrayView::empty()
+        }
+    }
+}
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_nbt_get_int_array(nbt: *const Value, ok: *mut bool) -> CIntArrayView {
+    unsafe {
+        return if let Value::IntArray(arr) = &*nbt {
+            *ok = true;
+            CArrayView::from_slice(arr.as_ref())
+        } else {
+            *ok = false;
+            CArrayView::empty()
+        }
+    }
+}
+
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_nbt_get_long_array(nbt: *const Value, ok: *mut bool) -> CLongArrayView {
+    unsafe {
+        return if let Value::LongArray(arr) = &*nbt {
+            *ok = true;
+            CArrayView::from_slice(arr.as_ref())
+        } else {
+            *ok = false;
+            CArrayView::empty()
+        }
+    }
+}
+
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_nbt_get_list(nbt: *const Value, ok: *mut bool) -> CNBTListView {
+    unsafe {
+        return if let Value::List(arr) = &*nbt {
+            *ok = true;
+            CArrayView::from_slice(arr.as_ref())
+        } else {
+            *ok = false;
+            CArrayView::empty()
+        }
+    }
+}
+
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_nbt_get_compound(nbt: *const Value, ok: *mut bool) -> CMapRef {
+    unsafe {
+        return if let Value::Compound(c) = &*nbt {
+            *ok = true;
+            CMapRef::StrValue(c as *const HashMap<String, Value> as *mut HashMap<String, Value>)
+        } else {
+            *ok = false;
+            CMapRef::StrValue(null_mut())
+        }
+    }
+}
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_nbt_set_byte(nbt: *mut Value, val: i8) {
+    unsafe {
+        *nbt = Value::Byte(val);
+    }
+}
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_nbt_set_short(nbt: *mut Value, val: i16) {
+    unsafe {
+        *nbt = Value::Short(val);
+    }
+}
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_nbt_set_int(nbt: *mut Value, val: i32) {
+    unsafe {
+        *nbt = Value::Int(val);
+    }
+}
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_nbt_set_long(nbt: *mut Value, val: i64) {
+    unsafe {
+        *nbt = Value::Long(val);
+    }
+}
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_nbt_set_float(nbt: *mut Value, val: f32) {
+    unsafe {
+        *nbt = Value::Float(val);
+    }
+}
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_nbt_set_double(nbt: *mut Value, val: f64) {
+    unsafe {
+        *nbt = Value::Double(val);
+    }
+}
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_nbt_set_string(nbt: *mut Value, val: CStringView) {
+    unsafe {
+        let nbt = &mut *nbt;
+        if let Value::String(s) = nbt {
+            *s = val.to_string();
+        } else {
+            *nbt = Value::String(val.to_string());
+        }
+    }
+}
+
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_nbt_set_byte_array(nbt: *mut Value, val: CByteArrayView) {
+    unsafe {
+        let nbt = &mut *nbt;
+        if let Value::ByteArray(s) = nbt {
+            *s = fastnbt::ByteArray::new(val.to_vec());
+        } else {
+            *nbt = Value::ByteArray(fastnbt::ByteArray::new(val.to_vec()));
+        }
+    }
+}
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_nbt_set_int_array(nbt: *mut Value, val: CIntArrayView) {
+    unsafe {
+        let nbt = &mut *nbt;
+        if let Value::IntArray(s) = nbt {
+            *s = fastnbt::IntArray::new(val.to_vec());
+        } else {
+            *nbt = Value::IntArray(fastnbt::IntArray::new(val.to_vec()));
+        }
+    }
+}
+
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_nbt_set_long_array(nbt: *mut Value, val: CLongArrayView) {
+    unsafe {
+        let nbt = &mut *nbt;
+        if let Value::LongArray(s) = nbt {
+            *s = fastnbt::LongArray::new(val.to_vec());
+        } else {
+            *nbt = Value::LongArray(fastnbt::LongArray::new(val.to_vec()));
+        }
+    }
+}
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_nbt_set_list(nbt: *mut Value, val: CNBTListView) {
+    unsafe {
+        let nbt = &mut *nbt;
+        if let Value::List(s) = nbt {
+            *s = val.to_vec();
+        } else {
+            *nbt = Value::List(val.to_vec());
+        }
+    }
+}
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_nbt_set_compound(nbt: *mut Value, val: CMapRef, ok: *mut bool) {
+    unsafe {
+        if let CMapRef::StrValue(val) = val {
+            let val = &*val;
+            *ok = true;
+            if let Value::Compound(c) = &mut *nbt {
+                *c = val.clone();
+            } else {
+                *nbt = Value::Compound(val.clone());
+            }
+        } else {
+            *ok = false;
+        }
+    }
 }

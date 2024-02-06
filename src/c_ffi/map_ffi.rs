@@ -1,225 +1,310 @@
-use std::ffi::c_void;
-use std::ptr::{null, null_mut};
+use std::cmp::max;
+use std::collections::{BTreeMap, HashMap};
+use std::ptr::null_mut;
 use fastnbt::Value;
-use crate::c_ffi::{CBlockEntity, CMapRef, CMapRefKeyType, CMapRefValueType, CNBTValue, CPendingTick, SchemString};
+use crate::c_ffi::{CMapBox, CMapIterator, CMapKeyType, CMapKeyWrapper, CMapRef, CMapValueType, CMapValueWrapper, CStringView};
 use crate::region::{BlockEntity, PendingTick};
 
 impl CMapRef {
-    pub fn key_type(&self) -> CMapRefKeyType {
+    pub fn key_value_type(&self) -> (CMapKeyType, CMapValueType) {
         return match self {
-            CMapRef::StrStr(_) => CMapRefKeyType::String,
-            CMapRef::StrValue(_) => CMapRefKeyType::String,
-            CMapRef::PosBlockEntity(_) => CMapRefKeyType::Pos,
-            CMapRef::PosPendingTick(_) => CMapRefKeyType::Pos,
-        };
+            CMapRef::StrStr(_) => (CMapKeyType::String, CMapValueType::String),
+            CMapRef::StrValue(_) => (CMapKeyType::String, CMapValueType::NBT),
+            CMapRef::PosBlockEntity(_) => (CMapKeyType::Pos, CMapValueType::BlockEntity),
+            CMapRef::PosPendingTick(_) => (CMapKeyType::Pos, CMapValueType::PendingTick),
+        }
     }
+}
 
-    pub fn value_type(&self) -> CMapRefValueType {
+impl CMapBox {
+    pub fn to_c_map_ref(&self) -> CMapRef {
+
         return match self {
-            CMapRef::StrStr(_) => CMapRefValueType::String,
-            CMapRef::StrValue(_) => CMapRefValueType::NBT,
-            CMapRef::PosBlockEntity(_) => CMapRefValueType::BlockEntity,
-            CMapRef::PosPendingTick(_) => CMapRefValueType::PendingTick,
+            CMapBox::StrStr(ss)
+            => {
+                type V = BTreeMap<String, String>;
+                CMapRef::StrStr(ss.as_ref() as *const V as *mut V)
+            },
+            CMapBox::StrValue(sv)
+            => {
+                type V = HashMap<String, Value>;
+                CMapRef::StrValue(sv.as_ref() as *const V as *mut V)
+            },
+            CMapBox::PosBlockEntity(pb)
+            => {
+                type V = HashMap<[i32; 3], BlockEntity>;
+                CMapRef::PosBlockEntity(pb.as_ref() as *const V as *mut V)
+            },
+            CMapBox::PosPendingTick(pp)
+            => {
+                type V = HashMap<[i32; 3], PendingTick>;
+                CMapRef::PosPendingTick(pp.as_ref() as *const V as *mut V)
+            },
+            CMapBox::None => panic!("Trying to convert CMapBox::None to CMapRef"),
+        }
+    }
+}
+
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_map_unwrap_box(src: *const CMapBox) -> CMapRef {
+    unsafe {
+        //let src = src as *mut CMapBox;
+        let src = &*src;
+        return src.to_c_map_ref();
+    }
+}
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_map_get_key_type(src: *const CMapRef) -> CMapKeyType {
+    unsafe {
+        let src = &*src;
+        return src.key_value_type().0;
+    }
+}
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_map_get_value_type(src: *const CMapRef) -> CMapValueType {
+    unsafe {
+        let src = &*src;
+        return src.key_value_type().1;
+    }
+}
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_create_map(key_t: CMapKeyType, val_t: CMapValueType, success: *mut bool) -> CMapBox {
+    unsafe {
+        if key_t == CMapKeyType::String && val_t == CMapValueType::String {
+            *success = true;
+            return CMapBox::StrStr(Box::new(BTreeMap::new()));
+        }
+        if key_t == CMapKeyType::String && val_t == CMapValueType::NBT {
+            *success = true;
+            return CMapBox::StrValue(Box::new(HashMap::new()));
+        }
+        if key_t == CMapKeyType::Pos && val_t == CMapValueType::BlockEntity {
+            *success = true;
+            return CMapBox::PosBlockEntity(Box::new(HashMap::new()));
+        }
+        if key_t == CMapKeyType::Pos && val_t == CMapValueType::PendingTick {
+            *success = true;
+            return CMapBox::PosPendingTick(Box::new(HashMap::new()));
+        }
+
+        *success = false;
+        return CMapBox::None;
+    }
+}
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_release_map(map_box: *mut CMapBox) {
+    unsafe {
+        *map_box = CMapBox::None;
+    }
+}
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_map_find(map: *const CMapRef, key_t: CMapKeyType, val_t: CMapValueType,
+                                key: CMapKeyWrapper, ok: *mut bool) -> CMapValueWrapper {
+    unsafe {
+        let map = map as *mut CMapRef;
+        let map = &mut *map;
+        if (key_t, val_t) != map.key_value_type() {
+            *ok = false;
+            return CMapValueWrapper { string: null_mut() };
+        }
+        *ok = true;
+        return match map {
+            CMapRef::StrStr(map) => {
+                debug_assert!(key_t == CMapKeyType::String);
+                debug_assert!(val_t == CMapValueType::String);
+                let map = &mut *(*map);
+                let s_ptr = match map.get_mut(key.string.to_str()) {
+                    Some(v) => v as *mut String,
+                    None => null_mut(),
+                };
+                CMapValueWrapper { string: s_ptr }
+            }
+            CMapRef::StrValue(map) => {
+                debug_assert!(key_t == CMapKeyType::String);
+                debug_assert!(val_t == CMapValueType::NBT);
+                let map = &mut *(*map);
+                let ptr = match map.get_mut(key.string.to_str()) {
+                    Some(v) => v as *mut Value,
+                    None => null_mut(),
+                };
+                CMapValueWrapper { nbt: ptr }
+            }
+            CMapRef::PosBlockEntity(map) => {
+                debug_assert!(key_t == CMapKeyType::Pos);
+                debug_assert!(val_t == CMapValueType::BlockEntity);
+                let map = &mut *(*map);
+                let ptr = match map.get_mut(&key.pos) {
+                    Some(v) => v as *mut BlockEntity,
+                    None => null_mut(),
+                };
+                CMapValueWrapper { block_entity: ptr }
+            }
+            CMapRef::PosPendingTick(map) => {
+                debug_assert!(key_t == CMapKeyType::Pos);
+                debug_assert!(val_t == CMapValueType::PendingTick);
+                let map = &mut *(*map);
+                let ptr = match map.get_mut(&key.pos) {
+                    Some(v) => v as *mut PendingTick,
+                    None => null_mut(),
+                };
+                CMapValueWrapper { pending_tick: ptr }
+            }
+        }
+    }
+}
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_map_length(map: *const CMapRef) -> usize {
+    unsafe {
+        let map = &*map;
+        return match map {
+            CMapRef::StrStr(map) => (&**map).len(),
+            CMapRef::StrValue(map) => (&**map).len(),
+            CMapRef::PosBlockEntity(map) => (&**map).len(),
+            CMapRef::PosPendingTick(map) => (&**map).len(),
+        }
+    }
+}
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_map_reserve(map: *mut CMapRef, new_capacity: usize) {
+    unsafe {
+        let map = &*map;
+        match map {
+            CMapRef::StrStr(_) => {},
+            CMapRef::StrValue(map) => {
+                let map = &mut **map;
+                map.reserve(max(new_capacity, map.len()) - map.len());
+            },
+            CMapRef::PosBlockEntity(map) => {
+                let map = &mut **map;
+                map.reserve(max(new_capacity, map.len()) - map.len());
+            },
+            CMapRef::PosPendingTick(map) => {
+                let map = &mut **map;
+                map.reserve(max(new_capacity, map.len()) - map.len());
+            },
+        }
+    }
+}
+
+#[no_mangle]
+#[allow(improper_ctypes_definitions)]
+extern "C" fn MC_SCHEM_map_iterator_first(
+    map: *const CMapRef, key_t: CMapKeyType, val_t: CMapValueType, ok: *mut bool) -> CMapIterator {
+    unsafe {
+        let map = map as *mut CMapRef;
+        let map = &mut *map;
+        if (key_t, val_t) != map.key_value_type() {
+            *ok = false;
+            return CMapIterator::None;
+        }
+        *ok = true;
+        return match map {
+            CMapRef::StrStr(map) => {
+                debug_assert!(key_t == CMapKeyType::String);
+                debug_assert!(val_t == CMapValueType::String);
+                let map = &mut *(*map);
+                CMapIterator::StrStr(map.iter_mut())
+            }
+            CMapRef::StrValue(map) => {
+                debug_assert!(key_t == CMapKeyType::String);
+                debug_assert!(val_t == CMapValueType::NBT);
+                let map = &mut *(*map);
+                CMapIterator::StrValue(map.iter_mut())
+            }
+            CMapRef::PosBlockEntity(map) => {
+                debug_assert!(key_t == CMapKeyType::Pos);
+                debug_assert!(val_t == CMapValueType::BlockEntity);
+                let map = &mut *(*map);
+                CMapIterator::PosBlockEntity(map.iter_mut())
+            }
+            CMapRef::PosPendingTick(map) => {
+                debug_assert!(key_t == CMapKeyType::Pos);
+                debug_assert!(val_t == CMapValueType::PendingTick);
+                let map = &mut *(*map);
+                CMapIterator::PosPendingTick(map.iter_mut())
+            }
+        }
+    }
+}
+
+#[repr(C)]
+struct IterAddReturn {
+    key: CMapKeyWrapper,
+    value: CMapValueWrapper,
+    has_value: bool,
+}
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_map_iterator_next(it: *mut CMapIterator) -> IterAddReturn {
+    unsafe {
+        let it = &mut *it;
+        let mut ret = IterAddReturn {
+            key: CMapKeyWrapper { string: CStringView::from("") },
+            value: CMapValueWrapper { string: null_mut() },
+            has_value: false,
         };
+        match it {
+            CMapIterator::None => { return ret; }
+            CMapIterator::StrStr(it) => {
+                if let Some((key, val)) = it.next() {
+                    ret.key.string = CStringView::from(key);
+                    ret.value.string = val as *mut String;
+                    ret.has_value = true;
+                }
+            }
+            CMapIterator::StrValue(it) => {
+                if let Some((key, val)) = it.next() {
+                    ret.key.string = CStringView::from(key);
+                    ret.value.nbt = val as *mut Value;
+                    ret.has_value = true;
+                }
+            }
+            CMapIterator::PosBlockEntity(it) => {
+                if let Some((key, val)) = it.next() {
+                    ret.key.pos = *key;
+                    ret.value.block_entity = val as *mut BlockEntity;
+                    ret.has_value = true;
+                }
+            }
+            CMapIterator::PosPendingTick(it) => {
+                if let Some((key, val)) = it.next() {
+                    ret.key.pos = *key;
+                    ret.value.pending_tick = val as *mut PendingTick;
+                    ret.has_value = true;
+                }
+            }
+        }
+        return ret;
     }
 }
 
+// #[no_mangle]
+// extern "C" fn MC_SCHEM_map_iterator_equal(a: *const CMapIterator, b: *const CMapIterator) -> bool {
+//     unsafe {
+//         let a = &*a;
+//         let b = &*b;
+//         return a == b;
+//     }
+// }
+
 #[no_mangle]
-extern "C" fn MC_SCHEM_map_get_key_type(map: *const CMapRef) -> CMapRefKeyType {
+extern "C" fn MC_SCHEM_map_iterator_length(it: *const CMapIterator) -> usize {
     unsafe {
-        return (*map).key_type();
-    }
-}
-
-#[no_mangle]
-extern "C" fn MC_SCHEM_map_get_value_type(map: *const CMapRef) -> CMapRefValueType {
-    unsafe {
-        return (*map).value_type();
-    }
-}
-
-#[no_mangle]
-extern "C" fn MC_SCHEM_map_get_size(map: *const CMapRef) -> usize {
-    unsafe {
-        return match *map {
-            CMapRef::StrStr(m) => (*m).len(),
-            CMapRef::StrValue(m) => (*m).len(),
-            CMapRef::PosBlockEntity(m) => (*m).len(),
-            CMapRef::PosPendingTick(m) => (*m).len(),
-        };
-    }
-}
-
-
-#[no_mangle]
-extern "C" fn MC_SCHEM_map_find_const(map: *const CMapRef, key_type: CMapRefKeyType, key: *const c_void, value: *mut c_void) -> bool {
-    unsafe {
-        if (*map).key_type() != key_type {
-            return false;
+        let it = &*it;
+        return match it {
+            CMapIterator::None => { 0 }
+            CMapIterator::StrStr(it) => { it.len() }
+            CMapIterator::StrValue(it) => { it.len() }
+            CMapIterator::PosBlockEntity(it) => { it.len() }
+            CMapIterator::PosPendingTick(it) => { it.len() }
         }
-
-        if key_type == CMapRefKeyType::String {
-            let key: &SchemString = &*(key as *const SchemString);
-            let key = key.to_str();
-
-            return match *map {
-                CMapRef::StrStr(m) => {
-                    let find_opt = (*m).get(key);
-                    let value = value as *mut SchemString;
-                    match find_opt {
-                        Some(s) => {
-                            *value = SchemString::new(s);
-                        }
-                        None => { *value = SchemString { begin: null(), end: null() }; }
-                    }
-                    true
-                }
-                CMapRef::StrValue(m) => {
-                    let find_opt = (*m).get(key);
-                    let value = value as *mut CNBTValue;
-                    match find_opt {
-                        Some(v) => {
-                            let v = v as *const Value as *mut Value;
-                            *value = CNBTValue::Ref(v);
-                        }
-                        None => {
-                            *value = CNBTValue::Ref(null_mut());
-                        }
-                    }
-                    true
-                }
-                _ => { false }
-            };
-        }
-
-        if key_type == CMapRefKeyType::Pos {
-            let key = key as *const [i32; 3];
-            let key = &*key;
-            return match *map {
-                CMapRef::PosBlockEntity(m) => {
-                    let val = (*m).get(key);
-                    let dest = value as *mut CBlockEntity;
-                    match val {
-                        Some(val) => {
-                            let val = val as *const BlockEntity as *mut BlockEntity;
-                            *dest = CBlockEntity::Ref(val);
-                        }
-                        None => {
-                            *dest = CBlockEntity::Ref(null_mut());
-                        }
-                    }
-                    true
-                }
-                CMapRef::PosPendingTick(m) => {
-                    let val = (*m).get(key);
-                    let dest = value as *mut CPendingTick;
-                    match val {
-                        Some(val) => {
-                            let val = val as *const PendingTick as *mut PendingTick;
-                            *dest = CPendingTick::Ref(val);
-                        }
-                        None => { *dest = CPendingTick::Ref(null_mut()); }
-                    }
-                    true
-                }
-                _ => { false }
-            };
-        }
-        return false;
-    }
-}
-
-#[no_mangle]
-extern "C" fn MC_SCHEM_map_find_mut(map: *mut CMapRef, key_type: CMapRefKeyType, key: *const c_void, value: *mut c_void) -> bool {
-    return MC_SCHEM_map_find_const(map, key_type, key, value);
-}
-
-#[no_mangle]
-extern "C" fn MC_SCHEM_map_contains_key(map: *const CMapRef, key_type: CMapRefKeyType, key: *const c_void) -> bool {
-    unsafe {
-        if (*map).key_type() != key_type {
-            return false;
-        }
-
-        if key_type == CMapRefKeyType::String {
-            let key: &SchemString = &*(key as *const SchemString);
-            let key = key.to_str();
-
-            return match *map {
-                CMapRef::StrStr(m) => {
-                    (*m).contains_key(key)
-                }
-                CMapRef::StrValue(m) => {
-                    (*m).contains_key(key)
-                }
-                _ => { false }
-            };
-        }
-
-        if key_type == CMapRefKeyType::Pos {
-            let key = key as *const [i32; 3];
-            let key = &*key;
-            return match *map {
-                CMapRef::PosBlockEntity(m) => {
-                    (*m).contains_key(key)
-                }
-                CMapRef::PosPendingTick(m) => {
-                    (*m).contains_key(key)
-                }
-                _ => { false }
-            };
-        }
-        return false;
-    }
-}
-
-#[no_mangle]
-extern "C" fn MC_SCHEM_map_insert(map: *mut CMapRef, key_type: CMapRefKeyType, key: *const c_void, value: *const c_void) -> bool {
-    unsafe {
-        if (*map).key_type() != key_type {
-            return false;
-        }
-        if key_type == CMapRefKeyType::String {
-            let key: &SchemString = &*(key as *const SchemString);
-            let key = key.to_string();
-
-            return match *map {
-                CMapRef::StrStr(m) => {
-                    let value = value as *const SchemString;
-                    let value = (&*value).to_string();
-                    (*m).insert(key, value);
-                    true
-                }
-                CMapRef::StrValue(m) => {
-                    let value = value as *const CNBTValue;
-                    let value = (&*value).get_ref().clone();
-                    (*m).insert(key, value);
-                    true
-                }
-                _ => { false }
-            };
-        }
-
-        if key_type == CMapRefKeyType::Pos {
-            let key = key as *const [i32; 3];
-            let key = (&*key).clone();
-            return match *map {
-                CMapRef::PosBlockEntity(m) => {
-                    let value = value as *const CBlockEntity;
-                    let value = (&*value).get_ref().clone();
-                    (*m).insert(key, value);
-                    true
-                }
-                CMapRef::PosPendingTick(m) => {
-                    let value = value as *const CPendingTick;
-                    let value = (&*value).get_ref().clone();
-                    (*m).insert(key, value);
-                    true
-                }
-                _ => { false }
-            };
-        }
-
-        return false;
     }
 }

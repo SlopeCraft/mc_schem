@@ -1,17 +1,16 @@
-mod nbt_ffi;
-mod schem_ffi;
-mod map_ffi;
-
 use std::collections::{BTreeMap, HashMap};
-use std::ffi::{c_char, c_void};
-use std::mem::size_of;
-use std::ptr::{null_mut, slice_from_raw_parts};
+use std::ffi::{c_char};
+use std::ptr::{null_mut, slice_from_raw_parts, slice_from_raw_parts_mut};
 use std::str::from_utf8_unchecked;
-use fastnbt::Value;
 use static_assertions as sa;
-use crate::block::Block;
-use crate::region::{BlockEntity, Entity, PendingTick, Region};
-use crate::schem::{MetaDataIR, Schematic};
+use std::mem::size_of;
+use fastnbt::Value;
+use crate::region::{BlockEntity, PendingTick};
+
+mod map_ffi;
+mod nbt_ffi;
+mod block_ffi;
+
 
 #[no_mangle]
 extern "C" fn MC_SCHEM_version_string() -> *const c_char {
@@ -39,13 +38,22 @@ extern "C" fn MC_SCHEM_version_tweak() -> u16 {
 }
 
 #[repr(C, align(8))]
-#[derive(Debug, Clone)]
-struct SchemString {
+#[derive(Debug, Clone, Copy)]
+struct CStringView {
     begin: *const c_char,
     end: *const c_char,
 }
-
-impl SchemString {
+sa::const_assert!(size_of::<CStringView>()==2*size_of::<usize>());
+#[allow(dead_code)]
+impl CStringView {
+    pub fn from(src: &str) -> CStringView {
+        unsafe {
+            return CStringView {
+                begin: src.as_ptr() as *const c_char,
+                end: (src.as_ptr() as *const c_char).add(src.as_bytes().len()),
+            };
+        }
+    }
     pub fn to_u8_slice(&self) -> &[u8] {
         unsafe {
             let str_beg = self.begin;
@@ -68,112 +76,24 @@ impl SchemString {
     }
 }
 
-sa::const_assert!(size_of::<SchemString>()==2*size_of::<usize>());
 
-impl SchemString {
-    fn new(src: &str) -> SchemString {
-        unsafe {
-            let begin = src.as_ptr() as *const c_char;
-            return SchemString {
-                begin,
-                end: begin.add(src.len()),
-            };
-        }
-    }
-}
-
-#[derive(Debug)]
-#[repr(C)]
-enum RsObjWrapper<T> {
-    Owned(Box<T>),
-    Ref(*mut T),
-}
-
-#[allow(dead_code)]
-impl<T> RsObjWrapper<T> {
-    const ENUM_SIZE: usize = size_of::<Self>();
-    //const UNUSED: () = assert!(size_of::<Self>() == 2 * size_of::<usize>());
-    fn is_null(&self) -> bool {
-        //sa::const_assert!(Self::ENUM_SIZE==2*size_of::<usize>());
-
-        if let RsObjWrapper::Ref(ptr) = self {
-            return *ptr == null_mut();
-        }
-
-        return false;
-    }
-    fn release(&mut self) {
-        *self = RsObjWrapper::Ref(null_mut());
-    }
-
-    fn get_ref(&self) -> &T {
-        unsafe {
-            return match self {
-                RsObjWrapper::Owned(b) => &*b,
-                RsObjWrapper::Ref(ptr) => &*(ptr.cast_const()),
-            }
-        }
-    }
-
-    fn get_mut_ref(&mut self) -> &mut T {
-        unsafe {
-            return match self {
-                RsObjWrapper::Owned(b) => &mut *b,
-                RsObjWrapper::Ref(ptr) => {
-                    let ptr = *ptr;
-                    &mut *ptr
-                },
-            }
-        }
-    }
-}
-
-type CNBTValue = RsObjWrapper<Value>;
-sa::const_assert!(size_of::<CNBTValue>()==2*size_of::<usize>());
-
-
-#[repr(C)]
-#[allow(non_camel_case_types, dead_code)]
-enum CEnumNBTType {
-    MC_SCHEM_nbt_type_byte = 1,
-    MC_SCHEM_nbt_type_short = 2,
-    MC_SCHEM_nbt_type_int = 3,
-    MC_SCHEM_nbt_type_long = 4,
-    MC_SCHEM_nbt_type_float = 5,
-    MC_SCHEM_nbt_type_double = 6,
-    MC_SCHEM_nbt_type_byte_array = 7,
-    MC_SCHEM_nbt_type_string = 8,
-    MC_SCHEM_nbt_type_list = 9,
-    MC_SCHEM_nbt_type_compound = 10,
-    MC_SCHEM_nbt_type_int_array = 11,
-    MC_SCHEM_nbt_type_long_array = 12,
-}
-
-#[no_mangle]
-extern "C" fn MC_SCHEM_rust_object_is_reference(value: *const CNBTValue) -> bool {
-    unsafe {
-        return match *value {
-            RsObjWrapper::Owned(_) => false,
-            RsObjWrapper::Ref(_) => true,
-        };
-    }
-}
-
-#[no_mangle]
-extern "C" fn MC_SCHEM_rust_object_is_null(value: *const CNBTValue) -> bool {
-    unsafe {
-        let value = &*value;
-        return value.is_null();
-    }
-}
-
-#[no_mangle]
-extern "C" fn MC_SCHEM_rust_object_get_null() -> RsObjWrapper<()> {
-    sa::const_assert!(size_of::<RsObjWrapper<()>>()==2*size_of::<usize>());
-    return RsObjWrapper::Ref(null_mut());
+#[repr(u8)]
+#[derive(PartialEq, Copy, Clone)]
+enum CMapKeyType {
+    String,
+    Pos,
 }
 
 #[repr(u8)]
+#[derive(PartialEq, Copy, Clone)]
+enum CMapValueType {
+    String,
+    NBT,
+    BlockEntity,
+    PendingTick,
+}
+
+#[repr(C)]
 enum CMapRef {
     StrStr(*mut BTreeMap<String, String>),
     StrValue(*mut HashMap<String, Value>),
@@ -183,26 +103,107 @@ enum CMapRef {
 sa::const_assert!(size_of::<CMapRef>()==2*size_of::<usize>());
 
 #[repr(C)]
-#[derive(PartialEq)]
-enum CMapRefKeyType {
-    String,
-    Pos,
+enum CMapBox {
+    StrStr(Box<BTreeMap<String, String>>),
+    StrValue(Box<HashMap<String, Value>>),
+    PosBlockEntity(Box<HashMap<[i32; 3], BlockEntity>>),
+    PosPendingTick(Box<HashMap<[i32; 3], PendingTick>>),
+    None,
+}
+sa::const_assert!(size_of::<CMapBox>()==2*size_of::<usize>());
+
+
+#[repr(C)]
+union CMapKeyWrapper {
+    string: CStringView,
+    pos: [i32; 3],
 }
 
 #[repr(C)]
-#[derive(PartialEq)]
-enum CMapRefValueType {
-    String,
-    NBT,
-    BlockEntity,
-    PendingTick,
+union CMapValueWrapper {
+    string: *mut String,
+    nbt: *mut Value,
+    block_entity: *mut BlockEntity,
+    pending_tick: *mut PendingTick,
+}
+sa::const_assert!(size_of::<CMapValueWrapper>()==size_of::<usize>());
+#[repr(C)]
+#[warn(improper_ctypes_definitions)]// memory layout is invisible in C
+enum CMapIterator {
+    StrStr(std::collections::btree_map::IterMut<'static, String, String>),
+    StrValue(std::collections::hash_map::IterMut<'static, String, Value>),
+    PosBlockEntity(std::collections::hash_map::IterMut<'static, [i32; 3], BlockEntity>),
+    PosPendingTick(std::collections::hash_map::IterMut<'static, [i32; 3], PendingTick>),
+    None,
+}
+sa::const_assert!(size_of::<CMapIterator>()==10*size_of::<usize>());
+
+
+#[test]
+fn sizes() {
+    println!("Size of usize = {}", size_of::<usize>());
+    println!("Size of iter_mut = {}", size_of::<std::collections::btree_map::IterMut<'static, String, String>>());
+    println!("Size of CMapIterator = {}", size_of::<CMapIterator>());
+
+    println!("Size of fastnbt::Value = {}", size_of::<Value>());
 }
 
-type CBlock = RsObjWrapper<Block>;
-type CEntity = RsObjWrapper<Entity>;
-type CBlockEntity = RsObjWrapper<BlockEntity>;
-type CPendingTick = RsObjWrapper<PendingTick>;
-type CRegion = RsObjWrapper<Region>;
-type CMetaDataIR = RsObjWrapper<MetaDataIR>;
-type CSchematic = RsObjWrapper<Schematic>;
+#[repr(C)]
+#[allow(non_camel_case_types, dead_code)]
+enum CEnumNBTType {
+    Byte = 1,
+    Short = 2,
+    Int = 3,
+    Long = 4,
+    Float = 5,
+    Double = 6,
+    ByteArray = 7,
+    String = 8,
+    List = 9,
+    Compound = 10,
+    IntArray = 11,
+    LongArray = 12,
+}
 
+type CValueBox = Box<Value>;
+sa::const_assert!(size_of::<CValueBox>()==size_of::<usize>());
+
+#[repr(C)]
+struct CArrayView<T> {
+    begin: *mut T,
+    end: *mut T,
+}
+
+impl<T> CArrayView<T> {
+    pub fn from_slice(slice: &[T]) -> CArrayView<T> {
+        unsafe {
+            let begin = slice.as_ptr() as *mut T;
+            return CArrayView {
+                begin,
+                end: begin.add(slice.len()),
+            }
+        }
+    }
+
+    pub unsafe fn to_slice(&self) -> &mut [T] {
+        let len = self.end.offset_from(self.begin);
+        return &mut *(slice_from_raw_parts_mut(self.begin, len as usize));
+    }
+
+    pub unsafe fn to_vec(&self) -> Vec<T>
+        where T: Clone {
+        return self.to_slice().to_vec();
+    }
+
+    pub fn empty() -> CArrayView<T> {
+        return CArrayView {
+            begin: null_mut(),
+            end: null_mut(),
+        }
+    }
+}
+
+type CByteArrayView = CArrayView<i8>;
+type CIntArrayView = CArrayView<i32>;
+type CLongArrayView = CArrayView<i64>;
+type CNBTListView = CArrayView<Value>;

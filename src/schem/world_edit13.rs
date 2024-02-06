@@ -403,6 +403,7 @@ fn parse_block_entity(nbt: &HashMap<String, Value>, tag_path: &str, region_size:
     return Ok((be, pos));
 }
 
+#[allow(dead_code)]
 impl Schematic {
     pub fn supported_world_edit_13_versions() -> Vec<i32> {
         return vec![2, 3];

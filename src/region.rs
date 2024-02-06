@@ -320,7 +320,7 @@ impl Region {
     }
 
     pub fn find_or_append_to_palette(&mut self, block: &Block) -> u16 {
-        let mut blk_idx = self.palette.len();
+        let blk_idx = self.palette.len();
         for (idx, blk) in self.palette.iter().enumerate() {
             if blk == block {
                 return idx as u16;

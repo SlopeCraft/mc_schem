@@ -328,7 +328,7 @@ impl Block {
             return Err(e);
         }
 
-        let mut block = Block::from_id(OLD_BLOCK_ID[id as usize]);
+        let block = Block::from_id(OLD_BLOCK_ID[id as usize]);
         debug_assert!(block.is_ok());
         let mut block = block.unwrap();
         debug_assert!(block.attributes.is_empty());

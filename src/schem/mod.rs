@@ -1,10 +1,10 @@
-mod world_edit12;
-mod world_edit13;
-pub(crate) mod litematica;
+pub mod world_edit12;
+pub mod world_edit13;
+pub mod litematica;
 
-mod vanilla_structure;
-mod mc_version;
-pub(crate) mod common;
+pub mod vanilla_structure;
+pub mod mc_version;
+pub mod common;
 
 
 use std::cmp::max;
@@ -439,6 +439,24 @@ impl Schematic {
 
 
         return Err(LoadError::UnrecognisedExtension { extension: extension.to_string() });
+    }
+
+    pub fn save_to_file(&self, filename: &str) -> Result<(), WriteError> {
+        if filename.ends_with(".litematic") {
+            return self.save_litematica_file(filename, &LitematicaSaveOption::default());
+        }
+        if filename.ends_with(".nbt") {
+            return self.save_vanilla_structure_file(filename, &VanillaStructureSaveOption::default());
+        }
+        if filename.ends_with(".schem") {
+            return self.save_world_edit_13_file(filename, &WorldEdit13SaveOption::default());
+        }
+
+        let split = filename.split(".");
+        let extension = split.last().unwrap_or_else(|| "");
+
+
+        return Err(WriteError::UnrecognisedExtension { extension: extension.to_string() });
     }
 }
 

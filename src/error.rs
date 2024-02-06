@@ -150,6 +150,9 @@ pub enum WriteError {
     UnsupportedWorldEdit13Version {
         version: i32,
         supported_versions: Vec<i32>,
+    },
+    UnrecognisedExtension {
+        extension: String,
     }
 }
 
@@ -172,6 +175,8 @@ impl Display for WriteError {
             => write!(f, "Data version {data_version_i32} is not supported."),
             WriteError::UnsupportedWorldEdit13Version { version, supported_versions }
             => write!(f, "World edit format version(not minecraft version) {version} is not supported, supported versions: {supported_versions:?}"),
+            WriteError::UnrecognisedExtension { extension }
+            => write!(f, "Unrecognised extension {extension}, can not deduce schematic format from filename extension, try loading with explicit format.")
         }
     }
 }

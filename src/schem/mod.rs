@@ -12,6 +12,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use crate::block::{Block, CommonBlock};
 use fastnbt;
+use flate2::Compression;
 use crate::error::{LoadError, WriteError};
 //use schem::mc_version;
 use crate::schem;
@@ -528,12 +529,14 @@ impl VanillaStructureLoadOption {
 #[derive(Debug)]
 pub struct VanillaStructureSaveOption {
     pub keep_air: bool,
+    pub compress_level: Compression,
 }
 
 impl Default for VanillaStructureSaveOption {
     fn default() -> VanillaStructureSaveOption {
         return VanillaStructureSaveOption {
-            keep_air: true
+            keep_air: true,
+            compress_level: Compression::best(),
         }
     }
 }
@@ -553,12 +556,14 @@ impl LitematicaLoadOption {
 #[derive(Debug)]
 pub struct LitematicaSaveOption {
     pub rename_duplicated_regions: bool,
+    pub compress_level: Compression,
 }
 
 impl Default for LitematicaSaveOption {
     fn default() -> LitematicaSaveOption {
         return LitematicaSaveOption {
             rename_duplicated_regions: true,
+            compress_level: Compression::best(),
         };
     }
 }
@@ -577,6 +582,7 @@ impl WorldEdit13LoadOption {
 #[derive(Debug)]
 pub struct WorldEdit13SaveOption {
     pub background_block: CommonBlock,
+    pub compress_level: Compression,
 }
 
 #[allow(dead_code)]
@@ -584,6 +590,7 @@ impl Default for WorldEdit13SaveOption {
     fn default() -> WorldEdit13SaveOption {
         return WorldEdit13SaveOption {
             background_block: CommonBlock::Air,
+            compress_level: Compression::best(),
         };
     }
 }

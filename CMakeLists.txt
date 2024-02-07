@@ -37,12 +37,18 @@ if (export_lib_name)
     set(export_lib_loc "${rust_bin_dir}/${export_lib_name}")
 endif ()
 
+if (WIN32)
+    set(schemtool_loc "${rust_bin_dir}/schemtool.exe")
+else ()
+    set(schemtool_loc "${rust_bin_dir}/schemtool")
+endif ()
+
 file(GLOB_RECURSE rust_sources "*.rs")
 add_custom_target(mc_schem_rs ALL
         COMMAND ${cargo_exe} build ${cargo_build_flags} --target-dir=${rust_build_dir}
         SOURCES ${rust_sources} Cargo.toml
-        COMMENT "Build all rust binaries"
-        BYPRODUCTS ${shared_lib_loc} ${export_lib_loc})
+        COMMENT "Building all rust binaries"
+        BYPRODUCTS ${shared_lib_loc} ${export_lib_loc} ${schemtool_loc})
 
 if (${WIN32})
     cmake_path(RELATIVE_PATH rust_bin_dir BASE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR} OUTPUT_VARIABLE relative_path_to_rs_build_dir)
@@ -109,6 +115,9 @@ if (${MC_SCHEM_INSTALL})
             COMPONENT core
             RUNTIME DESTINATION bin
             LIBRARY DESTINATION lib)
+    install(FILES ${schemtool_loc}
+            COMPONENT schemtool
+            DESTINATION bin)
     if (${WIN32})
         install(FILES ${shared_lib_loc}
                 DESTINATION bin)

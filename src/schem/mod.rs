@@ -364,26 +364,28 @@ impl Schematic {
 
 
     pub fn first_block_index_at(&self, pos: [i32; 3]) -> Option<u16> {
-        if self.regions.is_empty() {
-            return None;
+        for reg in &self.regions {
+            if let Some(bid) = reg.block_index_at(reg.global_pos_to_relative_pos(pos)) {
+                return Some(bid);
+            }
         }
-        let reg = &self.regions[0];
-        return reg.block_index_at(
-            reg.global_pos_to_relative_pos(pos));
+        return None;
     }
     pub fn first_block_at(&self, pos: [i32; 3]) -> Option<&Block> {
-        if self.regions.is_empty() {
-            return None;
+        for reg in &self.regions {
+            if let Some(b) = reg.block_at(reg.global_pos_to_relative_pos(pos)) {
+                return Some(b);
+            }
         }
-        let reg = &self.regions[0];
-        return reg.block_at(reg.global_pos_to_relative_pos(pos));
+        return None;
     }
     pub fn first_block_entity_at(&self, pos: [i32; 3]) -> Option<&BlockEntity> {
-        if self.regions.is_empty() {
-            return None;
+        for reg in &self.regions {
+            if let Some(b) = reg.block_entities.get(&reg.global_pos_to_relative_pos(pos)) {
+                return Some(b);
+            }
         }
-        let reg = &self.regions[0];
-        return reg.block_entities.get(&reg.global_pos_to_relative_pos(pos));
+        return None;
     }
 
     pub fn shape(&self) -> [i32; 3] {
@@ -599,6 +601,7 @@ impl Default for WorldEdit13SaveOption {
 pub struct WorldEdit12LoadOption {
     pub data_version: DataVersion,
     pub fix_string_id_with_block_entity_data: bool,
+    pub discard_number_id_array: bool,
 }
 
 impl Default for WorldEdit12LoadOption {
@@ -606,6 +609,7 @@ impl Default for WorldEdit12LoadOption {
         return WorldEdit12LoadOption {
             data_version: DataVersion::Java_1_12_2,
             fix_string_id_with_block_entity_data: true,
+            discard_number_id_array: false,
         }
     }
 }

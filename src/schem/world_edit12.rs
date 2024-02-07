@@ -269,6 +269,12 @@ impl Region {
             }
         }
 
+        region.array_number_id_damage = if option.discard_number_id_array {
+            None
+        } else {
+            Some(id_damage_array)
+        };
+
         return Ok(region);
     }
 }

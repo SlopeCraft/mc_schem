@@ -352,17 +352,12 @@ fn parse_full_blocks_mc12() {
 fn make_mc12_numeric_lut() {
     let schem_file = "./test_files/schematic/full-blocks-1.12.2.schematic";
 
-    let num_id_array;
-    {
-        let decoder = GzDecoder::new(File::open(schem_file).unwrap());
-        let nbt = fastnbt::from_reader(decoder).unwrap();
-        num_id_array = Schematic::parse_number_id_from_we12(&nbt).unwrap();
-    }
     let mut schem_option = WorldEdit12LoadOption::default();
     schem_option.fix_string_id_with_block_entity_data = false;
     let schem = Schematic::from_world_edit_12_file(schem_file, &schem_option).unwrap();
     let lite = Schematic::from_litematica_file("./test_files/litematica/full-blocks-1.12.2.litematic", &LitematicaLoadOption::default()).unwrap();
 
+    let num_id_array = schem.regions[0].array_number_id_damage.as_ref().unwrap();
     for dim in 0..3 {
         assert_eq!(num_id_array.shape()[dim], schem.shape()[dim] as usize);
         assert_eq!(schem.shape()[dim], lite.shape()[dim]);
@@ -584,7 +579,6 @@ fn correct_test_mc13_plus() {
         let schem = Schematic::from_world_edit_13_file(&schem_file, &WorldEdit13LoadOption::default()).unwrap();
 
         let lite = Schematic::from_litematica_file(&litematica_file, &LitematicaLoadOption::default()).unwrap();
-        let mut ok_counter = 0;
         assert_eq!(lite.shape(), schem.shape());
         for x in 0..lite.shape()[0] {
             for y in 0..lite.shape()[1] {
@@ -598,7 +592,6 @@ fn correct_test_mc13_plus() {
                         let id_s: u16 = schem.first_block_index_at(pos).unwrap();
                         panic!("In {ver}, block at [{x}, {y}, {z}] is different: \n litematica => {}, id= {id_l}\n schem => {}, id = {id_s}", blk_l, blk_s);
                     }
-                    ok_counter += 1;
                 }
             }
         }

@@ -13,14 +13,19 @@ use crate::region::{Entity, PendingTick, PendingTickInfo};
 
 impl MetaDataIR {
     pub fn from_litematica(src: &LitematicaMetaData) -> MetaDataIR {
-        return MetaDataIR {
-            mc_data_version: src.data_version,
-            time_created: src.time_created,
-            time_modified: src.time_modified,
-            author: src.author.clone(),
-            name: src.name.clone(),
-            description: src.description.clone(),
-        }
+        let mut result = MetaDataIR::default();
+
+        result.mc_data_version = src.data_version;
+        result.time_created = src.time_created;
+        result.time_modified = src.time_modified;
+        result.author = src.author.clone();
+        result.name = src.name.clone();
+        result.description = src.description.clone();
+
+        result.litematica_version = src.version;
+        result.litematica_subversion = src.sub_version;
+        result.date = Some(src.time_modified);
+        return result;
     }
 }
 
@@ -49,7 +54,7 @@ impl Schematic {
         match parse_metadata(&parsed) {
             Ok(md) => {
                 schem.metadata = MetaDataIR::from_litematica(&md);
-                schem.raw_metadata = Some(RawMetaData::Litematica(md));
+                schem.original_metadata = Some(RawMetaData::Litematica(md));
             }
             Err(e) => return Err(e)
         }
@@ -625,23 +630,14 @@ fn parse_pending_tick(nbt: &HashMap<String, Value>, tag_path: &str, region_size:
 impl Schematic {
     pub fn metadata_litematica(&self) -> Result<LitematicaMetaData, WriteError> {
         let mut md =
-            match LitematicaMetaData::from_data_version_i32(self.metadata.mc_data_version) {
-                Ok(md_) => md_,
-                Err(e) => return Err(e),
-            };
-        if let Some(raw) = &self.raw_metadata {
-            if let RawMetaData::Litematica(raw) = &raw {
-                if raw.data_version == md.data_version {
-                    md = raw.clone();
-                }
-            }
-        }
+            LitematicaMetaData::from_data_version_i32(self.metadata.mc_data_version)?;
 
         md.data_version = self.metadata.mc_data_version;
         md.author = self.metadata.author.clone();
         md.name = self.metadata.name.clone();
         md.description = self.metadata.description.clone();
-
+        md.version = self.metadata.litematica_version;
+        md.sub_version = self.metadata.litematica_subversion;
 
         return Ok(md);
     }

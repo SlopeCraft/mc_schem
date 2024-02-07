@@ -5,7 +5,6 @@ use std::str::from_utf8_unchecked;
 use static_assertions as sa;
 use std::mem::size_of;
 use fastnbt::Value;
-use crate::block::BlockIdParseError;
 use crate::region::{BlockEntity, PendingTick};
 
 mod map_ffi;

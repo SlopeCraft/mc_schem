@@ -180,7 +180,7 @@ impl Schematic {
             let mut md = VanillaStructureMetaData::default();
             md.data_version = *unwrap_opt_tag!(nbt.get("DataVersion"),Int,0,"/DataVersion");
             schem.metadata = MetaDataIR::from_vanilla_structure(&md);
-            schem.raw_metadata = Some(VanillaStructure(md));
+            schem.original_metadata = Some(VanillaStructure(md));
         }
 
         let mut region = schem::Region::new();

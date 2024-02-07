@@ -77,6 +77,10 @@ impl Schematic {
 
         let mut md = MetaDataIR::default();
         md.mc_data_version = option.data_version as i32;
+        md.schem_offset = raw.we_offset;
+        md.schem_origin = Some(raw.we_origin);
+        md.schem_material = raw.materials.clone();
+        md.schem_version = 1;
         return Ok((md, raw));
     }
 
@@ -99,7 +103,7 @@ impl Schematic {
         {
             let (md, raw) = Self::parse_metadata(&mut nbt, option)?;
             schem.metadata = md;
-            schem.raw_metadata = Some(RawMetaData::WE12(raw));
+            schem.original_metadata = Some(RawMetaData::WE12(raw));
         }
 
         let region = Region::from_world_edit_12(&mut nbt, option)?;

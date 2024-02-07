@@ -556,15 +556,15 @@ impl Block {
             debug_assert!(!variant.is_empty());
             let is_double;
             let is_top;
-            let is_seamless: bool;
+            //let is_seamless: bool;
             if id == 125 {//double wood slab
                 is_double = true;
                 is_top = false;
-                is_seamless = damage >= 8;
+                //is_seamless = damage >= 8;
             } else {
                 is_double = false;
                 is_top = damage >= 8;
-                is_seamless = false;
+                //is_seamless = false;
             }
             block.set_property("variant", variant);
             if is_double {

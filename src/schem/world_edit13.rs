@@ -40,7 +40,7 @@ impl Schematic {
             }
 
             let ir = MetaDataIR::from_world_edit13(&we13);
-            schem.raw_metadata = Some(RawMetaData::WE13(we13));
+            schem.original_metadata = Some(RawMetaData::WE13(we13));
             schem.metadata = ir;
         }
         match Region::from_world_edit_13_v2(&root, option) {
@@ -57,7 +57,7 @@ impl Schematic {
         {
             let we13 = parse_metadata(tag_schem, "/Schematic", option)?;
             let ir = MetaDataIR::from_world_edit13(&we13);
-            schem.raw_metadata = Some(RawMetaData::WE13(we13));
+            schem.original_metadata = Some(RawMetaData::WE13(we13));
             schem.metadata = ir;
         }
         let region = Region::from_world_edit_13_v3(tag_schem, option)?;
@@ -79,6 +79,23 @@ impl MetaDataIR {
     pub fn from_world_edit13(src: &WE13MetaData) -> MetaDataIR {
         let mut result = MetaDataIR::default();
         result.mc_data_version = src.data_version;
+        result.schem_version = src.version;
+        result.schem_offset = src.offset;
+        result.schem_we_offset = Some(src.we_offset);
+        result.date = src.date;
+
+        if let Some(date) = src.date {
+            result.time_created = date;
+            result.time_modified = date;
+        }
+
+
+        if let Some(extra) = &src.v3_extra {
+            result.schem_editing_platform = Some(extra.editing_platform.clone());
+            result.schem_world_edit_version = Some(extra.world_edit_version.clone());
+            result.schem_origin = Some(extra.origin);
+            result.schem_material = "Alpha".to_string();
+        }
 
         return result;
     }

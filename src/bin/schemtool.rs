@@ -1,5 +1,4 @@
 use clap::{command, Parser, Subcommand};
-use ndarray::s;
 use mc_schem::schem;
 use mc_schem::schem::Schematic;
 

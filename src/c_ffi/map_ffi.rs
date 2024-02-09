@@ -173,6 +173,19 @@ extern "C" fn MC_SCHEM_map_length(map: *const CMapRef) -> usize {
 }
 
 #[no_mangle]
+extern "C" fn MC_SCHEM_map_capacity(map: *const CMapRef) -> usize {
+    unsafe {
+        let map = &*map;
+        return match map {
+            CMapRef::StrStr(map) => (&**map).len(),
+            CMapRef::StrValue(map) => (&**map).capacity(),
+            CMapRef::PosBlockEntity(map) => (&**map).capacity(),
+            CMapRef::PosPendingTick(map) => (&**map).capacity(),
+        }
+    }
+}
+
+#[no_mangle]
 extern "C" fn MC_SCHEM_map_reserve(map: *mut CMapRef, new_capacity: usize) {
     unsafe {
         let map = &*map;

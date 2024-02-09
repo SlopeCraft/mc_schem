@@ -5,12 +5,12 @@ use fastnbt::{Value};
 use crate::c_ffi::{CArrayView, CByteArrayView, CEnumNBTType, CIntArrayView, CLongArrayView, CMapRef, CNBTListView, CStringView, CValueBox};
 
 #[no_mangle]
-extern "C" fn MC_SCHEM_nbt_create() -> CValueBox {
+extern "C" fn MC_SCHEM_create_nbt() -> CValueBox {
     return CValueBox::new(Value::Byte(0));
 }
 
 #[no_mangle]
-extern "C" fn MC_SCHEM_nbt_release(nbt_box: *mut CValueBox) {
+extern "C" fn MC_SCHEM_release_nbt(nbt_box: *mut CValueBox) {
     unsafe {
         drop_in_place(nbt_box);
         //let nbt_box = &mut *nbt_box;

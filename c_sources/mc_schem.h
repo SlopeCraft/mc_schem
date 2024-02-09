@@ -2,10 +2,20 @@
 #define MC_SCHEM_H
 
 #include <mc_schem_export.h>
+
+#ifndef __cplusplus
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
+#else
+
+#include <cstdint>
+#include <cstdbool>
+#include <cstddef>
+#include <cstring>
+
+#endif
 
 #define MC_SCHEM_DEFINE_BOX(content_type) \
 typedef struct {                          \
@@ -13,7 +23,7 @@ typedef struct {                          \
 } content_type##_box;
 
 #ifdef __cplusplus
-extern "C" {};
+extern "C" {
 #endif
 
 
@@ -34,17 +44,14 @@ typedef struct {
   const char *end;
 } MC_SCHEM_string_view;
 
+// Rust String
 typedef struct MC_SCHEM_string_s MC_SCHEM_string;
+// Box<String> in rust
+MC_SCHEM_DEFINE_BOX(MC_SCHEM_string)
 
 MC_SCHEM_EXPORT MC_SCHEM_string_view MC_SCHEM_string_unwrap(const MC_SCHEM_string *);
 
-inline MC_SCHEM_string_view MC_SCHEM_c_string_to_string_view(const char *str) {
-  const size_t len = strlen(str);
-  MC_SCHEM_string_view result;
-  result.begin = str;
-  result.end = str + len;
-  return result;
-}
+MC_SCHEM_string_view MC_SCHEM_c_string_to_string_view(const char *str);
 
 //////////////////////////////////
 
@@ -56,15 +63,15 @@ typedef struct MC_SCHEM_block_entity_s MC_SCHEM_block_entity;
 typedef struct MC_SCHEM_pending_tick_s MC_SCHEM_pending_tick;
 
 typedef enum : uint8_t {
-  MC_SCHEM_MKT_string,
-  MC_SCHEM_MKT_pos_i32,
+  MC_SCHEM_MKT_string = 0,
+  MC_SCHEM_MKT_pos_i32 = 1,
 } MC_SCHEM_map_key_type;
 
 typedef enum : uint8_t {
-  MC_SCHEM_MVT_string,
-  MC_SCHEM_MVT_nbt,
-  MC_SCHEM_MVT_block_entity,
-  MC_SCHEM_MVT_pending_tick,
+  MC_SCHEM_MVT_string = 0,
+  MC_SCHEM_MVT_nbt = 1,
+  MC_SCHEM_MVT_block_entity = 2,
+  MC_SCHEM_MVT_pending_tick = 3,
 } MC_SCHEM_map_value_type;
 
 typedef struct {
@@ -103,38 +110,39 @@ MC_SCHEM_create_map(MC_SCHEM_map_key_type key_t, MC_SCHEM_map_value_type val_t, 
 MC_SCHEM_EXPORT void MC_SCHEM_release_map(MC_SCHEM_map_box *box);
 
 MC_SCHEM_EXPORT MC_SCHEM_value_wrapper
-MC_SCHEM_map_find(const MC_SCHEM_map_ref *map, MC_SCHEM_map_key_type key_t, MC_SCHEM_map_value_type val_t,
+MC_SCHEM_map_find(const MC_SCHEM_map_ref *map,
+                  MC_SCHEM_map_key_type key_t,
+                  MC_SCHEM_map_value_type val_t,
                   const MC_SCHEM_key_wrapper *key, bool *ok);
 
-inline bool
-MC_SCHEM_map_contains_key(const MC_SCHEM_map_ref *map, MC_SCHEM_map_key_type key_t, const MC_SCHEM_key_wrapper *key) {
-  bool ok = false;
-  MC_SCHEM_value_wrapper find_result = MC_SCHEM_map_find(map, key_t, MC_SCHEM_map_get_value_type(map), key, &ok);
-  if (!ok) {
-    return false;
-  }
-  return (find_result.string != NULL);
-}
+bool MC_SCHEM_map_contains_key(const MC_SCHEM_map_ref *map,
+                               MC_SCHEM_map_key_type key_t,
+                               const MC_SCHEM_key_wrapper *key);
 
 MC_SCHEM_EXPORT size_t MC_SCHEM_map_length(const MC_SCHEM_map_ref *map);
+
+MC_SCHEM_EXPORT size_t MC_SCHEM_map_capacity(const MC_SCHEM_map_ref *map);
 
 MC_SCHEM_EXPORT void MC_SCHEM_map_reserve(MC_SCHEM_map_ref *map, size_t new_capacity);
 
 MC_SCHEM_EXPORT MC_SCHEM_map_iterator
-MC_SCHEM_map_iterator_first(const MC_SCHEM_map_ref *map, MC_SCHEM_map_key_type key_t, MC_SCHEM_map_value_type val_t,
+MC_SCHEM_map_iterator_first(const MC_SCHEM_map_ref *map,
+                            MC_SCHEM_map_key_type key_t,
+                            MC_SCHEM_map_value_type val_t,
                             bool *ok);
 
-MC_SCHEM_EXPORT struct {
+typedef struct {
   MC_SCHEM_key_wrapper key;
   MC_SCHEM_value_wrapper value;
   bool has_value;
-} MC_SCHEM_map_iterator_next(MC_SCHEM_map_iterator *it);
+} MC_SCHEM_iterator_next_result;
+
+MC_SCHEM_EXPORT MC_SCHEM_iterator_next_result
+MC_SCHEM_map_iterator_next(MC_SCHEM_map_iterator *it);
 
 MC_SCHEM_EXPORT size_t MC_SCHEM_map_iterator_length(const MC_SCHEM_map_iterator *it);
 
-inline bool MC_SCHEM_map_iterator_is_end(const MC_SCHEM_map_iterator *it) {
-  return MC_SCHEM_map_iterator_length(it) == 0;
-}
+bool MC_SCHEM_map_iterator_is_end(const MC_SCHEM_map_iterator *it);
 
 //////////////////////////////////////////
 // NBT APIs
@@ -156,9 +164,9 @@ typedef enum : uint8_t {
 
 MC_SCHEM_DEFINE_BOX(MC_SCHEM_nbt_value)
 
-MC_SCHEM_EXPORT MC_SCHEM_nbt_value_box MC_SCHEM_nbt_create();
+MC_SCHEM_EXPORT MC_SCHEM_nbt_value_box MC_SCHEM_create_nbt();
 
-MC_SCHEM_EXPORT void MC_SCHEM_nbt_release(MC_SCHEM_nbt_value_box *nbt_box);
+MC_SCHEM_EXPORT void MC_SCHEM_release_nbt(MC_SCHEM_nbt_value_box *nbt_box);
 
 MC_SCHEM_EXPORT MC_SCHEM_nbt_type MC_SCHEM_nbt_get_type(const MC_SCHEM_nbt_value *);
 
@@ -186,7 +194,8 @@ MC_SCHEM_EXPORT double MC_SCHEM_nbt_get_double(const MC_SCHEM_nbt_value *, bool 
 
 MC_SCHEM_EXPORT void MC_SCHEM_nbt_set_double(MC_SCHEM_nbt_value *, double);
 
-MC_SCHEM_EXPORT MC_SCHEM_string MC_SCHEM_nbt_get_string(const MC_SCHEM_nbt_value *, bool *ok);
+MC_SCHEM_EXPORT MC_SCHEM_string *
+MC_SCHEM_nbt_get_string(const MC_SCHEM_nbt_value *, bool *ok);
 
 MC_SCHEM_EXPORT void MC_SCHEM_nbt_set_string(MC_SCHEM_nbt_value *, MC_SCHEM_string_view);
 
@@ -233,7 +242,7 @@ MC_SCHEM_DEFINE_BOX(MC_SCHEM_block)
 
 MC_SCHEM_EXPORT MC_SCHEM_block_box MC_SCHEM_create_block();
 
-MC_SCHEM_EXPORT void MC_SCHEM_release_block(MC_SCHEM_map_box *);
+MC_SCHEM_EXPORT void MC_SCHEM_release_block(MC_SCHEM_block_box *);
 
 MC_SCHEM_EXPORT MC_SCHEM_string_view MC_SCHEM_block_get_namespace(const MC_SCHEM_block *);
 

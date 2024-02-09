@@ -9,6 +9,18 @@ int main(int argc, char **argv) {
   printf("version of mc_schem: %s\n", MC_SCHEM_version_string());
 
   test_link();
+
+  {
+    MC_SCHEM_block_box block = MC_SCHEM_create_block();
+    assert(block.ptr);
+    MC_SCHEM_block_id_parse_error error;
+    bool ok = MC_SCHEM_parse_block(
+      MC_SCHEM_c_string_to_string_view("minecraft:air"),
+      block.ptr,
+      &error);
+    assert(ok);
+    MC_SCHEM_release_block(&block);
+  }
 //  MC_SCHEM_schematic schem = MC_SCHEM_create_schem();
 //  MC_SCHEM_destroy_schem(&schem);
   return 0;
@@ -42,10 +54,11 @@ void test_link() {
   check_fun_ptr(MC_SCHEM_map_iterator_is_end);
   check_fun_ptr(MC_SCHEM_map_contains_key);
   check_fun_ptr(MC_SCHEM_map_length);
+  check_fun_ptr(MC_SCHEM_map_capacity);
   check_fun_ptr(MC_SCHEM_map_reserve);
   //////////
-  check_fun_ptr(MC_SCHEM_nbt_create);
-  check_fun_ptr(MC_SCHEM_nbt_release);
+  check_fun_ptr(MC_SCHEM_create_nbt);
+  check_fun_ptr(MC_SCHEM_release_nbt);
 
   check_fun_ptr(MC_SCHEM_nbt_get_type);
   check_fun_ptr(MC_SCHEM_nbt_get_byte);

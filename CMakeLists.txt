@@ -50,6 +50,11 @@ add_custom_target(mc_schem_rs ALL
         COMMENT "Building all rust binaries"
         BYPRODUCTS ${shared_lib_loc} ${export_lib_loc} ${schemtool_loc})
 
+message(STATUS "shared_lib_loc = ${shared_lib_loc}")
+message(STATUS "export_lib_loc = ${export_lib_loc}")
+message(STATUS "schemtool_loc = ${schemtool_loc}")
+message(STATUS "link_shared_lib_directly = ${link_shared_lib_directly}")
+
 if (${WIN32})
     cmake_path(RELATIVE_PATH rust_bin_dir BASE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR} OUTPUT_VARIABLE relative_path_to_rs_build_dir)
     string(REPLACE "/" "\\" relative_path_to_rs_build_dir ${relative_path_to_rs_build_dir})
@@ -66,7 +71,7 @@ add_library(mc_schem::mc_schem ALIAS mc_schem)
 add_dependencies(mc_schem mc_schem_rs)
 include(GenerateExportHeader)
 generate_export_header(mc_schem)
-target_include_directories(mc_schem INTERFACE
+target_include_directories(mc_schem PUBLIC
         $<BUILD_INTERFACE: "${CMAKE_SOURCE_DIR}/c_sources;${CMAKE_BINARY_DIR}" >
         $<INSTALL_INTERFACE:"include">)
 if (${link_shared_lib_directly})    # link to shared lib directly
@@ -90,6 +95,11 @@ else ()
     target_compile_features(mc_schem PUBLIC c_std_23)
 endif ()
 
+add_library(mc_schem_hpp INTERFACE
+    c_sources/mc_schem.hpp)
+target_link_libraries(mc_schem_hpp INTERFACE mc_schem)
+target_compile_features(mc_schem_hpp INTERFACE cxx_std_23)
+
 add_executable(c_test c_sources/c_test.c)
 target_link_libraries(c_test PRIVATE mc_schem)
 if (MSVC)
@@ -98,7 +108,7 @@ endif ()
 
 add_executable(cpp_test c_sources/cpp_test.cpp)
 target_compile_features(cpp_test PRIVATE cxx_std_23)
-target_link_libraries(cpp_test PRIVATE mc_schem)
+target_link_libraries(cpp_test PRIVATE mc_schem_hpp)
 
 if (${MC_SCHEM_INSTALL})
     include(CMakePackageConfigHelpers)
@@ -133,4 +143,6 @@ if (${MC_SCHEM_INSTALL})
     install(EXPORT mc_schem-targets
             NAMESPACE mc_schem::
             DESTINATION lib/cmake/mc_schem)
+
+    include(CPack)
 endif ()

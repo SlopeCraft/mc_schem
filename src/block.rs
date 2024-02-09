@@ -249,8 +249,8 @@ impl Block {
         }
 
         let mut blk: Block = Block::new();
-        blk.namespace = if segmented.0.is_empty() { String::from("minecraft") } else { String::from(segmented.0) };
-        blk.id = String::from(segmented.1);
+        blk.namespace = segmented.0.to_string();
+        blk.id = segmented.1.to_string();
 
         for attri in attri_list {
             blk.attributes.insert(String::from(attri.0), String::from(attri.1));

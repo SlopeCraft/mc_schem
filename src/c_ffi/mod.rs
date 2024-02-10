@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 use std::ffi::{c_char};
-use std::ptr::{null_mut, slice_from_raw_parts, slice_from_raw_parts_mut};
+use std::ptr::{null, null_mut, slice_from_raw_parts, slice_from_raw_parts_mut};
 use std::str::from_utf8_unchecked;
 use static_assertions as sa;
 use std::mem::size_of;
@@ -135,16 +135,50 @@ union CMapValueWrapper {
     pending_tick: *mut PendingTick,
 }
 sa::const_assert!(size_of::<CMapValueWrapper>()==size_of::<usize>());
+
+pub struct KVRef<K, V> {
+    pub key: *const K,
+    pub value: *mut V,
+}
+
+impl<K, V> KVRef<K, V> {
+    pub fn new<'a>(src: Option<(&'a K, &'a mut V)>) -> KVRef<K, V> {
+        if let Some((k, v)) = src {
+            return KVRef {
+                key: k as *const K,
+                value: v as *mut V,
+            };
+        }
+        return KVRef { key: null(), value: null_mut() };
+    }
+
+    pub fn is_null(&self) -> bool {
+        return self.key == null();
+    }
+}
+
 #[repr(C)]
 #[warn(improper_ctypes_definitions)]// memory layout is invisible in C
 enum CMapIterator {
-    StrStr(std::collections::btree_map::IterMut<'static, String, String>),
-    StrValue(std::collections::hash_map::IterMut<'static, String, Value>),
-    PosBlockEntity(std::collections::hash_map::IterMut<'static, [i32; 3], BlockEntity>),
-    PosPendingTick(std::collections::hash_map::IterMut<'static, [i32; 3], PendingTick>),
+    StrStr {
+        iter: std::collections::btree_map::IterMut<'static, String, String>,
+        deref: KVRef<String, String>,
+    },
+    StrValue {
+        iter: std::collections::hash_map::IterMut<'static, String, Value>,
+        deref: KVRef<String, Value>,
+    },
+    PosBlockEntity {
+        iter: std::collections::hash_map::IterMut<'static, [i32; 3], BlockEntity>,
+        deref: KVRef<[i32; 3], BlockEntity>,
+    },
+    PosPendingTick {
+        iter: std::collections::hash_map::IterMut<'static, [i32; 3], PendingTick>,
+        deref: KVRef<[i32; 3], PendingTick>,
+    },
     None,
 }
-sa::const_assert!(size_of::<CMapIterator>()==10*size_of::<usize>());
+sa::const_assert!(size_of::<CMapIterator>()==12*size_of::<usize>());
 
 
 #[test]

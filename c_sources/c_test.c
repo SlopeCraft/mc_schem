@@ -49,7 +49,8 @@ void test_link() {
   check_fun_ptr(MC_SCHEM_release_map);
   check_fun_ptr(MC_SCHEM_map_find);
   check_fun_ptr(MC_SCHEM_map_iterator_first);
-  check_fun_ptr(MC_SCHEM_map_iterator_next);
+  check_fun_ptr(MC_SCHEM_map_iterator_add);
+  check_fun_ptr(MC_SCHEM_map_iterator_deref);
   check_fun_ptr(MC_SCHEM_map_iterator_length);
   check_fun_ptr(MC_SCHEM_map_iterator_is_end);
   check_fun_ptr(MC_SCHEM_map_contains_key);

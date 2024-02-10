@@ -83,7 +83,7 @@ typedef struct {
 } MC_SCHEM_map_box;
 
 typedef struct {
-  size_t reserved[10];
+  size_t reserved[12];
 } MC_SCHEM_map_iterator;
 
 typedef union {
@@ -131,14 +131,18 @@ MC_SCHEM_map_iterator_first(const MC_SCHEM_map_ref *map,
                             MC_SCHEM_map_value_type val_t,
                             bool *ok);
 
+//
+//MC_SCHEM_EXPORT MC_SCHEM_iterator_next_result
+//MC_SCHEM_map_iterator_next(MC_SCHEM_map_iterator *it);
+
+MC_SCHEM_EXPORT void MC_SCHEM_map_iterator_add(MC_SCHEM_map_iterator *it);
+
 typedef struct {
   MC_SCHEM_key_wrapper key;
   MC_SCHEM_value_wrapper value;
   bool has_value;
-} MC_SCHEM_iterator_next_result;
-
-MC_SCHEM_EXPORT MC_SCHEM_iterator_next_result
-MC_SCHEM_map_iterator_next(MC_SCHEM_map_iterator *it);
+} MC_SCHEM_iterator_deref_result;
+MC_SCHEM_EXPORT MC_SCHEM_iterator_deref_result MC_SCHEM_map_iterator_deref(const MC_SCHEM_map_iterator *it);
 
 MC_SCHEM_EXPORT size_t MC_SCHEM_map_iterator_length(const MC_SCHEM_map_iterator *it);
 

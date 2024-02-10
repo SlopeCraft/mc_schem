@@ -2,7 +2,7 @@ use std::cmp::max;
 use std::collections::{BTreeMap, HashMap};
 use std::ptr::null_mut;
 use fastnbt::Value;
-use crate::c_ffi::{CMapBox, CMapIterator, CMapKeyType, CMapKeyWrapper, CMapRef, CMapValueType, CMapValueWrapper, CStringView};
+use crate::c_ffi::{CMapBox, CMapIterator, CMapKeyType, CMapKeyWrapper, CMapRef, CMapValueType, CMapValueWrapper, CStringView, KVRef};
 use crate::region::{BlockEntity, PendingTick};
 
 impl CMapRef {
@@ -224,73 +224,92 @@ extern "C" fn MC_SCHEM_map_iterator_first(
                 debug_assert!(key_t == CMapKeyType::String);
                 debug_assert!(val_t == CMapValueType::String);
                 let map = &mut *(*map);
-                CMapIterator::StrStr(map.iter_mut())
+                let deref = KVRef::new(map.iter_mut().next());
+                CMapIterator::StrStr { iter: map.iter_mut(), deref }
             }
             CMapRef::StrValue(map) => {
                 debug_assert!(key_t == CMapKeyType::String);
                 debug_assert!(val_t == CMapValueType::NBT);
                 let map = &mut *(*map);
-                CMapIterator::StrValue(map.iter_mut())
+                let deref = KVRef::new(map.iter_mut().next());
+                CMapIterator::StrValue { iter: map.iter_mut(), deref }
             }
             CMapRef::PosBlockEntity(map) => {
                 debug_assert!(key_t == CMapKeyType::Pos);
                 debug_assert!(val_t == CMapValueType::BlockEntity);
                 let map = &mut *(*map);
-                CMapIterator::PosBlockEntity(map.iter_mut())
+                let deref = KVRef::new(map.iter_mut().next());
+                CMapIterator::PosBlockEntity { iter: map.iter_mut(), deref }
             }
             CMapRef::PosPendingTick(map) => {
                 debug_assert!(key_t == CMapKeyType::Pos);
                 debug_assert!(val_t == CMapValueType::PendingTick);
                 let map = &mut *(*map);
-                CMapIterator::PosPendingTick(map.iter_mut())
+                let deref = KVRef::new(map.iter_mut().next());
+                CMapIterator::PosPendingTick { iter: map.iter_mut(), deref }
             }
         }
     }
 }
 
 #[repr(C)]
-struct IterAddReturn {
+struct IterDerefResult {
     key: CMapKeyWrapper,
     value: CMapValueWrapper,
     has_value: bool,
 }
 
 #[no_mangle]
-extern "C" fn MC_SCHEM_map_iterator_next(it: *mut CMapIterator) -> IterAddReturn {
+extern "C" fn MC_SCHEM_map_iterator_add(it: *mut CMapIterator) {
     unsafe {
         let it = &mut *it;
-        let mut ret = IterAddReturn {
+        match it {
+            CMapIterator::None => {},
+            CMapIterator::StrStr { iter, deref } => *deref = KVRef::new(iter.next()),
+            CMapIterator::StrValue { iter, deref } => *deref = KVRef::new(iter.next()),
+            CMapIterator::PosBlockEntity { iter, deref } => *deref = KVRef::new(iter.next()),
+            CMapIterator::PosPendingTick { iter, deref } => *deref = KVRef::new(iter.next()),
+        }
+        return;
+    }
+}
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_map_iterator_deref(it: *const CMapIterator) -> IterDerefResult {
+    unsafe {
+        let it = &*it;
+        let mut ret = IterDerefResult {
             key: CMapKeyWrapper { string: CStringView::from("") },
             value: CMapValueWrapper { string: null_mut() },
             has_value: false,
         };
         match it {
             CMapIterator::None => { return ret; }
-            CMapIterator::StrStr(it) => {
-                if let Some((key, val)) = it.next() {
-                    ret.key.string = CStringView::from(key);
-                    ret.value.string = val as *mut String;
+            CMapIterator::StrStr { iter: _, deref } => {
+                if !deref.is_null() {
+                    ret.key.string = CStringView::from(&*deref.key);
+                    ret.value.string = deref.value;
                     ret.has_value = true;
                 }
             }
-            CMapIterator::StrValue(it) => {
-                if let Some((key, val)) = it.next() {
-                    ret.key.string = CStringView::from(key);
-                    ret.value.nbt = val as *mut Value;
+            CMapIterator::StrValue { iter: _, deref } => {
+                if !deref.is_null() {
+                    ret.key.string = CStringView::from(&*deref.key);
+                    ret.value.nbt = deref.value;
                     ret.has_value = true;
                 }
             }
-            CMapIterator::PosBlockEntity(it) => {
-                if let Some((key, val)) = it.next() {
-                    ret.key.pos = *key;
-                    ret.value.block_entity = val as *mut BlockEntity;
+            CMapIterator::PosBlockEntity { iter: _, deref } => {
+                if !deref.is_null() {
+                    ret.key.pos = *deref.key;
+                    ret.value.block_entity = deref.value;
                     ret.has_value = true;
                 }
             }
-            CMapIterator::PosPendingTick(it) => {
-                if let Some((key, val)) = it.next() {
-                    ret.key.pos = *key;
-                    ret.value.pending_tick = val as *mut PendingTick;
+            CMapIterator::PosPendingTick { iter: _, deref } => {
+                if !deref.is_null() {
+                    ret.key.pos = *deref.key;
+                    ret.value.pending_tick = deref.value;
                     ret.has_value = true;
                 }
             }
@@ -314,10 +333,10 @@ extern "C" fn MC_SCHEM_map_iterator_length(it: *const CMapIterator) -> usize {
         let it = &*it;
         return match it {
             CMapIterator::None => { 0 }
-            CMapIterator::StrStr(it) => { it.len() }
-            CMapIterator::StrValue(it) => { it.len() }
-            CMapIterator::PosBlockEntity(it) => { it.len() }
-            CMapIterator::PosPendingTick(it) => { it.len() }
+            CMapIterator::StrStr { iter, .. } => { iter.len() }
+            CMapIterator::StrValue { iter, .. } => { iter.len() }
+            CMapIterator::PosBlockEntity { iter, .. } => { iter.len() }
+            CMapIterator::PosPendingTick { iter, .. } => { iter.len() }
         }
     }
 }

@@ -85,20 +85,27 @@ extern "C" fn MC_SCHEM_string_unwrap(src: *const String) -> CStringView {
     }
 }
 
-#[repr(u8)]
-#[derive(PartialEq, Copy, Clone)]
-enum CMapKeyType {
-    String,
-    Pos,
+#[no_mangle]
+extern "C" fn MC_SCHEM_string_set(s: *mut String, src: CStringView) {
+    unsafe {
+        *s = src.to_string();
+    }
 }
 
 #[repr(u8)]
-#[derive(PartialEq, Copy, Clone)]
+#[derive(PartialEq, Eq, Copy, Clone)]
+enum CMapKeyType {
+    String = 0,
+    Pos = 1,
+}
+
+#[repr(u8)]
+#[derive(PartialEq, Eq, Copy, Clone)]
 enum CMapValueType {
-    String,
-    NBT,
-    BlockEntity,
-    PendingTick,
+    String = 0,
+    NBT = 1,
+    BlockEntity = 2,
+    PendingTick = 3,
 }
 
 #[repr(C)]

@@ -33,14 +33,16 @@ void check_fun_ptr(void *fun_addr) {
 }
 void test_link() {
 
-  check_fun_ptr(MC_SCHEM_string_unwrap);
-  check_fun_ptr(MC_SCHEM_c_string_to_string_view);
-
   check_fun_ptr(MC_SCHEM_version_string);
   check_fun_ptr(MC_SCHEM_version_major);
   check_fun_ptr(MC_SCHEM_version_minor);
   check_fun_ptr(MC_SCHEM_version_patch);
   check_fun_ptr(MC_SCHEM_version_tweak);
+
+  check_fun_ptr(MC_SCHEM_string_unwrap);
+  check_fun_ptr(MC_SCHEM_c_string_to_string_view);
+  check_fun_ptr(MC_SCHEM_string_set);
+
 
   check_fun_ptr(MC_SCHEM_map_unwrap_box);
   check_fun_ptr(MC_SCHEM_map_get_key_type);
@@ -50,13 +52,18 @@ void test_link() {
   check_fun_ptr(MC_SCHEM_map_find);
   check_fun_ptr(MC_SCHEM_map_iterator_first);
   check_fun_ptr(MC_SCHEM_map_iterator_add);
+  check_fun_ptr(MC_SCHEM_map_iterator_end);
   check_fun_ptr(MC_SCHEM_map_iterator_deref);
   check_fun_ptr(MC_SCHEM_map_iterator_length);
   check_fun_ptr(MC_SCHEM_map_iterator_is_end);
+  check_fun_ptr(MC_SCHEM_map_iterator_equal);
   check_fun_ptr(MC_SCHEM_map_contains_key);
   check_fun_ptr(MC_SCHEM_map_length);
   check_fun_ptr(MC_SCHEM_map_capacity);
   check_fun_ptr(MC_SCHEM_map_reserve);
+  check_fun_ptr(MC_SCHEM_map_foreach);
+  check_fun_ptr(MC_SCHEM_map_insert);
+  check_fun_ptr(MC_SCHEM_map_remove);
   //////////
   check_fun_ptr(MC_SCHEM_create_nbt);
   check_fun_ptr(MC_SCHEM_release_nbt);

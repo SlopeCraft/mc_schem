@@ -1,6 +1,7 @@
 use std::cmp::max;
 use std::collections::{BTreeMap, HashMap};
-use std::ptr::null_mut;
+use std::ffi::c_void;
+use std::ptr::{null, null_mut};
 use fastnbt::Value;
 use crate::c_ffi::{CMapBox, CMapIterator, CMapKeyType, CMapKeyWrapper, CMapRef, CMapValueType, CMapValueWrapper, CStringView, KVRef};
 use crate::region::{BlockEntity, PendingTick};
@@ -214,7 +215,7 @@ extern "C" fn MC_SCHEM_map_iterator_first(
     unsafe {
         let map = map as *mut CMapRef;
         let map = &mut *map;
-        if (key_t, val_t) != map.key_value_type() {
+        if map.key_value_type().0 != key_t || map.key_value_type().1 != val_t {
             *ok = false;
             return CMapIterator::None;
         }
@@ -249,6 +250,23 @@ extern "C" fn MC_SCHEM_map_iterator_first(
                 CMapIterator::PosPendingTick { iter: map.iter_mut(), deref }
             }
         }
+    }
+}
+
+
+#[no_mangle]
+#[allow(improper_ctypes_definitions)]
+extern "C" fn MC_SCHEM_map_iterator_end(
+    map: *const CMapRef, key_t: CMapKeyType, val_t: CMapValueType, ok: *mut bool) -> CMapIterator {
+    unsafe {
+        let map = map as *mut CMapRef;
+        let map = &mut *map;
+        if (key_t, val_t) != map.key_value_type() {
+            *ok = false;
+            return CMapIterator::None;
+        }
+        *ok = true;
+        return CMapIterator::None;
     }
 }
 
@@ -327,6 +345,34 @@ extern "C" fn MC_SCHEM_map_iterator_deref(it: *const CMapIterator) -> IterDerefR
 //     }
 // }
 
+// CMapIterator::None equals to CMapIterator::None,
+
+impl CMapIterator {
+    pub fn to_kv_pointer(&self) -> (*const c_void, *mut c_void) {
+        return match self {
+            CMapIterator::None => (null(), null_mut()),
+            CMapIterator::StrStr { iter: _, deref }
+            => (deref.key as *const c_void, deref.value as *mut c_void),
+            CMapIterator::StrValue { iter: _, deref }
+            => (deref.key as *const c_void, deref.value as *mut c_void),
+            CMapIterator::PosBlockEntity { iter: _, deref }
+            => (deref.key as *const c_void, deref.value as *mut c_void),
+            CMapIterator::PosPendingTick { iter: _, deref }
+            => (deref.key as *const c_void, deref.value as *mut c_void),
+        }
+    }
+}
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_map_iterator_equal(a: *const CMapIterator, b: *const CMapIterator) -> bool {
+    unsafe {
+        let a = &*a;
+        let b = &*b;
+
+        return a.to_kv_pointer() == b.to_kv_pointer();
+    }
+}
+
 #[no_mangle]
 extern "C" fn MC_SCHEM_map_iterator_length(it: *const CMapIterator) -> usize {
     unsafe {
@@ -337,6 +383,100 @@ extern "C" fn MC_SCHEM_map_iterator_length(it: *const CMapIterator) -> usize {
             CMapIterator::StrValue { iter, .. } => { iter.len() }
             CMapIterator::PosBlockEntity { iter, .. } => { iter.len() }
             CMapIterator::PosPendingTick { iter, .. } => { iter.len() }
+        }
+    }
+}
+
+
+type Callback = fn(idx: usize, key: CMapKeyWrapper, value: CMapValueWrapper, custom_data: *mut c_void);
+
+#[no_mangle]
+#[allow(improper_ctypes_definitions)]
+extern "C" fn MC_SCHEM_map_foreach(map: *const CMapRef,
+                                   fun: Callback,
+                                   custom_data: *mut c_void) {
+    unsafe {
+        let map = &*map;
+        return match map {
+            CMapRef::StrStr(map) => {
+                let map = &mut *(*map);
+                for (idx, (key, val)) in map.iter_mut().enumerate() {
+                    fun(idx, CMapKeyWrapper { string: CStringView::from(key) }, CMapValueWrapper { string: val }, custom_data);
+                }
+            },
+            CMapRef::StrValue(map) => {
+                let map = &mut *(*map);
+                for (idx, (key, val)) in map.iter_mut().enumerate() {
+                    fun(idx, CMapKeyWrapper { string: CStringView::from(key) }, CMapValueWrapper { nbt: val }, custom_data);
+                }
+            },
+            CMapRef::PosBlockEntity(map) => {
+                let map = &mut *(*map);
+                for (idx, (key, val)) in map.iter_mut().enumerate() {
+                    fun(idx, CMapKeyWrapper { pos: *key }, CMapValueWrapper { block_entity: val }, custom_data);
+                }
+            },
+            CMapRef::PosPendingTick(map) => {
+                let map = &mut *(*map);
+                for (idx, (key, val)) in map.iter_mut().enumerate() {
+                    fun(idx, CMapKeyWrapper { pos: *key }, CMapValueWrapper { pending_tick: val }, custom_data);
+                }
+            }
+        }
+    }
+}
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_map_insert(map: *mut CMapRef, key: CMapKeyWrapper, value: CMapValueWrapper) {
+    unsafe {
+        let map = &*map;
+        match map {
+            CMapRef::StrStr(map) => {
+                let map = &mut *(*map);
+                map.insert(key.string.to_string(), (*value.string).clone());
+            },
+            CMapRef::StrValue(map) => {
+                let map = &mut *(*map);
+                map.insert(key.string.to_string(), (*value.nbt).clone());
+            },
+            CMapRef::PosBlockEntity(map) => {
+                let map = &mut *(*map);
+                map.insert(key.pos, (*value.block_entity).clone());
+            },
+            CMapRef::PosPendingTick(map) => {
+                let map = &mut *(*map);
+                map.insert(key.pos, (*value.pending_tick).clone());
+            },
+        }
+    }
+}
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_map_remove(map: *mut CMapRef, key: CMapKeyWrapper, has_value_before_erase_nullable: *mut bool) {
+    unsafe {
+        let map = &*map;
+        let mut has_value_before_erase = false;
+        match map {
+            CMapRef::StrStr(map) => {
+                let map = &mut *(*map);
+                has_value_before_erase = map.remove(key.string.to_str()).is_some();
+            },
+            CMapRef::StrValue(map) => {
+                let map = &mut *(*map);
+                has_value_before_erase = map.remove(key.string.to_str()).is_some();
+            },
+            CMapRef::PosBlockEntity(map) => {
+                let map = &mut *(*map);
+                has_value_before_erase = map.remove(&key.pos).is_some();
+            },
+            CMapRef::PosPendingTick(map) => {
+                let map = &mut *(*map);
+                has_value_before_erase = map.remove(&key.pos).is_some();
+            }
+        }
+
+        if has_value_before_erase_nullable != null_mut() {
+            *has_value_before_erase_nullable = has_value_before_erase;
         }
     }
 }

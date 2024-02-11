@@ -50,6 +50,8 @@ typedef struct MC_SCHEM_string_s MC_SCHEM_string;
 MC_SCHEM_DEFINE_BOX(MC_SCHEM_string)
 
 MC_SCHEM_EXPORT MC_SCHEM_string_view MC_SCHEM_string_unwrap(const MC_SCHEM_string *);
+// Set rust string
+MC_SCHEM_EXPORT void MC_SCHEM_string_set(MC_SCHEM_string *, MC_SCHEM_string_view src);
 
 MC_SCHEM_string_view MC_SCHEM_c_string_to_string_view(const char *str);
 
@@ -125,11 +127,29 @@ MC_SCHEM_EXPORT size_t MC_SCHEM_map_capacity(const MC_SCHEM_map_ref *map);
 
 MC_SCHEM_EXPORT void MC_SCHEM_map_reserve(MC_SCHEM_map_ref *map, size_t new_capacity);
 
+MC_SCHEM_EXPORT void MC_SCHEM_map_insert(MC_SCHEM_map_ref *map, MC_SCHEM_key_wrapper key,
+                                         MC_SCHEM_value_wrapper value);
+
+MC_SCHEM_EXPORT void MC_SCHEM_map_remove(MC_SCHEM_map_ref *map, MC_SCHEM_key_wrapper key,
+                                         bool *has_value_before_erase_nullable);
+
+MC_SCHEM_EXPORT void MC_SCHEM_map_foreach(const MC_SCHEM_map_ref *map,
+                                          void(*fun)(size_t index,
+                                                     MC_SCHEM_key_wrapper key,
+                                                     MC_SCHEM_value_wrapper value,
+                                                     void *custom_data),
+                                          void *custom_data);
+
 MC_SCHEM_EXPORT MC_SCHEM_map_iterator
 MC_SCHEM_map_iterator_first(const MC_SCHEM_map_ref *map,
                             MC_SCHEM_map_key_type key_t,
                             MC_SCHEM_map_value_type val_t,
                             bool *ok);
+
+MC_SCHEM_EXPORT MC_SCHEM_map_iterator MC_SCHEM_map_iterator_end(const MC_SCHEM_map_ref *map,
+                                                                MC_SCHEM_map_key_type key_t,
+                                                                MC_SCHEM_map_value_type val_t,
+                                                                bool *ok);
 
 //
 //MC_SCHEM_EXPORT MC_SCHEM_iterator_next_result
@@ -145,6 +165,9 @@ typedef struct {
 MC_SCHEM_EXPORT MC_SCHEM_iterator_deref_result MC_SCHEM_map_iterator_deref(const MC_SCHEM_map_iterator *it);
 
 MC_SCHEM_EXPORT size_t MC_SCHEM_map_iterator_length(const MC_SCHEM_map_iterator *it);
+
+MC_SCHEM_EXPORT bool MC_SCHEM_map_iterator_equal(const MC_SCHEM_map_iterator *a,
+                                                 const MC_SCHEM_map_iterator *b);
 
 bool MC_SCHEM_map_iterator_is_end(const MC_SCHEM_map_iterator *it);
 

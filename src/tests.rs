@@ -40,6 +40,7 @@ fn block_id_parse() {
                 for att in &blk.attributes {
                     println!("\t {} : {}", att.0, att.1);
                 }
+                let _ = blk.full_id();
             }
         }
     }

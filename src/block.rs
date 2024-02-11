@@ -271,13 +271,27 @@ impl Block {
         result.pop();
         return result;
     }
+
+    pub fn fmt_attributes(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        for (idx, (k, v)) in self.attributes.iter().enumerate() {
+            write!(f, "{}={}", k, v)?;
+            if idx < self.attributes.len() - 1 {
+                write!(f, ",")?;
+            }
+        }
+
+        return Ok(());
+    }
+
+
     pub fn full_id(&self) -> String {
-        return if self.attributes.is_empty() {
-            format!("{}:{}", self.namespace.as_str(), self.id.as_str())
-        } else {
-            let attrib_str = self.attribute_str();
-            format!("{}:{}[{}]", self.namespace.as_str(), self.id.as_str(), attrib_str)
-        };
+        // return if self.attributes.is_empty() {
+        //     format!("{}:{}", self.namespace.as_str(), self.id.as_str())
+        // } else {
+        //     let attrib_str = self.attribute_str();
+        //     format!("{}:{}[{}]", self.namespace.as_str(), self.id.as_str(), attrib_str)
+        // };
+        return self.to_string();
     }
 
     pub fn is_structure_void(&self) -> bool {
@@ -386,7 +400,20 @@ impl Hash for Block {
 
 impl Display for Block {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        return write!(f, "{}", &self.full_id());
+        if !self.namespace.is_empty() {
+            write!(f, "{}:", self.namespace)?;
+        }
+
+        write!(f, "{}", self.id)?;
+
+        if !self.attributes.is_empty() {
+            write!(f, "[")?;
+            self.fmt_attributes(f)?;
+            write!(f, "]")?;
+        }
+
+        return Ok(());
+        //return write!(f, "{}", &self.full_id());
     }
 }
 

@@ -11,6 +11,7 @@ use crate::region::{BlockEntity, PendingTick};
 mod map_ffi;
 mod nbt_ffi;
 mod block_ffi;
+mod region_ffi;
 
 
 #[no_mangle]
@@ -258,3 +259,13 @@ type CByteArrayView = CArrayView<i8>;
 type CIntArrayView = CArrayView<i32>;
 type CLongArrayView = CArrayView<i64>;
 type CNBTListView = CArrayView<Value>;
+
+#[repr(C)]
+struct CPosInt {
+    pos: [i32; 3],
+}
+
+#[repr(C)]
+struct CPosDouble {
+    pos: [f64; 3],
+}

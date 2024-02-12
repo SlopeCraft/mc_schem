@@ -309,6 +309,30 @@ MC_SCHEM_block_to_full_id(const MC_SCHEM_block *block, char *id_dest_nullable, s
 
 typedef struct MC_SCHEM_entity_s MC_SCHEM_entity;
 MC_SCHEM_DEFINE_BOX(MC_SCHEM_entity)
+
+MC_SCHEM_EXPORT MC_SCHEM_entity_box MC_SCHEM_create_entity();
+
+MC_SCHEM_EXPORT void MC_SCHEM_release_entity(MC_SCHEM_entity_box *);
+
+typedef struct {
+  int pos[3];
+} MC_SCHEM_pos_i32;
+typedef struct {
+  double pos[3];
+} MC_SCHEM_pos_f64;
+
+MC_SCHEM_EXPORT MC_SCHEM_pos_i32 MC_SCHEM_entity_get_block_pos(const MC_SCHEM_entity *);
+
+MC_SCHEM_EXPORT MC_SCHEM_pos_f64 MC_SCHEM_entity_get_pos(const MC_SCHEM_entity *);
+
+MC_SCHEM_EXPORT void MC_SCHEM_entity_set_block_pos(MC_SCHEM_entity *, MC_SCHEM_pos_i32);
+
+MC_SCHEM_EXPORT void MC_SCHEM_entity_set_pos(MC_SCHEM_entity *, MC_SCHEM_pos_f64);
+
+
+MC_SCHEM_EXPORT MC_SCHEM_map_ref MC_SCHEM_entity_get_tags(const MC_SCHEM_entity *);
+
+//////////////////////////////////
 typedef struct MC_SCHEM_block_entity_s MC_SCHEM_block_entity;
 MC_SCHEM_DEFINE_BOX(MC_SCHEM_block_entity)
 typedef struct MC_SCHEM_region_s MC_SCHEM_region;

@@ -19,6 +19,7 @@
 #include <exception>
 #include <variant>
 #include <format>
+#include <array>
 
 namespace mc_schem {
 
@@ -86,10 +87,24 @@ namespace mc_schem {
 
     class deleter {
     public:
-      void operator()(MC_SCHEM_block *s) noexcept {
+      static void operator()(MC_SCHEM_block *s) noexcept {
         MC_SCHEM_block_box box{s};
         MC_SCHEM_release_block(&box);
       }
+
+      static void operator()(MC_SCHEM_nbt_value *v) noexcept {
+        MC_SCHEM_nbt_value_box box{v};
+        MC_SCHEM_release_nbt(&box);
+      }
+
+      static void operator()(MC_SCHEM_entity *v) noexcept {
+        MC_SCHEM_entity_box box{v};
+        MC_SCHEM_release_entity(&box);
+      }
+
+//      void operator()(MC_SCHEM_map_ref *m) const noexcept {
+//        MC_SCHEM_map_box box{m};
+//      }
     };
 
     template<typename content_t, typename c_box_t>
@@ -870,6 +885,10 @@ namespace mc_schem {
       this->set(src);
     }
 
+    static detail::box<nbt, MC_SCHEM_nbt_value_box> create() noexcept {
+      MC_SCHEM_nbt_value_box box = MC_SCHEM_create_nbt();
+      return detail::box<nbt, MC_SCHEM_nbt_value_box>{std::move(box)};
+    }
 
   };
 
@@ -879,6 +898,58 @@ namespace mc_schem {
 
     entity(MC_SCHEM_entity *handle) : detail::wrapper<MC_SCHEM_entity *>{handle} {}
 
+    [[nodiscard]] std::array<int, 3> block_pos() const noexcept {
+      MC_SCHEM_pos_i32 pos = MC_SCHEM_entity_get_block_pos(this->handle);
+      std::array<int, 3> ret;
+      for (size_t i = 0; i < 3; i++) {
+        ret[i] = pos.pos[i];
+      }
+      return ret;
+    }
+
+    [[nodiscard]] std::array<double, 3> pos() const noexcept {
+      MC_SCHEM_pos_f64 pos = MC_SCHEM_entity_get_pos(this->handle);
+      std::array<double, 3> ret;
+      for (size_t i = 0; i < 3; i++) {
+        ret[i] = pos.pos[i];
+      }
+      return ret;
+    }
+
+    void set_block_pos(std::span<const int, 3> pos) noexcept {
+      MC_SCHEM_pos_i32 p;
+      for (size_t i = 0; i < 3; i++) {
+        p.pos[i] = pos[i];
+      }
+      MC_SCHEM_entity_set_block_pos(this->handle, p);
+    }
+
+    void set_pos(std::span<const double, 3> pos) noexcept {
+      MC_SCHEM_pos_f64 p;
+      for (size_t i = 0; i < 3; i++) {
+        p.pos[i] = pos[i];
+      }
+      MC_SCHEM_entity_set_pos(this->handle, p);
+    }
+
+    using tag_nbt_map_t = detail::map_wrapper<map_key_type::string, std::string_view, map_value_type::nbt, nbt>;
+  protected:
+    [[nodiscard]] tag_nbt_map_t impl_tags() const noexcept {
+      return {MC_SCHEM_entity_get_tags(this->handle)};
+    }
+
+  public:
+    [[nodiscard]] const tag_nbt_map_t tags() const noexcept {
+      return this->impl_tags();
+    }
+
+    [[nodiscard]] tag_nbt_map_t tags() noexcept {
+      return this->impl_tags();
+    }
+
+    [[nodiscard]]static detail::box<entity, MC_SCHEM_entity_box> create() noexcept {
+      return detail::box<entity, MC_SCHEM_entity_box>{MC_SCHEM_create_entity()};
+    }
   };
 
   class block_entity : public detail::wrapper<MC_SCHEM_block_entity *> {
@@ -904,7 +975,6 @@ namespace mc_schem {
     schem(MC_SCHEM_schem *handle) : detail::wrapper<MC_SCHEM_schem *>{handle} {}
 
   };
-
 
 
 } // namespace mc_schem

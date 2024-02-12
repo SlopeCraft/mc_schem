@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
   }
 
   {
-
+    mc_schem::nbt *nbt;
   }
 
   return 0;

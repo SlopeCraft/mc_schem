@@ -455,7 +455,7 @@ extern "C" fn MC_SCHEM_map_insert(map: *mut CMapRef, key: CMapKeyWrapper, value:
 extern "C" fn MC_SCHEM_map_remove(map: *mut CMapRef, key: CMapKeyWrapper, has_value_before_erase_nullable: *mut bool) {
     unsafe {
         let map = &*map;
-        let mut has_value_before_erase = false;
+        let has_value_before_erase: bool;
         match map {
             CMapRef::StrStr(map) => {
                 let map = &mut *(*map);

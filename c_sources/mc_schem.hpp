@@ -16,6 +16,9 @@
 #include <string>
 #include <cassert>
 #include <functional>
+#include <exception>
+#include <variant>
+#include <format>
 
 namespace mc_schem {
 
@@ -40,16 +43,16 @@ namespace mc_schem {
       return MC_SCHEM_string_view{s.data(), s.data() + s.size()};
     }
 
-    template<typename content_t>
+    template<typename handle_t>
     class wrapper {
     protected:
-      content_t *handle{nullptr};
+      handle_t handle{nullptr};
     public:
-      using handle_type = content_t;
+      using handle_type = handle_t;
 
       wrapper() = delete;
 
-      wrapper(content_t *p) : handle{p} {}
+      wrapper(handle_t p) : handle{p} {}
 
       wrapper(const wrapper &) = delete;
 
@@ -63,11 +66,11 @@ namespace mc_schem {
         std::swap(this->handle, src.handle);
       }
 
-      [[nodiscard]] content_t *unwrap_handle() noexcept {
+      [[nodiscard]] handle_t unwrap_handle() noexcept {
         return this->handle;
       }
 
-      [[nodiscard]] const content_t *unwrap_handle() const noexcept {
+      [[nodiscard]] const handle_t unwrap_handle() const noexcept {
         return this->handle;
       }
 
@@ -75,7 +78,7 @@ namespace mc_schem {
         std::swap(this->handle, another.handle);
       }
 
-      void reset_handle(content_t *ptr) noexcept {
+      void reset_handle(handle_t ptr) noexcept {
         this->handle = ptr;
       }
     };
@@ -94,11 +97,11 @@ namespace mc_schem {
     public:
       using handle_t = typename content_t::handle_type;
       static_assert(std::is_same_v<handle_t,
-        std::decay_t<decltype(*c_box_t{nullptr}.ptr)>>);
+        decltype(c_box_t{nullptr}.ptr)>);
     protected:
       content_t content{nullptr};
 
-      handle_t *handle() noexcept {
+      handle_t handle() noexcept {
         return this->content.unwrap_handle();
       }
 
@@ -140,11 +143,11 @@ namespace mc_schem {
 
   }
 
-  class rust_string : public detail::wrapper<MC_SCHEM_string> {
+  class rust_string : public detail::wrapper<MC_SCHEM_string *> {
   public:
     rust_string() = delete;
 
-    rust_string(MC_SCHEM_string *handle) : detail::wrapper<MC_SCHEM_string>(handle) {}
+    rust_string(MC_SCHEM_string *handle) : detail::wrapper<MC_SCHEM_string *>(handle) {}
 
     operator std::string_view() const noexcept {
       auto schem_sv = MC_SCHEM_string_unwrap(this->handle);
@@ -179,7 +182,7 @@ namespace mc_schem {
         assert(MC_SCHEM_map_get_value_type(&handel) == static_cast<MC_SCHEM_map_value_type>(value_e));
       }
 
-      map_wrapper(const map_wrapper &&) = delete;
+      map_wrapper(const map_wrapper &) = delete;
 
       map_wrapper(map_wrapper &&b) {
         std::swap(this->map_ref, b.map_ref);
@@ -458,7 +461,7 @@ namespace mc_schem {
     };
   }
 
-  class block : public detail::wrapper<MC_SCHEM_block> {
+  class block : public detail::wrapper<MC_SCHEM_block *> {
   public:
     enum class id_parse_error : uint8_t {
       too_many_colons = 0,
@@ -478,7 +481,7 @@ namespace mc_schem {
   public:
     block() = delete;
 
-    block(MC_SCHEM_block *handle) : detail::wrapper<MC_SCHEM_block>{handle} {}
+    block(MC_SCHEM_block *handle) : detail::wrapper<MC_SCHEM_block *>{handle} {}
 
     [[nodiscard]] std::string_view get_namespace() const noexcept {
       return detail::string_view_schem_to_std(MC_SCHEM_block_get_namespace(this->handle));
@@ -555,6 +558,353 @@ namespace mc_schem {
     }
 
   };
+
+  class nbt : public detail::wrapper<MC_SCHEM_nbt_value *> {
+  public:
+
+    enum class tag_type : uint8_t {
+      tag_byte = 1,
+      tag_short = 2,
+      tag_int = 3,
+      tag_long = 4,
+      tag_float = 5,
+      tag_double = 6,
+      tag_byte_array = 7,
+      tag_string = 8,
+      tag_list = 9,
+      tag_compound = 10,
+      tag_int_array = 11,
+      tag_long_array = 12,
+    };
+
+    static std::string_view tag_type_to_string(tag_type t) noexcept {
+      switch (t) {
+        case tag_type::tag_byte:
+          return "byte";
+        case tag_type::tag_short:
+          return "short";
+        case tag_type::tag_int:
+          return "int";
+        case tag_type::tag_long:
+          return "long";
+        case tag_type::tag_float:
+          return "float";
+        case tag_type::tag_double:
+          return "double";
+        case tag_type::tag_byte_array:
+          return "byte_array";
+        case tag_type::tag_string:
+          return "string";
+        case tag_type::tag_list:
+          return "list";
+        case tag_type::tag_compound:
+          return "compound";
+        case tag_type::tag_int_array:
+          return "int_array";
+        case tag_type::tag_long_array:
+          return "long_array";
+      }
+    }
+
+  public:
+    nbt() = delete;
+
+    nbt(MC_SCHEM_nbt_value *handle) : detail::wrapper<MC_SCHEM_nbt_value *>{handle} {}
+
+    tag_type type() const noexcept {
+      return static_cast<enum tag_type>(MC_SCHEM_nbt_get_type(this->handle));
+    }
+
+    using compound_map_type = detail::map_wrapper<map_key_type::string, std::string_view, map_value_type::nbt, nbt>;
+
+    using variant_rep_const = std::variant<int8_t, int16_t, int32_t, int64_t,
+      float, double,
+      std::span<const int8_t>, std::string_view, std::span<const nbt>,
+      const compound_map_type,
+      std::span<const int32_t>, std::span<const int64_t>
+    >;
+
+    using variant_rep_mut = std::variant<int8_t, int16_t, int32_t, int64_t,
+      float, double,
+      std::span<int8_t>, std::span<char>, std::span<nbt>,
+      compound_map_type,
+      std::span<int32_t>, std::span<int64_t>
+    >;
+
+    class nbt_unwrap_exception : public std::exception {
+    protected:
+      tag_type actual_type;
+      tag_type expected_type;
+      std::string what_str;
+    public:
+      nbt_unwrap_exception(tag_type actual, tag_type expected) : actual_type{actual},
+                                                                 expected_type{expected} {
+        this->what_str = std::format("Trying to unwrap a {} nbt tag as {}",
+                                     tag_type_to_string(actual),
+                                     tag_type_to_string(expected));
+      }
+
+      const char *what() const noexcept override {
+        return this->what_str.c_str();
+      }
+    };
+
+//    template<tag_type t>
+//    [[nodiscard]] auto get() const {
+//      constexpr int index = static_cast<int>(t) - 1;
+//      return std::get<index>(this->to_variant());
+//    }
+
+    [[nodiscard]] int8_t as_byte() const {
+      bool ok = false;
+      auto ret = MC_SCHEM_nbt_get_byte(this->handle, &ok);
+      if (!ok) {
+        throw nbt_unwrap_exception{this->type(), tag_type::tag_byte};
+      }
+      return ret;
+    }
+
+    [[nodiscard]] int16_t as_short() const {
+      bool ok = false;
+      auto ret = MC_SCHEM_nbt_get_short(this->handle, &ok);
+      if (!ok) {
+        throw nbt_unwrap_exception{this->type(), tag_type::tag_short};
+      }
+      return ret;
+    }
+
+    [[nodiscard]] int32_t as_int() const {
+      bool ok = false;
+      auto ret = MC_SCHEM_nbt_get_int(this->handle, &ok);
+      if (!ok) {
+        throw nbt_unwrap_exception{this->type(), tag_type::tag_int};
+      }
+      return ret;
+    }
+
+    [[nodiscard]] int64_t as_long() const {
+      bool ok = false;
+      auto ret = MC_SCHEM_nbt_get_long(this->handle, &ok);
+      if (!ok) {
+        throw nbt_unwrap_exception{this->type(), tag_type::tag_long};
+      }
+      return ret;
+    }
+
+    [[nodiscard]] float as_float() const {
+      bool ok = false;
+      auto ret = MC_SCHEM_nbt_get_float(this->handle, &ok);
+      if (!ok) {
+        throw nbt_unwrap_exception{this->type(), tag_type::tag_float};
+      }
+      return ret;
+    }
+
+    [[nodiscard]] double as_double() const {
+      bool ok = false;
+      auto ret = MC_SCHEM_nbt_get_double(this->handle, &ok);
+      if (!ok) {
+        throw nbt_unwrap_exception{this->type(), tag_type::tag_double};
+      }
+      return ret;
+    }
+
+
+    [[nodiscard]] std::string_view as_string() const {
+      bool ok = false;
+      auto schem_str = MC_SCHEM_nbt_get_string(this->handle, &ok);
+      if (!ok) {
+        throw nbt_unwrap_exception{this->type(), tag_type::tag_string};
+      }
+      auto schem_sv = MC_SCHEM_string_unwrap(schem_str);
+      return detail::string_view_schem_to_std(schem_sv);
+    }
+
+  protected:
+    [[nodiscard]] std::span<int8_t> impl_as_byte_array() const {
+      bool ok = false;
+      auto arr_view = MC_SCHEM_nbt_get_byte_array(this->handle, &ok);
+      if (!ok) {
+        throw nbt_unwrap_exception{this->type(), tag_type::tag_byte_array};
+      }
+      return std::span<int8_t>{arr_view.begin, arr_view.end};
+    }
+
+    [[nodiscard]] std::span<nbt> impl_as_list() const {
+      bool ok = false;
+      auto arr_view = MC_SCHEM_nbt_get_list(this->handle, &ok);
+      if (!ok) {
+        throw nbt_unwrap_exception{this->type(), tag_type::tag_list};
+      }
+      return std::span<nbt>{reinterpret_cast<nbt *>(arr_view.begin),
+                            reinterpret_cast<nbt *>(arr_view.end)};
+    }
+
+    [[nodiscard]] compound_map_type impl_as_compound() const {
+      bool ok = false;
+      auto handle = MC_SCHEM_nbt_get_compound(this->handle, &ok);
+      if (!ok) {
+        throw nbt_unwrap_exception{this->type(), tag_type::tag_compound};
+      }
+      return compound_map_type{handle};
+    }
+
+    [[nodiscard]] std::span<int32_t> impl_as_int_array() const {
+      bool ok = false;
+      auto arr_view = MC_SCHEM_nbt_get_int_array(this->handle, &ok);
+      if (!ok) {
+        throw nbt_unwrap_exception{this->type(), tag_type::tag_int_array};
+      }
+      return std::span<int32_t>{arr_view.begin, arr_view.end};
+    }
+
+    [[nodiscard]] std::span<int64_t> impl_as_long_array() const {
+      bool ok = false;
+      auto arr_view = MC_SCHEM_nbt_get_long_array(this->handle, &ok);
+      if (!ok) {
+        throw nbt_unwrap_exception{this->type(), tag_type::tag_long_array};
+      }
+      return std::span<int64_t>{arr_view.begin, arr_view.end};
+    }
+
+  public:
+    [[nodiscard]] std::span<const int8_t> as_byte_array() const {
+      return this->impl_as_byte_array();
+    }
+
+    [[nodiscard]] std::span<int8_t> as_byte_array() {
+      return this->impl_as_byte_array();
+    }
+
+    [[nodiscard]] std::span<const int32_t> as_int_array() const {
+      return this->impl_as_int_array();
+    }
+
+    [[nodiscard]] std::span<int32_t> as_int_array() {
+      return this->impl_as_int_array();
+    }
+
+    [[nodiscard]] std::span<const int64_t> as_long_array() const {
+      return this->impl_as_long_array();
+    }
+
+    [[nodiscard]] std::span<int64_t> as_long_array() {
+      return this->impl_as_long_array();
+    }
+
+    [[nodiscard]] std::span<const nbt> as_list() const {
+      return this->impl_as_list();
+    }
+
+    [[nodiscard]] std::span<nbt> as_list() {
+      return this->impl_as_list();
+    }
+
+    [[nodiscard]] const compound_map_type as_compound() const {
+      return this->impl_as_compound();
+    }
+
+    [[nodiscard]] compound_map_type as_compound() {
+      return this->impl_as_compound();
+    }
+
+  public:
+
+    void set(int8_t v) noexcept {
+      MC_SCHEM_nbt_set_byte(this->handle, v);
+    }
+
+    void set(int16_t v) noexcept {
+      MC_SCHEM_nbt_set_short(this->handle, v);
+    }
+
+    void set(int32_t v) noexcept {
+      MC_SCHEM_nbt_set_int(this->handle, v);
+    }
+
+    void set(int64_t v) noexcept {
+      MC_SCHEM_nbt_set_long(this->handle, v);
+    }
+
+    void set(float v) noexcept {
+      MC_SCHEM_nbt_set_float(this->handle, v);
+    }
+
+    void set(double v) noexcept {
+      MC_SCHEM_nbt_set_double(this->handle, v);
+    }
+
+    void set(std::span<const int8_t> v) noexcept {
+      auto *data = const_cast<int8_t *>(v.data());
+      MC_SCHEM_nbt_set_byte_array(this->handle,
+                                  MC_SCHEM_nbt_byte_array_view{data, data + v.size()});
+    }
+
+    void set(std::span<const int32_t> v) noexcept {
+      auto *data = const_cast<int32_t *>(v.data());
+      MC_SCHEM_nbt_set_int_array(this->handle,
+                                 MC_SCHEM_nbt_int_array_view{data, data + v.size()});
+    }
+
+    void set(std::span<const int64_t> v) noexcept {
+      auto *data = const_cast<int64_t *>(v.data());
+      MC_SCHEM_nbt_set_long_array(this->handle,
+                                  MC_SCHEM_nbt_long_array_view{data, data + v.size()});
+    }
+
+
+    void set(std::span<const nbt> v) noexcept {
+      auto *data = const_cast<nbt *>(v.data());
+      MC_SCHEM_nbt_set_list(this->handle,
+                            MC_SCHEM_nbt_list_view{reinterpret_cast<MC_SCHEM_nbt_value *>(data),
+                                                   reinterpret_cast<MC_SCHEM_nbt_value *>(data + v.size())});
+    }
+
+    void set(std::string_view v) noexcept {
+      auto schem_sv = detail::string_view_std_to_schem(v);
+      MC_SCHEM_nbt_set_string(this->handle, schem_sv);
+    }
+
+    template<class T>
+    nbt &operator=(T src) noexcept {
+      this->set(src);
+    }
+
+
+  };
+
+  class entity : public detail::wrapper<MC_SCHEM_entity *> {
+  public:
+    entity() = delete;
+
+    entity(MC_SCHEM_entity *handle) : detail::wrapper<MC_SCHEM_entity *>{handle} {}
+
+  };
+
+  class block_entity : public detail::wrapper<MC_SCHEM_block_entity *> {
+  public:
+    block_entity() = delete;
+
+    block_entity(MC_SCHEM_block_entity *handle) : detail::wrapper<MC_SCHEM_block_entity *>{handle} {}
+
+  };
+
+  class region : public detail::wrapper<MC_SCHEM_region *> {
+  public:
+    region() = delete;
+
+    region(MC_SCHEM_region *handle) : detail::wrapper<MC_SCHEM_region *>{handle} {}
+
+  };
+
+  class schem : public detail::wrapper<MC_SCHEM_schem *> {
+  public:
+    schem() = delete;
+
+    schem(MC_SCHEM_schem *handle) : detail::wrapper<MC_SCHEM_schem *>{handle} {}
+
+  };
+
 
 
 } // namespace mc_schem

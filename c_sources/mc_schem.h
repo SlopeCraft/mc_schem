@@ -309,6 +309,8 @@ MC_SCHEM_block_to_full_id(const MC_SCHEM_block *block, char *id_dest_nullable, s
 
 typedef struct MC_SCHEM_entity_s MC_SCHEM_entity;
 MC_SCHEM_DEFINE_BOX(MC_SCHEM_entity)
+typedef struct MC_SCHEM_block_entity_s MC_SCHEM_block_entity;
+MC_SCHEM_DEFINE_BOX(MC_SCHEM_block_entity)
 typedef struct MC_SCHEM_region_s MC_SCHEM_region;
 MC_SCHEM_DEFINE_BOX(MC_SCHEM_region)
 typedef struct MC_SCHEM_schem_s MC_SCHEM_schem;

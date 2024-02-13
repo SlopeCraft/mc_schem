@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.20)
 project(mc_schem VERSION 0.1.0 LANGUAGES C CXX)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 option(MC_SCHEM_INSTALL "Install binaries" ON)
 set(MC_SCHEM_RUST_TARGET "default" CACHE STRING "Target to build rust codes. Should be consistent with C compiler. Valid values: default;guess; or any other triplet")
 

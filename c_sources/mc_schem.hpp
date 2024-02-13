@@ -102,6 +102,11 @@ namespace mc_schem {
         MC_SCHEM_release_entity(&box);
       }
 
+      static void operator()(MC_SCHEM_block_entity *v) noexcept {
+        MC_SCHEM_block_entity_box box{v};
+        MC_SCHEM_release_block_entity(&box);
+      }
+
 //      void operator()(MC_SCHEM_map_ref *m) const noexcept {
 //        MC_SCHEM_map_box box{m};
 //      }
@@ -947,7 +952,7 @@ namespace mc_schem {
       return this->impl_tags();
     }
 
-    [[nodiscard]]static detail::box<entity, MC_SCHEM_entity_box> create() noexcept {
+    [[nodiscard]] static detail::box<entity, MC_SCHEM_entity_box> create() noexcept {
       return detail::box<entity, MC_SCHEM_entity_box>{MC_SCHEM_create_entity()};
     }
   };
@@ -957,6 +962,34 @@ namespace mc_schem {
     block_entity() = delete;
 
     block_entity(MC_SCHEM_block_entity *handle) : detail::wrapper<MC_SCHEM_block_entity *>{handle} {}
+
+    using tag_nbt_map_t = detail::map_wrapper<map_key_type::string, std::string_view, map_value_type::nbt, nbt>;
+  protected:
+    [[nodiscard]] tag_nbt_map_t impl_tags() const noexcept {
+      return tag_nbt_map_t{MC_SCHEM_block_entity_get_tags(this->handle)};
+    }
+
+  public:
+    [[nodiscard]] const tag_nbt_map_t tags() const noexcept {
+      return this->impl_tags();
+    }
+
+    [[nodiscard]] tag_nbt_map_t tags() noexcept {
+      return this->impl_tags();
+    }
+
+    [[nodiscard]] static detail::box<block_entity, MC_SCHEM_block_entity_box> create() noexcept {
+      return detail::box<block_entity, MC_SCHEM_block_entity_box>{MC_SCHEM_create_block_entity()};
+    }
+
+  };
+
+
+  class pending_tick : public detail::wrapper<MC_SCHEM_pending_tick *> {
+  public:
+    pending_tick() = delete;
+
+    pending_tick(MC_SCHEM_pending_tick *handle) : detail::wrapper<MC_SCHEM_pending_tick *>{handle} {}
 
   };
 

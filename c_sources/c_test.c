@@ -114,6 +114,42 @@ void test_link() {
   check_fun_ptr(MC_SCHEM_entity_set_block_pos);
   check_fun_ptr(MC_SCHEM_entity_set_pos);
   check_fun_ptr(MC_SCHEM_entity_get_tags);
+  ////////////////////////////////////
+  //block entity
+  check_fun_ptr(MC_SCHEM_create_block_entity);
+  check_fun_ptr(MC_SCHEM_release_block_entity);
+  check_fun_ptr(MC_SCHEM_block_entity_get_tags);
+  ////////////////////////////////////
+  //pending tick
+  check_fun_ptr(MC_SCHEM_create_pending_tick);
+  check_fun_ptr(MC_SCHEM_release_pending_tick);
+  check_fun_ptr(MC_SCHEM_pending_tick_get_priority);
+  check_fun_ptr(MC_SCHEM_pending_tick_set_priority);
+  check_fun_ptr(MC_SCHEM_pending_tick_get_sub_tick);
+  check_fun_ptr(MC_SCHEM_pending_tick_set_sub_tick);
+  check_fun_ptr(MC_SCHEM_pending_tick_get_time);
+  check_fun_ptr(MC_SCHEM_pending_tick_set_time);
+  check_fun_ptr(MC_SCHEM_pending_tick_get_id);
+  check_fun_ptr(MC_SCHEM_pending_tick_get_type);
+  check_fun_ptr(MC_SCHEM_pending_tick_set_info);
+//  check_fun_ptr();
+//  check_fun_ptr();
+//  check_fun_ptr();
+//  check_fun_ptr();
+//  check_fun_ptr();
+//  check_fun_ptr();
+//  check_fun_ptr();
+//  check_fun_ptr();
+//  check_fun_ptr();
+//  check_fun_ptr();
+//  check_fun_ptr();
+//  check_fun_ptr();
+//  check_fun_ptr();
+//  check_fun_ptr();
+//  check_fun_ptr();
+//  check_fun_ptr();
+//  check_fun_ptr();
+//  check_fun_ptr();
 //  check_fun_ptr();
 //  check_fun_ptr();
 //  check_fun_ptr();

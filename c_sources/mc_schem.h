@@ -30,14 +30,18 @@ extern "C" {
 MC_SCHEM_EXPORT const char *MC_SCHEM_version_string();
 
 MC_SCHEM_EXPORT uint16_t MC_SCHEM_version_major();
-
 MC_SCHEM_EXPORT uint16_t MC_SCHEM_version_minor();
-
 MC_SCHEM_EXPORT uint16_t MC_SCHEM_version_patch();
-
 MC_SCHEM_EXPORT uint16_t MC_SCHEM_version_tweak();
 
 /////////////////////////////////////////////
+
+typedef struct {
+  int pos[3];
+} MC_SCHEM_pos_i32;
+typedef struct {
+  double pos[3];
+} MC_SCHEM_pos_f64;
 
 typedef struct {
   const char *begin;
@@ -61,8 +65,11 @@ typedef struct {
   size_t reserved[7];
 } MC_SCHEM_nbt_value;
 typedef struct MC_SCHEM_block_s MC_SCHEM_block;
+MC_SCHEM_DEFINE_BOX(MC_SCHEM_block)
 typedef struct MC_SCHEM_block_entity_s MC_SCHEM_block_entity;
+MC_SCHEM_DEFINE_BOX(MC_SCHEM_block_entity)
 typedef struct MC_SCHEM_pending_tick_s MC_SCHEM_pending_tick;
+MC_SCHEM_DEFINE_BOX(MC_SCHEM_pending_tick)
 
 typedef enum : uint8_t {
   MC_SCHEM_MKT_string = 0,
@@ -192,7 +199,6 @@ typedef enum : uint8_t {
 MC_SCHEM_DEFINE_BOX(MC_SCHEM_nbt_value)
 
 MC_SCHEM_EXPORT MC_SCHEM_nbt_value_box MC_SCHEM_create_nbt();
-
 MC_SCHEM_EXPORT void MC_SCHEM_release_nbt(MC_SCHEM_nbt_value_box *nbt_box);
 
 MC_SCHEM_EXPORT MC_SCHEM_nbt_type MC_SCHEM_nbt_get_type(const MC_SCHEM_nbt_value *);
@@ -264,11 +270,8 @@ MC_SCHEM_EXPORT void MC_SCHEM_nbt_set_compound(MC_SCHEM_nbt_value *, MC_SCHEM_ma
 
 ////////////////////////////////////////
 // block related APIs
-typedef struct MC_SCHEM_block_s MC_SCHEM_block;
-MC_SCHEM_DEFINE_BOX(MC_SCHEM_block)
 
 MC_SCHEM_EXPORT MC_SCHEM_block_box MC_SCHEM_create_block();
-
 MC_SCHEM_EXPORT void MC_SCHEM_release_block(MC_SCHEM_block_box *);
 
 MC_SCHEM_EXPORT MC_SCHEM_string_view MC_SCHEM_block_get_namespace(const MC_SCHEM_block *);
@@ -311,30 +314,60 @@ typedef struct MC_SCHEM_entity_s MC_SCHEM_entity;
 MC_SCHEM_DEFINE_BOX(MC_SCHEM_entity)
 
 MC_SCHEM_EXPORT MC_SCHEM_entity_box MC_SCHEM_create_entity();
-
 MC_SCHEM_EXPORT void MC_SCHEM_release_entity(MC_SCHEM_entity_box *);
 
-typedef struct {
-  int pos[3];
-} MC_SCHEM_pos_i32;
-typedef struct {
-  double pos[3];
-} MC_SCHEM_pos_f64;
-
 MC_SCHEM_EXPORT MC_SCHEM_pos_i32 MC_SCHEM_entity_get_block_pos(const MC_SCHEM_entity *);
-
 MC_SCHEM_EXPORT MC_SCHEM_pos_f64 MC_SCHEM_entity_get_pos(const MC_SCHEM_entity *);
 
 MC_SCHEM_EXPORT void MC_SCHEM_entity_set_block_pos(MC_SCHEM_entity *, MC_SCHEM_pos_i32);
-
 MC_SCHEM_EXPORT void MC_SCHEM_entity_set_pos(MC_SCHEM_entity *, MC_SCHEM_pos_f64);
 
 
 MC_SCHEM_EXPORT MC_SCHEM_map_ref MC_SCHEM_entity_get_tags(const MC_SCHEM_entity *);
 
 //////////////////////////////////
-typedef struct MC_SCHEM_block_entity_s MC_SCHEM_block_entity;
-MC_SCHEM_DEFINE_BOX(MC_SCHEM_block_entity)
+
+MC_SCHEM_EXPORT MC_SCHEM_block_entity_box MC_SCHEM_create_block_entity();
+
+MC_SCHEM_EXPORT void MC_SCHEM_release_block_entity(MC_SCHEM_block_entity_box *);
+
+MC_SCHEM_EXPORT MC_SCHEM_map_ref MC_SCHEM_block_entity_get_tags(const MC_SCHEM_block_entity *);
+
+//////////////////////////////////
+
+MC_SCHEM_EXPORT MC_SCHEM_pending_tick_box MC_SCHEM_create_pending_tick();
+
+MC_SCHEM_EXPORT void MC_SCHEM_release_pending_tick(MC_SCHEM_pending_tick_box *);
+
+MC_SCHEM_EXPORT int32_t MC_SCHEM_pending_tick_get_priority(const MC_SCHEM_pending_tick *);
+
+MC_SCHEM_EXPORT void MC_SCHEM_pending_tick_set_priority(MC_SCHEM_pending_tick *, int32_t priority);
+
+MC_SCHEM_EXPORT int64_t MC_SCHEM_pending_tick_get_sub_tick(const MC_SCHEM_pending_tick *);
+
+MC_SCHEM_EXPORT void MC_SCHEM_pending_tick_set_sub_tick(MC_SCHEM_pending_tick *, int64_t sub_tick);
+
+MC_SCHEM_EXPORT int32_t MC_SCHEM_pending_tick_get_time(const MC_SCHEM_pending_tick *);
+
+MC_SCHEM_EXPORT void MC_SCHEM_pending_tick_set_time(MC_SCHEM_pending_tick *, int32_t time);
+
+
+typedef enum : uint8_t {
+  MC_SCHME_BET_fluid = 0,
+  MC_SCHEM_BET_block = 1,
+} MC_SCHEM_block_entity_type;
+MC_SCHEM_EXPORT MC_SCHEM_string_view MC_SCHEM_pending_tick_get_id(const MC_SCHEM_pending_tick *);
+
+MC_SCHEM_EXPORT MC_SCHEM_block_entity_type MC_SCHEM_pending_tick_get_type(const MC_SCHEM_pending_tick *);
+
+MC_SCHEM_EXPORT void MC_SCHEM_pending_tick_set_info(MC_SCHEM_pending_tick *,
+                                                    MC_SCHEM_block_entity_type type,
+                                                    MC_SCHEM_string_view id);
+
+
+MC_SCHEM_EXPORT
+
+//////////////////////////////////
 typedef struct MC_SCHEM_region_s MC_SCHEM_region;
 MC_SCHEM_DEFINE_BOX(MC_SCHEM_region)
 typedef struct MC_SCHEM_schem_s MC_SCHEM_schem;

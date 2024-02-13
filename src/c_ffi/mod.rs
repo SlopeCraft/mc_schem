@@ -200,7 +200,7 @@ fn sizes() {
     println!("Size of CBlockError = {}", size_of::<BlockIdParseError>());
 }
 
-#[repr(C)]
+#[repr(u8)]
 #[allow(non_camel_case_types, dead_code)]
 enum CEnumNBTType {
     Byte = 1,
@@ -268,4 +268,10 @@ struct CPosInt {
 #[repr(C)]
 struct CPosDouble {
     pos: [f64; 3],
+}
+
+#[repr(u8)]
+enum CPendingTickType {
+    Fluid = 0,
+    Block = 1,
 }

@@ -755,14 +755,18 @@ namespace mc_schem {
       return std::span<int8_t>{arr_view.begin, arr_view.end};
     }
 
-    [[nodiscard]] std::span<nbt> impl_as_list() const {
+    [[nodiscard]] std::vector<nbt> impl_as_list() const {
       bool ok = false;
       auto arr_view = MC_SCHEM_nbt_get_list(this->handle, &ok);
       if (!ok) {
         throw nbt_unwrap_exception{this->type(), tag_type::tag_list};
       }
-      return std::span<nbt>{reinterpret_cast<nbt *>(arr_view.begin),
-                            reinterpret_cast<nbt *>(arr_view.end)};
+      std::vector<nbt> result;
+      result.reserve(arr_view.end - arr_view.begin);
+      for (auto p = arr_view.begin; p < arr_view.end; p++) {
+        result.push_back(nbt{p});
+      }
+      return result;
     }
 
     [[nodiscard]] compound_map_type impl_as_compound() const {
@@ -817,11 +821,11 @@ namespace mc_schem {
       return this->impl_as_long_array();
     }
 
-    [[nodiscard]] std::span<const nbt> as_list() const {
+    [[nodiscard]] const std::vector<nbt> as_list() const {
       return this->impl_as_list();
     }
 
-    [[nodiscard]] std::span<nbt> as_list() {
+    [[nodiscard]] std::vector<nbt> as_list() {
       return this->impl_as_list();
     }
 
@@ -910,7 +914,7 @@ namespace mc_schem {
     entity(MC_SCHEM_entity *handle) : detail::wrapper<MC_SCHEM_entity *>{handle} {}
 
     [[nodiscard]] std::array<int, 3> block_pos() const noexcept {
-      MC_SCHEM_pos_i32 pos = MC_SCHEM_entity_get_block_pos(this->handle);
+      MC_SCHEM_array3_i32 pos = MC_SCHEM_entity_get_block_pos(this->handle);
       std::array<int, 3> ret;
       for (size_t i = 0; i < 3; i++) {
         ret[i] = pos.pos[i];
@@ -919,7 +923,7 @@ namespace mc_schem {
     }
 
     [[nodiscard]] std::array<double, 3> pos() const noexcept {
-      MC_SCHEM_pos_f64 pos = MC_SCHEM_entity_get_pos(this->handle);
+      MC_SCHEM_array3_f64 pos = MC_SCHEM_entity_get_pos(this->handle);
       std::array<double, 3> ret;
       for (size_t i = 0; i < 3; i++) {
         ret[i] = pos.pos[i];
@@ -928,7 +932,7 @@ namespace mc_schem {
     }
 
     void set_block_pos(std::span<const int, 3> pos) noexcept {
-      MC_SCHEM_pos_i32 p;
+      MC_SCHEM_array3_i32 p;
       for (size_t i = 0; i < 3; i++) {
         p.pos[i] = pos[i];
       }
@@ -936,7 +940,7 @@ namespace mc_schem {
     }
 
     void set_pos(std::span<const double, 3> pos) noexcept {
-      MC_SCHEM_pos_f64 p;
+      MC_SCHEM_array3_f64 p;
       for (size_t i = 0; i < 3; i++) {
         p.pos[i] = pos[i];
       }

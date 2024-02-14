@@ -251,9 +251,11 @@ impl Region {
         return Some(pid as u16);
     }
 
-    pub fn block_info_at(&self, r_pos: [i32; 3]) -> Option<(u16, &Block, Option<&BlockEntity>)> {
+    pub fn block_info_at(&self, r_pos: [i32; 3]) -> Option<(u16, &Block, Option<&BlockEntity>, Option<&PendingTick>)> {
         return if let Some(pid) = self.block_index_at(r_pos) {
-            Some((pid, &self.palette[pid as usize], self.block_entities.get(&r_pos)))
+            Some((pid, &self.palette[pid as usize],
+                  self.block_entities.get(&r_pos),
+                  self.pending_ticks.get(&r_pos)))
         } else {
             None
         };

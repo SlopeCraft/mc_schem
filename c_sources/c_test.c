@@ -132,31 +132,33 @@ void test_link() {
   check_fun_ptr(MC_SCHEM_pending_tick_get_id);
   check_fun_ptr(MC_SCHEM_pending_tick_get_type);
   check_fun_ptr(MC_SCHEM_pending_tick_set_info);
-//  check_fun_ptr();
-//  check_fun_ptr();
-//  check_fun_ptr();
-//  check_fun_ptr();
-//  check_fun_ptr();
-//  check_fun_ptr();
-//  check_fun_ptr();
-//  check_fun_ptr();
-//  check_fun_ptr();
-//  check_fun_ptr();
-//  check_fun_ptr();
-//  check_fun_ptr();
-//  check_fun_ptr();
-//  check_fun_ptr();
-//  check_fun_ptr();
-//  check_fun_ptr();
-//  check_fun_ptr();
-//  check_fun_ptr();
-//  check_fun_ptr();
-//  check_fun_ptr();
-//  check_fun_ptr();
-//  check_fun_ptr();
-//  check_fun_ptr();
-//  check_fun_ptr();
-//  check_fun_ptr();
+  ////////////////////////////////////
+  //region
+  check_fun_ptr(MC_SCHEM_create_region);
+  check_fun_ptr(MC_SCHEM_release_region);
+  check_fun_ptr(MC_SCHEM_region_get_name);
+  check_fun_ptr(MC_SCHEM_region_set_name);
+  check_fun_ptr(MC_SCHEM_region_get_offset);
+  check_fun_ptr(MC_SCHEM_region_set_offset);
+  check_fun_ptr(MC_SCHEM_region_get_palette);
+  check_fun_ptr(MC_SCHEM_region_set_palette);
+  check_fun_ptr(MC_SCHEM_region_get_block_entities);
+  check_fun_ptr(MC_SCHEM_region_get_pending_tick);
+  check_fun_ptr(MC_SCHEM_region_get_entities);
+  check_fun_ptr(MC_SCHEM_region_get_block_index_array);
+  check_fun_ptr(MC_SCHEM_region_get_number_id_array);
+  check_fun_ptr(MC_SCHEM_region_get_shape);
+  check_fun_ptr(MC_SCHEM_region_reshape);
+  check_fun_ptr(MC_SCHEM_region_get_block);
+  check_fun_ptr(MC_SCHEM_region_set_block);
+  check_fun_ptr(MC_SCHEM_region_get_block_index);
+  check_fun_ptr(MC_SCHEM_region_set_block_index);
+  check_fun_ptr(MC_SCHEM_region_get_volume);
+  check_fun_ptr(MC_SCHEM_region_get_total_blocks);
+  check_fun_ptr(MC_SCHEM_region_get_block_index_of_air);
+  check_fun_ptr(MC_SCHEM_region_get_block_index_of_structure_void);
+  check_fun_ptr(MC_SCHEM_region_contains_coordinate);
+  check_fun_ptr(MC_SCHEM_region_get_block_info);
   //  check_fun_ptr(MC_SCHEM_destroy_schem);
 
 }

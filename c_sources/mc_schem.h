@@ -38,10 +38,10 @@ MC_SCHEM_EXPORT uint16_t MC_SCHEM_version_tweak();
 
 typedef struct {
   int pos[3];
-} MC_SCHEM_pos_i32;
+} MC_SCHEM_array3_i32;
 typedef struct {
   double pos[3];
-} MC_SCHEM_pos_f64;
+} MC_SCHEM_array3_f64;
 
 typedef struct {
   const char *begin;
@@ -64,9 +64,13 @@ MC_SCHEM_string_view MC_SCHEM_c_string_to_string_view(const char *str);
 typedef struct {
   size_t reserved[7];
 } MC_SCHEM_nbt_value;
-typedef struct MC_SCHEM_block_s MC_SCHEM_block;
+typedef struct MC_SCHEM_block_s {
+  size_t reserved[9];
+} MC_SCHEM_block;
 MC_SCHEM_DEFINE_BOX(MC_SCHEM_block)
-typedef struct MC_SCHEM_block_entity_s MC_SCHEM_block_entity;
+typedef struct MC_SCHEM_block_entity_s {
+  size_t reserved[11];
+} MC_SCHEM_block_entity;
 MC_SCHEM_DEFINE_BOX(MC_SCHEM_block_entity)
 typedef struct MC_SCHEM_pending_tick_s MC_SCHEM_pending_tick;
 MC_SCHEM_DEFINE_BOX(MC_SCHEM_pending_tick)
@@ -316,11 +320,13 @@ MC_SCHEM_DEFINE_BOX(MC_SCHEM_entity)
 MC_SCHEM_EXPORT MC_SCHEM_entity_box MC_SCHEM_create_entity();
 MC_SCHEM_EXPORT void MC_SCHEM_release_entity(MC_SCHEM_entity_box *);
 
-MC_SCHEM_EXPORT MC_SCHEM_pos_i32 MC_SCHEM_entity_get_block_pos(const MC_SCHEM_entity *);
-MC_SCHEM_EXPORT MC_SCHEM_pos_f64 MC_SCHEM_entity_get_pos(const MC_SCHEM_entity *);
+MC_SCHEM_EXPORT MC_SCHEM_array3_i32 MC_SCHEM_entity_get_block_pos(const MC_SCHEM_entity *);
 
-MC_SCHEM_EXPORT void MC_SCHEM_entity_set_block_pos(MC_SCHEM_entity *, MC_SCHEM_pos_i32);
-MC_SCHEM_EXPORT void MC_SCHEM_entity_set_pos(MC_SCHEM_entity *, MC_SCHEM_pos_f64);
+MC_SCHEM_EXPORT MC_SCHEM_array3_f64 MC_SCHEM_entity_get_pos(const MC_SCHEM_entity *);
+
+MC_SCHEM_EXPORT void MC_SCHEM_entity_set_block_pos(MC_SCHEM_entity *, MC_SCHEM_array3_i32);
+
+MC_SCHEM_EXPORT void MC_SCHEM_entity_set_pos(MC_SCHEM_entity *, MC_SCHEM_array3_f64);
 
 
 MC_SCHEM_EXPORT MC_SCHEM_map_ref MC_SCHEM_entity_get_tags(const MC_SCHEM_entity *);
@@ -351,7 +357,6 @@ MC_SCHEM_EXPORT int32_t MC_SCHEM_pending_tick_get_time(const MC_SCHEM_pending_ti
 
 MC_SCHEM_EXPORT void MC_SCHEM_pending_tick_set_time(MC_SCHEM_pending_tick *, int32_t time);
 
-
 typedef enum : uint8_t {
   MC_SCHME_BET_fluid = 0,
   MC_SCHEM_BET_block = 1,
@@ -363,12 +368,75 @@ MC_SCHEM_EXPORT MC_SCHEM_pending_tick_type MC_SCHEM_pending_tick_get_type(const 
 MC_SCHEM_EXPORT void MC_SCHEM_pending_tick_set_info(MC_SCHEM_pending_tick *,
                                                     MC_SCHEM_pending_tick_type type,
                                                     MC_SCHEM_string_view id);
-
-
-
 //////////////////////////////////
 typedef struct MC_SCHEM_region_s MC_SCHEM_region;
 MC_SCHEM_DEFINE_BOX(MC_SCHEM_region)
+
+MC_SCHEM_EXPORT MC_SCHEM_region_box MC_SCHEM_create_region();
+
+MC_SCHEM_EXPORT void MC_SCHEM_release_region(MC_SCHEM_region_box *);
+
+MC_SCHEM_EXPORT MC_SCHEM_string_view MC_SCHEM_region_get_name(const MC_SCHEM_region_box *);
+
+MC_SCHEM_EXPORT void MC_SCHEM_region_set_name(MC_SCHEM_region *, MC_SCHEM_string_view name);
+
+MC_SCHEM_EXPORT MC_SCHEM_array3_i32 MC_SCHEM_region_get_offset(const MC_SCHEM_region_box *);
+
+MC_SCHEM_EXPORT void MC_SCHEM_region_set_offset(MC_SCHEM_region *, MC_SCHEM_array3_i32 offset);
+
+MC_SCHEM_EXPORT MC_SCHEM_block *MC_SCHEM_region_get_palette(const MC_SCHEM_region *, size_t *len);
+
+MC_SCHEM_EXPORT void MC_SCHEM_region_set_palette(MC_SCHEM_region *, const MC_SCHEM_block *palette, size_t len);
+
+MC_SCHEM_EXPORT MC_SCHEM_map_ref MC_SCHEM_region_get_block_entities(const MC_SCHEM_region *);
+
+MC_SCHEM_EXPORT MC_SCHEM_map_ref MC_SCHEM_region_get_pending_tick(const MC_SCHEM_region *);
+
+MC_SCHEM_EXPORT MC_SCHEM_entity *MC_SCHEM_region_get_entities(const MC_SCHEM_region *, size_t *len);
+
+MC_SCHEM_EXPORT uint16_t *MC_SCHEM_region_get_block_index_array(const MC_SCHEM_region *);
+
+typedef struct {
+  uint8_t id;
+  uint8_t damage;
+} MC_SCHEM_number_id;
+MC_SCHEM_EXPORT MC_SCHEM_number_id *
+MC_SCHEM_region_get_number_id_array(const MC_SCHEM_region *);
+
+MC_SCHEM_EXPORT MC_SCHEM_array3_i32 MC_SCHEM_region_get_shape(const MC_SCHEM_region *);
+
+MC_SCHEM_EXPORT void MC_SCHEM_region_reshape(MC_SCHEM_region *, MC_SCHEM_array3_i32);
+
+MC_SCHEM_EXPORT const MC_SCHEM_block *
+MC_SCHEM_region_get_block(const MC_SCHEM_region *, MC_SCHEM_array3_i32 r_pos);
+
+MC_SCHEM_EXPORT bool MC_SCHEM_region_set_block(MC_SCHEM_region *, MC_SCHEM_array3_i32 r_pos, const MC_SCHEM_block *);
+
+MC_SCHEM_EXPORT uint16_t MC_SCHEM_region_get_block_index(const MC_SCHEM_region *, MC_SCHEM_array3_i32 r_pos);
+
+MC_SCHEM_EXPORT bool
+MC_SCHEM_region_set_block_index(MC_SCHEM_region *, MC_SCHEM_array3_i32 r_pos, uint16_t block_index);
+
+MC_SCHEM_EXPORT uint64_t MC_SCHEM_region_get_volume(const MC_SCHEM_region *);
+
+MC_SCHEM_EXPORT uint64_t MC_SCHEM_region_get_total_blocks(const MC_SCHEM_region *, bool include_air);
+
+MC_SCHEM_EXPORT uint16_t MC_SCHEM_region_get_block_index_of_air(const MC_SCHEM_region *, bool *ok);
+
+MC_SCHEM_EXPORT uint16_t MC_SCHEM_region_get_block_index_of_structure_void(const MC_SCHEM_region *, bool *ok);
+
+MC_SCHEM_EXPORT bool MC_SCHEM_region_contains_coordinate(const MC_SCHEM_region *, MC_SCHEM_array3_i32 r_pos);
+
+typedef struct {
+  uint16_t block_index;
+  const MC_SCHEM_block *block;
+  MC_SCHEM_block_entity *block_entity;
+  MC_SCHEM_pending_tick *pending_tick;
+} MC_SCHEM_region_block_info;
+MC_SCHEM_EXPORT MC_SCHEM_region_block_info
+MC_SCHEM_region_get_block_info(const MC_SCHEM_region *, MC_SCHEM_array3_i32 r_pos);
+
+//////////////////////////////////
 typedef struct MC_SCHEM_schem_s MC_SCHEM_schem;
 MC_SCHEM_DEFINE_BOX(MC_SCHEM_schem)
 

@@ -5,8 +5,9 @@ use std::str::from_utf8_unchecked;
 use static_assertions as sa;
 use std::mem::size_of;
 use fastnbt::Value;
+use crate::Block;
 use crate::block::BlockIdParseError;
-use crate::region::{BlockEntity, PendingTick};
+use crate::region::{BlockEntity, Entity, PendingTick};
 
 mod map_ffi;
 mod nbt_ffi;
@@ -198,6 +199,10 @@ fn sizes() {
     println!("Size of fastnbt::Value = {}", size_of::<Value>());
 
     println!("Size of CBlockError = {}", size_of::<BlockIdParseError>());
+
+    println!("Size of Block = {}", size_of::<Block>());
+    println!("Size of Entity = {}", size_of::<Entity>());
+    println!("Size of (u8,u8) = {}", size_of::<(u8, u8)>());
 }
 
 #[repr(u8)]
@@ -274,4 +279,29 @@ struct CPosDouble {
 enum CPendingTickType {
     Fluid = 0,
     Block = 1,
+}
+
+#[repr(C)]
+struct CNumberId {
+    id: u8,
+    damage: u8,
+}
+
+#[repr(C)]
+struct CRegionBlockInfo {
+    block_index: u16,
+    block: *const Block,
+    block_entity: *mut BlockEntity,
+    pending_tick: *mut PendingTick,
+}
+
+impl Default for CRegionBlockInfo {
+    fn default() -> Self {
+        return CRegionBlockInfo {
+            block_index: u16::MAX,
+            block: null(),
+            block_entity: null_mut(),
+            pending_tick: null_mut(),
+        }
+    }
 }

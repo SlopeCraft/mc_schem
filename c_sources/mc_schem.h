@@ -355,17 +355,16 @@ MC_SCHEM_EXPORT void MC_SCHEM_pending_tick_set_time(MC_SCHEM_pending_tick *, int
 typedef enum : uint8_t {
   MC_SCHME_BET_fluid = 0,
   MC_SCHEM_BET_block = 1,
-} MC_SCHEM_block_entity_type;
+} MC_SCHEM_pending_tick_type;
 MC_SCHEM_EXPORT MC_SCHEM_string_view MC_SCHEM_pending_tick_get_id(const MC_SCHEM_pending_tick *);
 
-MC_SCHEM_EXPORT MC_SCHEM_block_entity_type MC_SCHEM_pending_tick_get_type(const MC_SCHEM_pending_tick *);
+MC_SCHEM_EXPORT MC_SCHEM_pending_tick_type MC_SCHEM_pending_tick_get_type(const MC_SCHEM_pending_tick *);
 
 MC_SCHEM_EXPORT void MC_SCHEM_pending_tick_set_info(MC_SCHEM_pending_tick *,
-                                                    MC_SCHEM_block_entity_type type,
+                                                    MC_SCHEM_pending_tick_type type,
                                                     MC_SCHEM_string_view id);
 
 
-MC_SCHEM_EXPORT
 
 //////////////////////////////////
 typedef struct MC_SCHEM_region_s MC_SCHEM_region;

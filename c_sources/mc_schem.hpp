@@ -107,6 +107,11 @@ namespace mc_schem {
         MC_SCHEM_release_block_entity(&box);
       }
 
+      static void operator()(MC_SCHEM_pending_tick *v) noexcept {
+        MC_SCHEM_pending_tick_box box{v};
+        MC_SCHEM_release_pending_tick(&box);
+      }
+
 //      void operator()(MC_SCHEM_map_ref *m) const noexcept {
 //        MC_SCHEM_map_box box{m};
 //      }
@@ -888,6 +893,7 @@ namespace mc_schem {
     template<class T>
     nbt &operator=(T src) noexcept {
       this->set(src);
+      return *this;
     }
 
     static detail::box<nbt, MC_SCHEM_nbt_value_box> create() noexcept {
@@ -990,6 +996,52 @@ namespace mc_schem {
     pending_tick() = delete;
 
     pending_tick(MC_SCHEM_pending_tick *handle) : detail::wrapper<MC_SCHEM_pending_tick *>{handle} {}
+
+    enum class pending_tick_type : uint8_t {
+      fluid = 0,
+      block = 1,
+    };
+
+    [[nodiscard]] int32_t priority() const noexcept {
+      return MC_SCHEM_pending_tick_get_priority(this->handle);
+    }
+
+    void set_priority(int32_t priority) noexcept {
+      MC_SCHEM_pending_tick_set_priority(this->handle, priority);
+    }
+
+    [[nodiscard]] int64_t sub_tick() const noexcept {
+      return MC_SCHEM_pending_tick_get_sub_tick(this->handle);
+    }
+
+    void set_sub_tick(int64_t sub_tick) noexcept {
+      MC_SCHEM_pending_tick_set_sub_tick(this->handle, sub_tick);
+    }
+
+    [[nodiscard]] int32_t time() const noexcept {
+      return MC_SCHEM_pending_tick_get_time(this->handle);
+    }
+
+    void set_time(int32_t time) noexcept {
+      MC_SCHEM_pending_tick_set_time(this->handle, time);
+    }
+
+    [[nodiscard]] std::string_view id() const noexcept {
+      return detail::string_view_schem_to_std(MC_SCHEM_pending_tick_get_id(this->handle));
+    }
+
+    [[nodiscard]] pending_tick_type type() const noexcept {
+      return static_cast<pending_tick_type>(MC_SCHEM_pending_tick_get_type(this->handle));
+    }
+
+    void set_info(pending_tick_type type, std::string_view id) noexcept {
+      const auto t = static_cast<MC_SCHEM_pending_tick_type>(type);
+      MC_SCHEM_pending_tick_set_info(this->handle, t, detail::string_view_std_to_schem(id));
+    }
+
+    static detail::box<pending_tick, MC_SCHEM_pending_tick_box> create() noexcept {
+      return {MC_SCHEM_create_pending_tick()};
+    }
 
   };
 

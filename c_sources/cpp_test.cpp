@@ -1,7 +1,8 @@
 #include <mc_schem.hpp>
 #include <cassert>
 #include <format>
-#include <print>
+#include <iterator>
+#include <iostream>
 
 int main(int argc, char **argv) {
 
@@ -15,7 +16,8 @@ int main(int argc, char **argv) {
     auto attributes = block.value()->attributes();
     for (auto it = attributes.begin(); it != attributes.end(); ++it) {
       auto val = it.value();
-      std::print("{} = {}, ", it.key(), std::string_view{val});
+      std::format_to(std::ostream_iterator<char>{std::cout},
+                     "{} = {}, ", it.key(), std::string_view{val});
     }
     assert(attributes.remove("no_such_key") == false);
     assert(attributes.remove("down") == true);

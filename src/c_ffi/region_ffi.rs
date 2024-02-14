@@ -202,11 +202,11 @@ unsafe extern "C" fn MC_SCHEM_region_get_palette(region: *const Region, len: *mu
 }
 
 #[no_mangle]
-unsafe extern "C" fn MC_SCHEM_region_set_palette(region: *mut Region, pal: *const Block, len: usize) {
+unsafe extern "C" fn MC_SCHEM_region_set_palette(region: *mut Region, pal: *const *const Block, len: usize) {
     let region = &mut *(region);
     let mut new_pal = Vec::with_capacity(len);
     for idx in 0..len {
-        let p = pal.clone().add(idx);
+        let p = *(pal.clone().add(idx));
         new_pal.push((*p).clone());
     }
     region.palette = new_pal;
@@ -219,7 +219,7 @@ unsafe extern "C" fn MC_SCHEM_region_get_block_entities(region: *const Region) -
 }
 
 #[no_mangle]
-unsafe extern "C" fn MC_SCHEM_region_get_pending_tick(region: *const Region) -> CMapRef {
+unsafe extern "C" fn MC_SCHEM_region_get_pending_ticks(region: *const Region) -> CMapRef {
     let region = &mut *(region as *mut Region);
     return CMapRef::PosPendingTick(&mut region.pending_ticks as *mut HashMap<[i32; 3], PendingTick>);
 }
@@ -276,8 +276,8 @@ unsafe extern "C" fn MC_SCHEM_region_get_block_index(region: *const Region, r_po
 }
 
 #[no_mangle]
-unsafe extern "C" fn MC_SCHEM_region_set_block_index(region: *mut Region, r_pos: CPosInt, new_idx: u16) {
-    (*region).set_block_id(r_pos.pos, new_idx).unwrap();
+unsafe extern "C" fn MC_SCHEM_region_set_block_index(region: *mut Region, r_pos: CPosInt, new_idx: u16) -> bool {
+    return (*region).set_block_id(r_pos.pos, new_idx).is_ok();
 }
 
 #[no_mangle]

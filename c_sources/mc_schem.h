@@ -376,21 +376,21 @@ MC_SCHEM_EXPORT MC_SCHEM_region_box MC_SCHEM_create_region();
 
 MC_SCHEM_EXPORT void MC_SCHEM_release_region(MC_SCHEM_region_box *);
 
-MC_SCHEM_EXPORT MC_SCHEM_string_view MC_SCHEM_region_get_name(const MC_SCHEM_region_box *);
+MC_SCHEM_EXPORT MC_SCHEM_string_view MC_SCHEM_region_get_name(const MC_SCHEM_region *);
 
 MC_SCHEM_EXPORT void MC_SCHEM_region_set_name(MC_SCHEM_region *, MC_SCHEM_string_view name);
 
-MC_SCHEM_EXPORT MC_SCHEM_array3_i32 MC_SCHEM_region_get_offset(const MC_SCHEM_region_box *);
+MC_SCHEM_EXPORT MC_SCHEM_array3_i32 MC_SCHEM_region_get_offset(const MC_SCHEM_region *);
 
 MC_SCHEM_EXPORT void MC_SCHEM_region_set_offset(MC_SCHEM_region *, MC_SCHEM_array3_i32 offset);
 
 MC_SCHEM_EXPORT MC_SCHEM_block *MC_SCHEM_region_get_palette(const MC_SCHEM_region *, size_t *len);
 
-MC_SCHEM_EXPORT void MC_SCHEM_region_set_palette(MC_SCHEM_region *, const MC_SCHEM_block *palette, size_t len);
+MC_SCHEM_EXPORT void MC_SCHEM_region_set_palette(MC_SCHEM_region *, const MC_SCHEM_block *const *palette, size_t len);
 
 MC_SCHEM_EXPORT MC_SCHEM_map_ref MC_SCHEM_region_get_block_entities(const MC_SCHEM_region *);
 
-MC_SCHEM_EXPORT MC_SCHEM_map_ref MC_SCHEM_region_get_pending_tick(const MC_SCHEM_region *);
+MC_SCHEM_EXPORT MC_SCHEM_map_ref MC_SCHEM_region_get_pending_ticks(const MC_SCHEM_region *);
 
 MC_SCHEM_EXPORT MC_SCHEM_entity *MC_SCHEM_region_get_entities(const MC_SCHEM_region *, size_t *len);
 

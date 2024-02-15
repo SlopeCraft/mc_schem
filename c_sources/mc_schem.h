@@ -368,6 +368,16 @@ MC_SCHEM_EXPORT MC_SCHEM_pending_tick_type MC_SCHEM_pending_tick_get_type(const 
 MC_SCHEM_EXPORT void MC_SCHEM_pending_tick_set_info(MC_SCHEM_pending_tick *,
                                                     MC_SCHEM_pending_tick_type type,
                                                     MC_SCHEM_string_view id);
+
+//////////////////////////////////
+typedef struct MC_SCHEM_error_s MC_SCHEM_error;
+MC_SCHEM_DEFINE_BOX(MC_SCHEM_error)
+
+MC_SCHEM_EXPORT void MC_SCHEM_release_error(MC_SCHEM_error_box *);
+
+MC_SCHEM_EXPORT void MC_SCHEM_error_to_string(const MC_SCHEM_error *, char *dest, size_t capacity, size_t *length);
+
+
 //////////////////////////////////
 typedef struct MC_SCHEM_region_s MC_SCHEM_region;
 MC_SCHEM_DEFINE_BOX(MC_SCHEM_region)
@@ -435,6 +445,9 @@ typedef struct {
 } MC_SCHEM_region_block_info;
 MC_SCHEM_EXPORT MC_SCHEM_region_block_info
 MC_SCHEM_region_get_block_info(const MC_SCHEM_region *, MC_SCHEM_array3_i32 r_pos);
+
+// box.ptr will contain NULL if no error
+MC_SCHEM_EXPORT MC_SCHEM_error_box MC_SCHEM_region_shrink_palette(MC_SCHEM_region *);
 
 //////////////////////////////////
 typedef struct MC_SCHEM_schem_s MC_SCHEM_schem;

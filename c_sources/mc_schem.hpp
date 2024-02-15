@@ -36,12 +36,24 @@ namespace mc_schem {
   };
 
   namespace detail {
-    std::string_view string_view_schem_to_std(MC_SCHEM_string_view s) noexcept {
+    [[nodiscard]] std::string_view string_view_schem_to_std(MC_SCHEM_string_view s) noexcept {
       return std::string_view{s.begin, s.end};
     }
 
-    MC_SCHEM_string_view string_view_std_to_schem(std::string_view s) noexcept {
+    [[nodiscard]] MC_SCHEM_string_view string_view_std_to_schem(std::string_view s) noexcept {
       return MC_SCHEM_string_view{s.data(), s.data() + s.size()};
+    }
+
+    [[nodiscard]] std::array<int, 3> array3_i32_schem_to_std(MC_SCHEM_array3_i32 arr) noexcept {
+      std::array<int, 3> result;
+      std::copy_n(arr.pos, 3, result.begin());
+      return result;
+    }
+
+    [[nodiscard]] MC_SCHEM_array3_i32 array3_i32_std_to_schem(std::span<const int, 3> arr) noexcept {
+      MC_SCHEM_array3_i32 result;
+      std::copy_n(arr.begin(), 3, result.pos);
+      return result;
     }
 
     template<typename handle_t>
@@ -88,28 +100,45 @@ namespace mc_schem {
     class deleter {
     public:
       static void operator()(MC_SCHEM_block *s) noexcept {
+        if (s == nullptr)return;
         MC_SCHEM_block_box box{s};
         MC_SCHEM_release_block(&box);
       }
 
       static void operator()(MC_SCHEM_nbt_value *v) noexcept {
+        if (v == nullptr)return;
         MC_SCHEM_nbt_value_box box{v};
         MC_SCHEM_release_nbt(&box);
       }
 
       static void operator()(MC_SCHEM_entity *v) noexcept {
+        if (v == nullptr)return;
         MC_SCHEM_entity_box box{v};
         MC_SCHEM_release_entity(&box);
       }
 
       static void operator()(MC_SCHEM_block_entity *v) noexcept {
+        if (v == nullptr)return;
         MC_SCHEM_block_entity_box box{v};
         MC_SCHEM_release_block_entity(&box);
       }
 
       static void operator()(MC_SCHEM_pending_tick *v) noexcept {
+        if (v == nullptr)return;
         MC_SCHEM_pending_tick_box box{v};
         MC_SCHEM_release_pending_tick(&box);
+      }
+
+      static void operator()(MC_SCHEM_error *v) noexcept {
+        if (v == nullptr)return;
+        MC_SCHEM_error_box box{v};
+        MC_SCHEM_release_error(&box);
+      }
+
+      static void operator()(MC_SCHEM_region *r) noexcept {
+        if (r == nullptr)return;
+        MC_SCHEM_region_box box{r};
+        MC_SCHEM_release_region(&box);
       }
 
 //      void operator()(MC_SCHEM_map_ref *m) const noexcept {
@@ -130,7 +159,7 @@ namespace mc_schem {
         return this->content.unwrap_handle();
       }
 
-      const handle_t *handle() const noexcept {
+      [[nodiscard]] const handle_t *handle() const noexcept {
         return this->content.unwrap_handle();
       }
 
@@ -139,7 +168,7 @@ namespace mc_schem {
 
       box(const box &) = delete;
 
-      box(box &&src) {
+      box(box &&src) noexcept {
         this->content.swap(src.content);
       }
 
@@ -153,7 +182,7 @@ namespace mc_schem {
         }
       }
 
-      operator bool() const noexcept {
+      explicit operator bool() const noexcept {
         return this->handle() != nullptr;
       }
 
@@ -166,7 +195,62 @@ namespace mc_schem {
       }
     };
 
+
+    class error : public wrapper<MC_SCHEM_error *> {
+    public:
+      error() = delete;
+
+      error(const error &) = delete;
+
+      explicit error(MC_SCHEM_error *handle) : wrapper<MC_SCHEM_error *>{handle} {}
+
+      void to_string(std::string &dest) const noexcept {
+        dest.resize(1024);
+        while (true) {
+          const auto cap = dest.size();
+          size_t len = 0;
+          MC_SCHEM_error_to_string(this->handle, dest.data(), cap, &len);
+          if (cap >= len) {
+            dest.resize(len);
+            break;
+          }
+          //size not enough
+          dest.resize(cap * 2);
+        }
+        if (dest.back() == '\0') {
+          dest.pop_back();
+        }
+      }
+
+      [[nodiscard]] std::string to_string() const noexcept {
+        std::string result;
+        this->to_string(result);
+        return result;
+      }
+    };
+
+    using error_box = box<error, MC_SCHEM_error_box>;
+
   }
+
+  class error : public std::runtime_error {
+  protected:
+    detail::error_box content;
+  public:
+    error() = delete;
+
+    error(const error &) = delete;
+
+    explicit error(detail::error_box &&box) :
+      std::runtime_error{""},
+      content{std::move(box)} {
+      static_cast<std::runtime_error &>(*this) = std::runtime_error{this->content->to_string()};
+    }
+
+    explicit error(MC_SCHEM_error_box &&box) : error{detail::error_box{std::move(box)}} {
+      assert(this->content->unwrap_handle() != nullptr);
+    }
+  };
 
   class rust_string : public detail::wrapper<MC_SCHEM_string *> {
   public:
@@ -174,12 +258,12 @@ namespace mc_schem {
 
     rust_string(MC_SCHEM_string *handle) : detail::wrapper<MC_SCHEM_string *>(handle) {}
 
-    operator std::string_view() const noexcept {
+    explicit operator std::string_view() const noexcept {
       auto schem_sv = MC_SCHEM_string_unwrap(this->handle);
       return detail::string_view_schem_to_std(schem_sv);
     }
 
-    operator MC_SCHEM_string_view() const noexcept {
+    explicit operator MC_SCHEM_string_view() const noexcept {
       return MC_SCHEM_string_unwrap(this->handle);
     }
 
@@ -441,7 +525,7 @@ namespace mc_schem {
 
     protected:
 
-      MC_SCHEM_map_iterator impl_begin() const noexcept {
+      [[nodiscard]] MC_SCHEM_map_iterator impl_begin() const noexcept {
         bool ok = false;
         auto it = MC_SCHEM_map_iterator_first(&this->map_ref,
                                               static_cast<MC_SCHEM_map_key_type>(key_e),
@@ -450,7 +534,7 @@ namespace mc_schem {
         return it;
       }
 
-      MC_SCHEM_map_iterator impl_end() const noexcept {
+      [[nodiscard]] MC_SCHEM_map_iterator impl_end() const noexcept {
         bool ok = false;
         auto it = MC_SCHEM_map_iterator_end(&this->map_ref,
                                             static_cast<MC_SCHEM_map_key_type>(key_e),
@@ -468,11 +552,11 @@ namespace mc_schem {
         return iterator{this->impl_end()};
       }
 
-      const_iterator begin() const noexcept {
+      [[nodiscard]] const_iterator begin() const noexcept {
         return this->cbegin();
       }
 
-      const_iterator end() const noexcept {
+      [[nodiscard]] const_iterator end() const noexcept {
         return this->cend();
       }
 
@@ -636,7 +720,7 @@ namespace mc_schem {
 
     nbt(MC_SCHEM_nbt_value *handle) : detail::wrapper<MC_SCHEM_nbt_value *>{handle} {}
 
-    tag_type type() const noexcept {
+    [[nodiscard]] tag_type type() const noexcept {
       return static_cast<enum tag_type>(MC_SCHEM_nbt_get_type(this->handle));
     }
 
@@ -669,7 +753,7 @@ namespace mc_schem {
                                      tag_type_to_string(expected));
       }
 
-      const char *what() const noexcept override {
+      [[nodiscard]] const char *what() const noexcept override {
         return this->what_str.c_str();
       }
     };
@@ -915,7 +999,7 @@ namespace mc_schem {
 
     [[nodiscard]] std::array<int, 3> block_pos() const noexcept {
       MC_SCHEM_array3_i32 pos = MC_SCHEM_entity_get_block_pos(this->handle);
-      std::array<int, 3> ret;
+      std::array<int, 3> ret{};
       for (size_t i = 0; i < 3; i++) {
         ret[i] = pos.pos[i];
       }
@@ -924,7 +1008,7 @@ namespace mc_schem {
 
     [[nodiscard]] std::array<double, 3> pos() const noexcept {
       MC_SCHEM_array3_f64 pos = MC_SCHEM_entity_get_pos(this->handle);
-      std::array<double, 3> ret;
+      std::array<double, 3> ret{};
       for (size_t i = 0; i < 3; i++) {
         ret[i] = pos.pos[i];
       }
@@ -1049,11 +1133,189 @@ namespace mc_schem {
 
   };
 
+
   class region : public detail::wrapper<MC_SCHEM_region *> {
   public:
     region() = delete;
 
+    region(const region &) = delete;
+
     region(MC_SCHEM_region *handle) : detail::wrapper<MC_SCHEM_region *>{handle} {}
+
+    static detail::box<region, MC_SCHEM_region_box> create() noexcept {
+      return detail::box<region, MC_SCHEM_region_box>{MC_SCHEM_create_region()};
+    }
+
+    [[nodiscard]] std::string_view name() const noexcept {
+      return detail::string_view_schem_to_std(MC_SCHEM_region_get_name(this->handle));
+    }
+
+    void set_name(std::string_view name) noexcept {
+      MC_SCHEM_region_set_name(this->handle, detail::string_view_std_to_schem(name));
+    }
+
+    [[nodiscard]] std::array<int, 3> offset() const noexcept {
+      auto offset = MC_SCHEM_region_get_offset(this->handle);
+      return detail::array3_i32_schem_to_std(offset);
+    }
+
+    void set_offset(std::span<const int, 3> offset) noexcept {
+      MC_SCHEM_region_set_offset(this->handle, detail::array3_i32_std_to_schem(offset));
+    }
+
+    [[nodiscard]] const std::vector<block> palette() const noexcept {
+      size_t len = 0;
+      auto pal = MC_SCHEM_region_get_palette(this->handle, &len);
+      std::vector<block> result;
+      result.reserve(len);
+      for (size_t i = 0; i < len; i++) {
+        result.push_back(block{pal + i});
+      }
+      return result;
+    }
+
+    void set_palette(std::span<const MC_SCHEM_block *> pal) noexcept {
+      MC_SCHEM_region_set_palette(this->handle, pal.data(), pal.size());
+    }
+
+    void set_palette(std::span<const block> pal) noexcept {
+      std::vector<const MC_SCHEM_block *> p;
+      p.reserve(pal.size());
+      for (auto &blk: pal) {
+        p.push_back(blk.unwrap_handle());
+      }
+      this->set_palette(p);
+    }
+
+    using block_entity_map = detail::map_wrapper<map_key_type::pos_i32, std::span<const int, 3>, map_value_type::block_entity, block_entity>;
+    using pending_tick_map = detail::map_wrapper<map_key_type::pos_i32, std::span<const int, 3>, map_value_type::pending_tick, pending_tick>;
+
+  protected:
+    [[nodiscard]] block_entity_map impl_block_entities() const noexcept {
+      return block_entity_map{MC_SCHEM_region_get_block_entities(this->handle)};
+    }
+
+    [[nodiscard]] pending_tick_map impl_pending_ticks() const noexcept {
+      return pending_tick_map{MC_SCHEM_region_get_pending_ticks(this->handle)};
+    }
+
+    [[nodiscard]] std::span<uint16_t> impl_block_index_array() const noexcept {
+      auto ptr = MC_SCHEM_region_get_block_index_array(this->handle);
+      return {ptr, this->volume()};
+    }
+
+  public:
+    [[nodiscard]] block_entity_map block_entities() noexcept {
+      return this->impl_block_entities();
+    }
+
+    [[nodiscard]] const block_entity_map block_entities() const noexcept {
+      return this->impl_block_entities();
+    }
+
+    [[nodiscard]] pending_tick_map pending_ticks() noexcept {
+      return this->impl_pending_ticks();
+    }
+
+    [[nodiscard]] const pending_tick_map pending_ticks() const noexcept {
+      return this->impl_pending_ticks();
+    }
+
+
+    [[nodiscard]] uint64_t volume() const noexcept {
+      return MC_SCHEM_region_get_volume(this->handle);
+    }
+
+    [[nodiscard]] uint64_t total_blocks(bool include_air) const noexcept {
+      return MC_SCHEM_region_get_total_blocks(this->handle, include_air);
+    }
+
+    [[nodiscard]] std::array<int, 3> shape() const noexcept {
+      return detail::array3_i32_schem_to_std(MC_SCHEM_region_get_shape(this->handle));
+    }
+
+    void reshape(std::span<const int, 3> shape) noexcept {
+      MC_SCHEM_region_reshape(this->handle, detail::array3_i32_std_to_schem(shape));
+    }
+
+    [[nodiscard]] const block block_at(std::span<const int, 3> r_pos) const noexcept {
+      auto ptr = MC_SCHEM_region_get_block(this->handle, detail::array3_i32_std_to_schem(r_pos));
+      return block{const_cast<MC_SCHEM_block *>(ptr)};
+    }
+
+    [[nodiscard]] bool set_block_at(std::span<const int, 3> r_pos, const block &blk) noexcept {
+      return MC_SCHEM_region_set_block(this->handle,
+                                       detail::array3_i32_std_to_schem(r_pos),
+                                       blk.unwrap_handle());
+    }
+
+    [[nodiscard]] uint16_t block_index_at(std::span<const int, 3> r_pos) const noexcept {
+      return MC_SCHEM_region_get_block_index(this->handle,
+                                             detail::array3_i32_std_to_schem(r_pos));
+    }
+
+    [[nodiscard]] bool set_block_index_at(std::span<const int, 3> r_pos, uint16_t block_index) noexcept {
+      return MC_SCHEM_region_set_block_index(this->handle,
+                                             detail::array3_i32_std_to_schem(r_pos),
+                                             block_index);
+    }
+
+    [[nodiscard]] std::optional<uint16_t> block_index_of_air() const noexcept {
+      bool ok = false;
+      auto result = MC_SCHEM_region_get_block_index_of_air(this->handle, &ok);
+      if (ok) {
+        return result;
+      }
+      return std::nullopt;
+    }
+
+    [[nodiscard]] std::optional<uint16_t> block_index_of_structure_void() const noexcept {
+      bool ok = false;
+      auto result = MC_SCHEM_region_get_block_index_of_structure_void(this->handle, &ok);
+      if (ok) {
+        return result;
+      }
+      return std::nullopt;
+    }
+
+    [[nodiscard]] bool contains_coordinate(std::span<const int, 3> r_pos) const noexcept {
+      return MC_SCHEM_region_contains_coordinate(this->handle,
+                                                 detail::array3_i32_std_to_schem(r_pos));
+    }
+
+    struct block_info {
+      uint16_t block_index;
+      const block block;
+      block_entity blockEntity;
+      pending_tick pendingTick;
+    };
+  protected:
+    [[nodiscard]] block_info impl_block_info_at(std::span<const int, 3> r_pos) const noexcept {
+      auto result = MC_SCHEM_region_get_block_info(this->handle,
+                                                   detail::array3_i32_std_to_schem(r_pos));
+      return block_info{result.block_index,
+                        block{const_cast<MC_SCHEM_block *>(result.block)},
+                        block_entity{const_cast<MC_SCHEM_block_entity *>(result.block_entity)},
+                        pending_tick{const_cast<MC_SCHEM_pending_tick *>(result.pending_tick)},
+      };
+    }
+
+  public:
+    [[nodiscard]]const block_info block_info_at(std::span<const int, 3> r_pos) const noexcept {
+      return this->impl_block_info_at(r_pos);
+    }
+
+    [[nodiscard]] block_info block_info_at(std::span<const int, 3> r_pos) noexcept {
+      return this->impl_block_info_at(r_pos);
+    }
+
+    void shrink_palette() {
+      auto box = MC_SCHEM_region_shrink_palette(this->handle);
+      if (box.ptr != nullptr) {
+        throw error{std::move(box)};
+      }
+    }
+
 
   };
 

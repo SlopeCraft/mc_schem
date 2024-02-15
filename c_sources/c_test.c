@@ -133,6 +133,10 @@ void test_link() {
   check_fun_ptr(MC_SCHEM_pending_tick_get_type);
   check_fun_ptr(MC_SCHEM_pending_tick_set_info);
   ////////////////////////////////////
+  //error
+  check_fun_ptr(MC_SCHEM_release_error);
+  check_fun_ptr(MC_SCHEM_error_to_string);
+  ////////////////////////////////////
   //region
   check_fun_ptr(MC_SCHEM_create_region);
   check_fun_ptr(MC_SCHEM_release_region);
@@ -159,6 +163,6 @@ void test_link() {
   check_fun_ptr(MC_SCHEM_region_get_block_index_of_structure_void);
   check_fun_ptr(MC_SCHEM_region_contains_coordinate);
   check_fun_ptr(MC_SCHEM_region_get_block_info);
-  //  check_fun_ptr(MC_SCHEM_destroy_schem);
+  check_fun_ptr(MC_SCHEM_region_shrink_palette);
 
 }

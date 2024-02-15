@@ -1,12 +1,14 @@
 use std::collections::{BTreeMap, HashMap};
-use std::ffi::{c_char};
-use std::ptr::{null, null_mut, slice_from_raw_parts, slice_from_raw_parts_mut};
+use std::ffi::{c_char, CStr};
+use std::intrinsics::copy_nonoverlapping;
+use std::ptr::{drop_in_place, NonNull, null, null_mut, slice_from_raw_parts, slice_from_raw_parts_mut};
 use std::str::from_utf8_unchecked;
 use static_assertions as sa;
 use std::mem::size_of;
 use fastnbt::Value;
 use crate::Block;
 use crate::block::BlockIdParseError;
+use crate::error::Error;
 use crate::region::{BlockEntity, Entity, PendingTick};
 
 mod map_ffi;
@@ -303,5 +305,41 @@ impl Default for CRegionBlockInfo {
             block_entity: null_mut(),
             pending_tick: null_mut(),
         }
+    }
+}
+
+#[no_mangle]
+unsafe extern "C" fn MC_SCHEM_release_error(b: *mut Box<Error>) {
+    drop_in_place(b);
+}
+
+#[no_mangle]
+unsafe extern "C" fn MC_SCHEM_error_to_string(error: *const Error, dest: *mut c_char, capacity: usize, length: *mut usize) {
+    let mut s = (*error).to_string();
+    s.push('\0');
+    if capacity < s.len() {
+        *length = 0;
+        return;
+    }
+    let required_bytes = s.as_bytes().len();
+
+    *length = required_bytes;
+
+    if capacity < required_bytes {
+        return;
+    }
+    copy_nonoverlapping(s.as_ptr() as *const c_char, dest, s.as_bytes().len());
+}
+
+struct Pointer {
+    ptr: *const Error,
+}
+
+pub fn error_to_box(err: Option<Error>) -> Option<Box<Error>> {
+    sa::const_assert!(size_of::<Option<Box<Error>>>()==size_of::<usize>());
+    return if let Some(e) = err {
+        Some(Box::from(e))
+    } else {
+        None
     }
 }

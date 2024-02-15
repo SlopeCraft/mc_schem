@@ -2,8 +2,9 @@ use std::collections::HashMap;
 use std::ptr::{drop_in_place, null, null_mut};
 use fastnbt::Value;
 use crate::Block;
-use crate::c_ffi::{CMapRef, CNumberId, CPendingTickType, CPosDouble, CPosInt, CRegionBlockInfo, CStringView};
+use crate::c_ffi::{CMapRef, CNumberId, CPendingTickType, CPosDouble, CPosInt, CRegionBlockInfo, CStringView, error_to_box};
 use crate::region::{BlockEntity, Entity, PendingTick, PendingTickInfo, Region};
+use crate::error::Error;
 
 #[no_mangle]
 extern "C" fn MC_SCHEM_create_entity() -> Box<Entity> {
@@ -332,4 +333,13 @@ unsafe extern "C" fn MC_SCHEM_region_get_block_info(region: *const Region, r_pos
     };
 
     return result;
+}
+
+#[no_mangle]
+unsafe extern "C" fn MC_SCHEM_region_shrink_palette(region: *mut Region) -> Option<Box<Error>> {
+    let err = (*region).shrink_palette();
+    if let Err(err) = err {
+        return error_to_box(Some(err));
+    }
+    return None;
 }

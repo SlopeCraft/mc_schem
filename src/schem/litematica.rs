@@ -6,7 +6,7 @@ use fastnbt::{LongArray, Value};
 use flate2::{GzBuilder};
 use flate2::read::GzDecoder;
 use crate::schem::{LitematicaMetaData, Schematic, id_of_nbt_tag, RawMetaData, MetaDataIR, Region, LitematicaLoadOption, BlockEntity, LitematicaSaveOption};
-use crate::error::{LoadError, WriteError};
+use crate::error::{Error};
 use crate::{unwrap_opt_tag, unwrap_tag};
 use crate::schem::common;
 use crate::region::{Entity, PendingTick, PendingTickInfo};
@@ -31,23 +31,23 @@ impl MetaDataIR {
 
 
 impl Schematic {
-    pub fn from_litematica_file(filename: &str, option: &LitematicaLoadOption) -> Result<Schematic, LoadError> {
+    pub fn from_litematica_file(filename: &str, option: &LitematicaLoadOption) -> Result<Schematic, Error> {
         let file_res = File::open(filename);
         let mut file;
         match file_res {
             Ok(f) => file = f,
-            Err(e) => return Err(LoadError::FileOpenError(e)),
+            Err(e) => return Err(Error::FileOpenError(e)),
         }
 
         let mut decoder = GzDecoder::new(&mut file);
         return Self::from_litematica(&mut decoder, option);
     }
-    pub fn from_litematica(src: &mut dyn std::io::Read, _option: &LitematicaLoadOption) -> Result<Schematic, LoadError> {
+    pub fn from_litematica(src: &mut dyn std::io::Read, _option: &LitematicaLoadOption) -> Result<Schematic, Error> {
         let parse_res: Result<HashMap<String, Value>, fastnbt::error::Error> = fastnbt::from_reader(src);
         let parsed;
         match parse_res {
             Ok(nbt) => parsed = nbt,
-            Err(e) => return Err(LoadError::NBTReadError(e)),
+            Err(e) => return Err(Error::NBTReadError(e)),
         }
 
         let mut schem = Schematic::new();
@@ -78,7 +78,7 @@ impl Schematic {
 }
 
 
-fn parse_metadata(root: &HashMap<String, Value>) -> Result<LitematicaMetaData, LoadError> {
+fn parse_metadata(root: &HashMap<String, Value>) -> Result<LitematicaMetaData, Error> {
     let mut result = LitematicaMetaData::default();
 
     result.data_version = *unwrap_opt_tag!(root.get("MinecraftDataVersion"),Int,0,"/MinecraftDataVersion");
@@ -91,7 +91,7 @@ fn parse_metadata(root: &HashMap<String, Value>) -> Result<LitematicaMetaData, L
     {
         let enclosing_size = unwrap_opt_tag!(md.get("EnclosingSize"),Compound,HashMap::new(),"/Metadata/EnclosingSize".to_string());
         if enclosing_size.len() != 3 {
-            return Err(LoadError::InvalidValue {
+            return Err(Error::InvalidValue {
                 tag_path: "/Metadata/EnclosingSize".to_string(),
                 error: format!("Expected a compound containing 3 elements, but found {}", enclosing_size.len()),
             });
@@ -138,7 +138,7 @@ pub fn block_required_bits(palette_size: usize) -> usize {
 }
 
 impl Region {
-    pub fn from_nbt_litematica(nbt: &HashMap<String, Value>, tag_path: &str) -> Result<Region, LoadError> {
+    pub fn from_nbt_litematica(nbt: &HashMap<String, Value>, tag_path: &str) -> Result<Region, Error> {
         let mut region = Region::new();
 
         // parse position(offset)
@@ -200,7 +200,7 @@ impl Region {
                     for x in 0..region.shape()[0] {
                         let blk_id = mbs.get(idx);
                         if blk_id >= palette_len as u64 {
-                            return Err(LoadError::BlockIndexOutOfRange {
+                            return Err(Error::BlockIndexOutOfRange {
                                 tag_path: format!("{}/BlockStates", tag_path),
                                 index: blk_id as i32,
                                 range: [0, palette_len as i32],
@@ -250,7 +250,7 @@ impl Region {
                 }
 
                 if region.block_entities.contains_key(&pos) {
-                    return Err(LoadError::MultipleBlockEntityInOnePos {
+                    return Err(Error::MultipleBlockEntityInOnePos {
                         pos,
                         latter_tag_path: cur_tag_path,
                     });
@@ -270,7 +270,7 @@ impl Region {
                 let pft_comp = unwrap_tag!(pft_comp,Compound,HashMap::new(),cur_tag_path);
                 let (pos, pft) = parse_pending_tick(pft_comp, &cur_tag_path, &region.shape(), false)?;
                 if region.pending_ticks.contains_key(&pos) {
-                    return Err(LoadError::MultiplePendingTickInOnePos { pos, latter_tag_path: cur_tag_path });
+                    return Err(Error::MultiplePendingTickInOnePos { pos, latter_tag_path: cur_tag_path });
                 }
                 region.pending_ticks.insert(pos, pft);
             }
@@ -286,7 +286,7 @@ impl Region {
                 let pbt_comp = unwrap_tag!(pbt_comp,Compound,HashMap::new(),cur_tag_path);
                 let (pos, pft) = parse_pending_tick(pbt_comp, &cur_tag_path, &region.shape(), true)?;
                 if region.pending_ticks.contains_key(&pos) {
-                    return Err(LoadError::MultiplePendingTickInOnePos { pos, latter_tag_path: cur_tag_path });
+                    return Err(Error::MultiplePendingTickInOnePos { pos, latter_tag_path: cur_tag_path });
                 }
                 region.pending_ticks.insert(pos, pft);
             }
@@ -530,14 +530,14 @@ impl MultiBitSet {
     }
 }
 
-fn parse_entity(nbt: &HashMap<String, Value>, tag_path: &str) -> Result<Entity, LoadError> {
+fn parse_entity(nbt: &HashMap<String, Value>, tag_path: &str) -> Result<Entity, Error> {
     let mut entity = Entity::new();
     entity.tags = nbt.clone();
 
     let tag_pos_path = format!("{}/Pos", tag_path);
     let pos = unwrap_opt_tag!(nbt.get("Pos"),List,vec![],tag_pos_path);
     if pos.len() != 3 {
-        return Err(LoadError::InvalidValue {
+        return Err(Error::InvalidValue {
             tag_path: tag_pos_path,
             error: format!("Pos filed for an entity should contain 3 doubles, but found {}", pos.len()),
         });
@@ -556,7 +556,7 @@ fn parse_entity(nbt: &HashMap<String, Value>, tag_path: &str) -> Result<Entity, 
 }
 
 fn parse_tile_entity(nbt: &HashMap<String, Value>, tag_path: &str, region_size: &[i32; 3])
-                     -> Result<([i32; 3], BlockEntity), LoadError> {
+    -> Result<([i32; 3], BlockEntity), Error> {
     let mut be = BlockEntity::new();
 
     let pos: [i32; 3];
@@ -569,7 +569,7 @@ fn parse_tile_entity(nbt: &HashMap<String, Value>, tag_path: &str, region_size: 
     let tag_names = ['x', 'y', 'z'];
     for (dim, p) in pos.iter().enumerate() {
         if *p < 0 || *p > region_size[dim] {
-            return Err(LoadError::BlockPosOutOfRange {
+            return Err(Error::BlockPosOutOfRange {
                 tag_path: format!("{}/{}", tag_path, tag_names[dim]),
                 pos,
                 range: *region_size,
@@ -589,7 +589,7 @@ fn parse_tile_entity(nbt: &HashMap<String, Value>, tag_path: &str, region_size: 
 
 
 fn parse_pending_tick(nbt: &HashMap<String, Value>, tag_path: &str, region_size: &[i32; 3], is_block: bool)
-                      -> Result<([i32; 3], PendingTick), LoadError> {
+    -> Result<([i32; 3], PendingTick), Error> {
     let pos;
     match common::parse_size_compound(nbt, tag_path, false) {
         Ok(p) => pos = p,
@@ -598,7 +598,7 @@ fn parse_pending_tick(nbt: &HashMap<String, Value>, tag_path: &str, region_size:
     let pos_keys = ['x', 'y', 'z'];
     for dim in 0..3 {
         if pos[dim] < 0 || pos[dim] >= region_size[dim] {
-            return Err(LoadError::BlockPosOutOfRange {
+            return Err(Error::BlockPosOutOfRange {
                 tag_path: format!("{}/{}", tag_path, pos_keys[dim]),
                 pos,
                 range: *region_size,
@@ -628,7 +628,7 @@ fn parse_pending_tick(nbt: &HashMap<String, Value>, tag_path: &str, region_size:
 
 #[allow(dead_code)]
 impl Schematic {
-    pub fn metadata_litematica(&self) -> Result<LitematicaMetaData, WriteError> {
+    pub fn metadata_litematica(&self) -> Result<LitematicaMetaData, Error> {
         let mut md =
             LitematicaMetaData::from_data_version_i32(self.metadata.mc_data_version)?;
 
@@ -652,7 +652,7 @@ impl Schematic {
             return cur_name;
         }
     }
-    pub fn to_nbt_litematica(&self, option: &LitematicaSaveOption) -> Result<HashMap<String, Value>, WriteError> {
+    pub fn to_nbt_litematica(&self, option: &LitematicaSaveOption) -> Result<HashMap<String, Value>, Error> {
         let mut nbt: HashMap<String, Value> = HashMap::new();
 
         //Regions
@@ -671,7 +671,7 @@ impl Schematic {
                         regions.insert(new_name, Value::Compound(nbt_region));
                         continue;
                     }
-                    return Err(WriteError::DuplicatedRegionName { name: reg.name.clone() });
+                    return Err(Error::DuplicatedRegionName { name: reg.name.clone() });
                 }
                 regions.insert(reg.name.clone(), Value::Compound(nbt_region));
             }
@@ -707,7 +707,7 @@ impl Schematic {
         return Ok(nbt);
     }
 
-    pub fn save_litematica_file(&self, filename: &str, option: &LitematicaSaveOption) -> Result<(), WriteError> {
+    pub fn save_litematica_file(&self, filename: &str, option: &LitematicaSaveOption) -> Result<(), Error> {
         let nbt;
         match self.to_nbt_litematica(option) {
             Ok(nbt_) => nbt = nbt_,
@@ -717,7 +717,7 @@ impl Schematic {
         let file;
         match File::create(filename) {
             Ok(f) => file = f,
-            Err(e) => return Err(WriteError::FileCreateError(e)),
+            Err(e) => return Err(Error::FileCreateError(e)),
         }
 
         let mut encoder = GzBuilder::new()
@@ -728,10 +728,10 @@ impl Schematic {
 
         let res: Result<(), fastnbt::error::Error> = fastnbt::to_writer(&mut encoder, &nbt);
         if let Err(e) = res {
-            return Err(WriteError::NBTWriteError(e));
+            return Err(Error::NBTWriteError(e));
         }
         if let Err(e) = encoder.finish() {
-            return Err(WriteError::NBTWriteError(e.into()));
+            return Err(Error::NBTWriteError(e.into()));
         }
 
         return Ok(());
@@ -740,7 +740,7 @@ impl Schematic {
 
 
 impl Region {
-    pub fn to_nbt_litematica(&self) -> Result<HashMap<String, Value>, WriteError> {
+    pub fn to_nbt_litematica(&self) -> Result<HashMap<String, Value>, Error> {
         let mut nbt = HashMap::new();
         //Size
         nbt.insert("Size".to_string(), Value::Compound(common::size_to_compound(&self.shape())));

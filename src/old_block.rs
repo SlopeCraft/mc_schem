@@ -332,6 +332,7 @@ impl Block {
         debug_assert!(block.is_ok());
         let mut block = block.unwrap();
         debug_assert!(block.attributes.is_empty());
+        block.namespace = "minecraft".to_string();
 
         let allowed_damage_value_num = num_valid_damage_values(id);
         debug_assert!(allowed_damage_value_num > 0);

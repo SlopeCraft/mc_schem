@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use ndarray::Array3;
 use crate::block::Block;
-use crate::error::WriteError;
+use crate::error::Error;
 
 #[derive(Debug, Clone)]
 pub struct Entity {
@@ -269,7 +269,7 @@ impl Region {
         ];
     }
 
-    pub fn shrink_palette(&mut self) -> Result<(), WriteError> {
+    pub fn shrink_palette(&mut self) -> Result<(), Error> {
         let mut block_counter: Vec<u64> = Vec::new();
         block_counter.resize(self.palette.len(), 0);
 
@@ -278,7 +278,7 @@ impl Region {
                 for z in 0..self.shape()[2] {
                     let idx = self.array[[x as usize, y as usize, z as usize]];
                     if idx as usize >= self.palette.len() {
-                        return Err(WriteError::BlockIndexOfOfRange {
+                        return Err(Error::BlockIndexOfOfRange {
                             r_pos: [x, y, z],
                             block_index: idx,
                             max_index: self.palette.len() as u16 - 1,

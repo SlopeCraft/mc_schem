@@ -8,9 +8,9 @@ use fastnbt;
 use fastnbt::{Value};
 use flate2::{GzBuilder};
 use flate2::read::GzDecoder;
-use crate::error::{LoadError, WriteError};
+use crate::error::{Error};
 use crate::{unwrap_tag, unwrap_opt_tag};
-use crate::error::LoadError::FileOpenError;
+use crate::error::Error::FileOpenError;
 use crate::schem::RawMetaData::VanillaStructure;
 
 
@@ -22,18 +22,18 @@ impl MetaDataIR {
         return result;
     }
 
-    pub fn to_vanilla_structure(&self) -> Result<VanillaStructureMetaData, WriteError> {
+    pub fn to_vanilla_structure(&self) -> Result<VanillaStructureMetaData, Error> {
         let mut result = VanillaStructureMetaData::from_data_version_i32(self.mc_data_version)?;
         result.data_version = self.mc_data_version;
         return Ok(result);
     }
 }
 
-fn parse_size_tag(nbt: &HashMap<String, Value>) -> Result<[i32; 3], LoadError> {
+fn parse_size_tag(nbt: &HashMap<String, Value>) -> Result<[i32; 3], Error> {
     let size_list = unwrap_opt_tag!(nbt.get("size"),List,vec![],"/size");
 
     if size_list.len() != 3 {
-        return Err(LoadError::InvalidValue {
+        return Err(Error::InvalidValue {
             tag_path: "/size".to_string(),
             error: format!("The length should be 3, but found {}", size_list.len()),
         }
@@ -43,7 +43,7 @@ fn parse_size_tag(nbt: &HashMap<String, Value>) -> Result<[i32; 3], LoadError> {
     for idx in 0..3 {
         let sz = *unwrap_tag!(&size_list[idx],Int,0,&*format!("/size[{}]", idx));
         if sz <= 0 {
-            return Err(LoadError::InvalidValue {
+            return Err(Error::InvalidValue {
                 tag_path: format!("/size[{}]", idx),
                 error: format!("Expected non-negative number, but found {}", sz),
             }
@@ -55,13 +55,13 @@ fn parse_size_tag(nbt: &HashMap<String, Value>) -> Result<[i32; 3], LoadError> {
 }
 
 
-fn parse_array_item(item: &Value, tag_path: &str, palette_size: i32, region_size: [i32; 3]) -> Result<(i32, [i32; 3], Option<BlockEntity>), LoadError> {
+fn parse_array_item(item: &Value, tag_path: &str, palette_size: i32, region_size: [i32; 3]) -> Result<(i32, [i32; 3], Option<BlockEntity>), Error> {
     let map = unwrap_tag!(item,Compound,HashMap::new(),tag_path);
 
     // parse state
     let state: i32 = *unwrap_opt_tag!(map.get("state"),Int,0,&*format!("{}/state", tag_path));
     if state < 0 || state >= palette_size {
-        return Err(LoadError::BlockIndexOutOfRange {
+        return Err(Error::BlockIndexOutOfRange {
             tag_path: format!("{}/state", tag_path),
             index: state,
             range: [0, palette_size],
@@ -71,7 +71,7 @@ fn parse_array_item(item: &Value, tag_path: &str, palette_size: i32, region_size
     let pos_list = unwrap_opt_tag!(map.get("pos"),List,vec![],&*format!("{}/pos", tag_path));
 
     if pos_list.len() != 3 {
-        return Err(LoadError::InvalidValue {
+        return Err(Error::InvalidValue {
             tag_path: format!("{}/pos", tag_path),
             error: format!("The length of pos should be 3, but found {}", pos_list.len()),
         });
@@ -83,7 +83,7 @@ fn parse_array_item(item: &Value, tag_path: &str, palette_size: i32, region_size
     }
     for idx in 0..3 {
         if pos[idx] < 0 || pos[idx] >= region_size[idx] {
-            return Err(LoadError::BlockPosOutOfRange {
+            return Err(Error::BlockPosOutOfRange {
                 tag_path: format!("{}/pos[{}]", tag_path, idx),
                 pos,
                 range: region_size,
@@ -105,7 +105,7 @@ fn parse_array_item(item: &Value, tag_path: &str, palette_size: i32, region_size
     return Ok((state, pos, Some(block_entity)));
 }
 
-fn parse_entity(tag: &Value, tag_path: &str) -> Result<Entity, LoadError> {
+fn parse_entity(tag: &Value, tag_path: &str) -> Result<Entity, Error> {
     let compound = unwrap_tag!(tag,Compound,HashMap::new(),tag_path);
 
     let mut entity = Entity::new();
@@ -113,7 +113,7 @@ fn parse_entity(tag: &Value, tag_path: &str) -> Result<Entity, LoadError> {
     {
         let block_pos = unwrap_opt_tag!(compound.get("blockPos"),List,vec![],&*format!("{}/blockPos",tag_path));
         if block_pos.len() != 3 {
-            return Err(LoadError::InvalidValue {
+            return Err(Error::InvalidValue {
                 tag_path: format!("{}/blockPos", tag_path),
                 error: format!("blockPos should have 3 elements, but found {}", block_pos.len()),
             }
@@ -130,7 +130,7 @@ fn parse_entity(tag: &Value, tag_path: &str) -> Result<Entity, LoadError> {
     {
         let pos = unwrap_opt_tag!(compound.get("pos"),List,vec![],&*format!("{}/pos",tag_path));
         if pos.len() != 3 {
-            return Err(LoadError::InvalidValue {
+            return Err(Error::InvalidValue {
                 tag_path: format!("{}/pos", tag_path),
                 error: format!("blockPos should have 3 elements, but found {}", pos.len()),
             });
@@ -154,7 +154,7 @@ fn parse_entity(tag: &Value, tag_path: &str) -> Result<Entity, LoadError> {
 
 
 impl Schematic {
-    pub fn from_vanilla_structure_file(filename: &str, option: &VanillaStructureLoadOption) -> Result<Schematic, LoadError> {
+    pub fn from_vanilla_structure_file(filename: &str, option: &VanillaStructureLoadOption) -> Result<Schematic, Error> {
         let file_res = File::open(filename);
         let mut file;
         match file_res {
@@ -166,12 +166,12 @@ impl Schematic {
         return Self::from_vanilla_structure(&mut decoder, option);
     }
     pub fn from_vanilla_structure(src: &mut dyn std::io::Read, option: &VanillaStructureLoadOption)
-                                  -> Result<Schematic, LoadError> {
+        -> Result<Schematic, Error> {
         let loaded_opt: Result<HashMap<String, Value>, fastnbt::error::Error> = fastnbt::from_reader(src);
         let nbt;
         match loaded_opt {
             Ok(loaded_nbt) => nbt = loaded_nbt,
-            Err(err) => return Err(LoadError::NBTReadError(err)),
+            Err(err) => return Err(Error::NBTReadError(err)),
         }
 
         let mut schem = Schematic::new();
@@ -217,7 +217,7 @@ impl Schematic {
         }
 
         if region.palette.len() >= 65536 {
-            return Err(LoadError::PaletteTooLong(region.palette.len()));
+            return Err(Error::PaletteTooLong(region.palette.len()));
         }
         let default_blk_idx: u16;
         {
@@ -315,7 +315,7 @@ fn pos_to_nbt(pos: &[i32; 3]) -> Value {
 
 #[allow(dead_code)]
 impl Schematic {
-    pub fn to_nbt_vanilla_structure(&self, option: &VanillaStructureSaveOption) -> Result<HashMap<String, Value>, WriteError> {
+    pub fn to_nbt_vanilla_structure(&self, option: &VanillaStructureSaveOption) -> Result<HashMap<String, Value>, Error> {
         let mut nbt: HashMap<String, Value> = HashMap::new();
 
         {
@@ -418,7 +418,7 @@ impl Schematic {
         return Ok(nbt);
     }
 
-    // pub fn save_vanilla_structure(&self, dst: &mut dyn std::io::Write, option: &VanillaStructureSaveOption) -> Result<(), WriteError> {
+    // pub fn save_vanilla_structure(&self, dst: &mut dyn std::io::Write, option: &VanillaStructureSaveOption) -> Result<(), LoadError> {
     //     let nbt;
     //     match self.to_nbt_vanilla_structure(option) {
     //         Ok(nbt_) => nbt = nbt_,
@@ -428,18 +428,18 @@ impl Schematic {
     //
     //     let res: Result<(), fastnbt::error::Error> = fastnbt::to_writer(dst, &nbt);
     //     return match res {
-    //         Err(err) => Err(WriteError::NBTWriteError(err)),
+    //         Err(err) => Err(LoadError::NBTLoadError(err)),
     //         _ => Ok(())
     //     }
     // }
 
-    pub fn save_vanilla_structure_file(&self, filename: &str, option: &VanillaStructureSaveOption) -> Result<(), WriteError> {
+    pub fn save_vanilla_structure_file(&self, filename: &str, option: &VanillaStructureSaveOption) -> Result<(), Error> {
         let nbt = self.to_nbt_vanilla_structure(option)?;
 
         let file;
         match File::create(filename) {
             Ok(f) => file = f,
-            Err(e) => return Err(WriteError::FileCreateError(e)),
+            Err(e) => return Err(Error::FileCreateError(e)),
         }
 
         let encoder = GzBuilder::new()
@@ -449,7 +449,7 @@ impl Schematic {
 
         let res: Result<(), fastnbt::error::Error> = fastnbt::to_writer(encoder, &nbt);
         if let Err(e) = res {
-            return Err(WriteError::NBTWriteError(e));
+            return Err(Error::NBTWriteError(e));
         }
 
         return Ok(());

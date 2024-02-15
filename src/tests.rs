@@ -569,6 +569,7 @@ fn correct_test_litematica() {
 }
 
 #[test]
+#[allow(unused_assignments)]
 fn correct_test_mc13_plus() {
     let test_versions = ["1.14.4", "1.18.2", "1.19.4", "1.20.2", ];//,
     let mut err_counter = 0;
@@ -597,11 +598,13 @@ fn correct_test_mc13_plus() {
             }
         }
     }
+    println!("err_counter = {err_counter}");
     assert_eq!(err_counter, 0);
 }
 
 
 #[test]
+#[allow(unused_assignments)]
 fn correct_test_mc12() {
     let test_versions = ["1.12.2"];//,
     let mut err_counter = 0;
@@ -643,6 +646,8 @@ fn correct_test_mc12() {
                 }
             }
         }
+        println!("ok_counter = {ok_counter}");
     }
+    println!("err_counter = {}", err_counter);
     assert_eq!(err_counter, 0);
 }

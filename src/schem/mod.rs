@@ -13,7 +13,7 @@ use std::hash::{Hash, Hasher};
 use crate::block::{Block, CommonBlock};
 use fastnbt;
 use flate2::Compression;
-use crate::error::{LoadError, WriteError};
+use crate::error::{Error};
 //use schem::mc_version;
 use crate::schem;
 use crate::region::{BlockEntity, Region};
@@ -66,10 +66,10 @@ impl LitematicaMetaData {
         };
     }
 
-    pub fn from_data_version_i32(data_version: i32) -> Result<LitematicaMetaData, WriteError> {
+    pub fn from_data_version_i32(data_version: i32) -> Result<LitematicaMetaData, Error> {
         use std::time::{SystemTime, UNIX_EPOCH};
         if data_version < DataVersion::Java_1_12 as i32 {
-            return Err(WriteError::UnsupportedVersion { data_version_i32: data_version });
+            return Err(Error::UnsupportedVersion { data_version_i32: data_version });
         }
         let time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
         let result = LitematicaMetaData {
@@ -86,7 +86,7 @@ impl LitematicaMetaData {
         return Ok(result);
     }
 
-    pub fn from_data_version(data_version: DataVersion) -> Result<LitematicaMetaData, WriteError> {
+    pub fn from_data_version(data_version: DataVersion) -> Result<LitematicaMetaData, Error> {
         return Self::from_data_version_i32(data_version as i32);
     }
 }
@@ -159,15 +159,15 @@ impl Default for WE13MetaDataV3Extra {
 
 #[allow(dead_code)]
 impl WE13MetaData {
-    pub fn from_data_version(dv: DataVersion) -> Result<WE13MetaData, WriteError> {
+    pub fn from_data_version(dv: DataVersion) -> Result<WE13MetaData, Error> {
         return Self::from_data_version_i32(dv as i32);
     }
 
-    pub fn from_data_version_i32(dv: i32) -> Result<WE13MetaData, WriteError> {
+    pub fn from_data_version_i32(dv: i32) -> Result<WE13MetaData, Error> {
         let mut result = Self::default();
         result.data_version = dv;
         if dv < DataVersion::Java_1_13 as i32 {
-            return Err(WriteError::UnsupportedVersion { data_version_i32: dv });
+            return Err(Error::UnsupportedVersion { data_version_i32: dv });
         }
         // 1.13.2 => 2
         // 1.14.4 => 2
@@ -199,11 +199,11 @@ impl VanillaStructureMetaData {
     }
 
 
-    pub fn from_data_version(dv: DataVersion) -> Result<VanillaStructureMetaData, WriteError> {
+    pub fn from_data_version(dv: DataVersion) -> Result<VanillaStructureMetaData, Error> {
         return Self::from_data_version_i32(dv as i32);
     }
 
-    pub fn from_data_version_i32(dv: i32) -> Result<VanillaStructureMetaData, WriteError> {
+    pub fn from_data_version_i32(dv: i32) -> Result<VanillaStructureMetaData, Error> {
         return Ok(VanillaStructureMetaData {
             data_version: dv
         });
@@ -253,11 +253,11 @@ impl MetaDataIR {
         return Self::from_data_version(DataVersion::new()).unwrap();
     }
 
-    pub fn from_data_version(version: DataVersion) -> Result<MetaDataIR, WriteError> {
+    pub fn from_data_version(version: DataVersion) -> Result<MetaDataIR, Error> {
         return Self::from_data_version_i32(version as i32);
     }
 
-    pub fn from_data_version_i32(version: i32) -> Result<MetaDataIR, WriteError> {
+    pub fn from_data_version_i32(version: i32) -> Result<MetaDataIR, Error> {
         use std::time::{SystemTime, UNIX_EPOCH};
         let time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
 
@@ -458,7 +458,7 @@ impl Schematic {
         return (palette, lut_lut);
     }
 
-    pub fn from_file(filename: &str) -> Result<Schematic, LoadError> {
+    pub fn from_file(filename: &str) -> Result<Schematic, Error> {
         if filename.ends_with(".litematic") {
             return Self::from_litematica_file(filename, &LitematicaLoadOption::default());
         }
@@ -476,10 +476,10 @@ impl Schematic {
         let extension = split.last().unwrap_or_else(|| "");
 
 
-        return Err(LoadError::UnrecognisedExtension { extension: extension.to_string() });
+        return Err(Error::UnrecognisedExtension { extension: extension.to_string() });
     }
 
-    pub fn save_to_file(&self, filename: &str) -> Result<(), WriteError> {
+    pub fn save_to_file(&self, filename: &str) -> Result<(), Error> {
         if filename.ends_with(".litematic") {
             return self.save_litematica_file(filename, &LitematicaSaveOption::default());
         }
@@ -494,7 +494,7 @@ impl Schematic {
         let extension = split.last().unwrap_or_else(|| "");
 
 
-        return Err(WriteError::UnrecognisedExtension { extension: extension.to_string() });
+        return Err(Error::UnrecognisedExtension { extension: extension.to_string() });
     }
 }
 

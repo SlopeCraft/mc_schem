@@ -5,7 +5,7 @@ use fastnbt::Value;
 use flate2::read::GzDecoder;
 use ndarray::Array3;
 use crate::block::Block;
-use crate::error::LoadError;
+use crate::error::Error;
 use crate::old_block::OldBlockParseError;
 use crate::region::{BlockEntity, Region};
 use crate::schem::{common, id_of_nbt_tag, MetaDataIR, RawMetaData, Schematic, WE12MetaData, WorldEdit12LoadOption};
@@ -21,7 +21,7 @@ fn i8_to_u8(a: i8) -> u8 {
 }
 
 impl Schematic {
-    pub fn parse_number_id_from_we12(nbt: &HashMap<String, Value>) -> Result<Array3<(u8, u8)>, LoadError> {
+    pub fn parse_number_id_from_we12(nbt: &HashMap<String, Value>) -> Result<Array3<(u8, u8)>, Error> {
         let x_size = *unwrap_opt_tag!(nbt.get("Width"),Short,0,"/Width".to_string()) as usize;
         let y_size = *unwrap_opt_tag!(nbt.get("Height"),Short,0,"/Height".to_string()) as usize;
         let z_size = *unwrap_opt_tag!(nbt.get("Length"),Short,0,"/Length".to_string()) as usize;
@@ -33,13 +33,13 @@ impl Schematic {
         {
             let expected_elements = x_size * y_size * z_size;
             if blocks.len() != expected_elements {
-                return Err(LoadError::InvalidValue {
+                return Err(Error::InvalidValue {
                     tag_path: "/Blocks".to_string(),
                     error: format!("Expected to contain {expected_elements} elements but found {}.", blocks.len()),
                 });
             }
             if data.len() != blocks.len() {
-                return Err(LoadError::InvalidValue {
+                return Err(Error::InvalidValue {
                     tag_path: "/Data".to_string(),
                     error: format!("Expected to contain {expected_elements} elements but found {}.", data.len()),
                 });
@@ -63,7 +63,7 @@ impl Schematic {
         return Ok(array);
     }
 
-    fn parse_metadata(nbt: &mut HashMap<String, Value>, option: &WorldEdit12LoadOption) -> Result<(MetaDataIR, WE12MetaData), LoadError> {
+    fn parse_metadata(nbt: &mut HashMap<String, Value>, option: &WorldEdit12LoadOption) -> Result<(MetaDataIR, WE12MetaData), Error> {
         let mut raw = WE12MetaData::default();
 
         mem::swap(&mut raw.materials, unwrap_opt_tag!(nbt.get_mut("Materials"),String,"".to_string(),"/Materials"));
@@ -84,20 +84,20 @@ impl Schematic {
         return Ok((md, raw));
     }
 
-    pub fn from_world_edit_12_file(filename: &str, option: &WorldEdit12LoadOption) -> Result<Schematic, LoadError> {
+    pub fn from_world_edit_12_file(filename: &str, option: &WorldEdit12LoadOption) -> Result<Schematic, Error> {
         let file = match File::open(filename) {
             Ok(f) => f,
-            Err(e) => return Err(LoadError::FileOpenError(e)),
+            Err(e) => return Err(Error::FileOpenError(e)),
         };
         let decoder = GzDecoder::new(file);
         let nbt: HashMap<String, Value> = match fastnbt::from_reader(decoder) {
             Ok(n) => n,
-            Err(e) => return Err(LoadError::NBTReadError(e)),
+            Err(e) => return Err(Error::NBTReadError(e)),
         };
         return Self::from_world_edit_12(nbt, option);
     }
 
-    pub fn from_world_edit_12(mut nbt: HashMap<String, Value>, option: &WorldEdit12LoadOption) -> Result<Schematic, LoadError> {
+    pub fn from_world_edit_12(mut nbt: HashMap<String, Value>, option: &WorldEdit12LoadOption) -> Result<Schematic, Error> {
         let mut schem = Schematic::new();
         // metadata
         {
@@ -132,7 +132,7 @@ impl Default for BlockStats {
 
 impl Region {
     pub fn from_world_edit_12(nbt: &mut HashMap<String, Value>, option: &WorldEdit12LoadOption)
-                              -> Result<Region, LoadError> {
+        -> Result<Region, Error> {
         let data_version = option.data_version;
         let id_damage_array = Schematic::parse_number_id_from_we12(&nbt)?;
         let mut region = Region::new();
@@ -140,7 +140,7 @@ impl Region {
         let mut id_damage_counter = [[BlockStats::default(); 16]; 256];
         for (idx, (id, damage)) in id_damage_array.iter().enumerate() {
             if *damage >= 16 {
-                return Err(LoadError::InvalidBlockNumberId {
+                return Err(Error::InvalidBlockNumberId {
                     tag_path: format!("/Data[{idx}]"),
                     detail: OldBlockParseError::DamageMoreThan15 { damage: *damage },
                 });
@@ -162,7 +162,7 @@ impl Region {
                 }
                 let block = match Block::from_old(id as u8, damage, data_version) {
                     Ok(b) => b,
-                    Err(detail) => return Err(LoadError::InvalidBlockNumberId {
+                    Err(detail) => return Err(Error::InvalidBlockNumberId {
                         tag_path: format!("/Data[{}]", stat.first_occur_index),
                         detail,
                     }),
@@ -198,7 +198,7 @@ impl Region {
             //check pos
             for dim in 0..3 {
                 if pos[dim] < 0 || pos[dim] >= shape[dim] {
-                    return Err(LoadError::BlockPosOutOfRange {
+                    return Err(Error::BlockPosOutOfRange {
                         tag_path,
                         pos,
                         range: shape,
@@ -230,7 +230,7 @@ impl Region {
                 let (id, damage) = id_damage_array[pos_usize];
                 let fixed_block = match original_blk.fix_block_property_with_block_entity(id, damage, be) {
                     Ok(b) => b,
-                    Err(e) => return Err(LoadError::InvalidBlockNumberId {
+                    Err(e) => return Err(Error::InvalidBlockNumberId {
                         tag_path: "(unknown)".to_string(),
                         detail: e,
                     }),

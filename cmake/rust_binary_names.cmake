@@ -1,18 +1,22 @@
-function(rust_binary_names out_var_shared_lib out_var_export_lib out_var_link_shared_lib)
+function(rust_binary_names manually_assigned_target out_var_shared_lib out_var_export_lib out_var_link_shared_lib)
     unset(${out_var_shared_lib} PARENT_SCOPE)
     unset(${out_var_export_lib} PARENT_SCOPE)
     unset(${out_var_link_shared_lib} PARENT_SCOPE)
 
     if (WIN32)
-        #if (MSVC)
+        if (manually_assigned_target MATCHES "gnu")
+            set(${out_var_shared_lib} "mc_schem.dll" PARENT_SCOPE)
+            set(${out_var_export_lib} "libmc_schem.dll.a" PARENT_SCOPE)
+            set(${out_var_link_shared_lib} OFF PARENT_SCOPE)
+            return()
+        endif ()
+
         set(${out_var_shared_lib} "mc_schem.dll" PARENT_SCOPE)
         set(${out_var_export_lib} "mc_schem.dll.lib" PARENT_SCOPE)
         set(${out_var_link_shared_lib} OFF PARENT_SCOPE)
         return()
-        #endif ()
 
 
-        return()
     endif ()
 
 

@@ -17,20 +17,30 @@ else ()
 endif ()
 
 set(rust_build_dir "${CMAKE_CURRENT_BINARY_DIR}/rust-build")
-set(rust_bin_dir "${rust_build_dir}/${cargo_build_mode}")
 
 include(cmake/rust_binary_names.cmake)
-rust_binary_names(shared_lib_name export_lib_name link_shared_lib_directly)
 if (${MC_SCHEM_RUST_TARGET} STREQUAL "default")
+    set(manually_assigned_target)
 
 elseif (${MC_SCHEM_RUST_TARGET} STREQUAL "guess")
     get_suggested_cargo_target(suggested_target)
-    set(cargo_build_flags "${cargo_build_flags} --target=${suggested_target}")
+    message(STATUS "Suggested target for cargo is ${suggested_target}")
+    set(cargo_build_flags ${cargo_build_flags} --target=${suggested_target})
+    set(manually_assigned_target ${suggested_target})
 else ()
-    set(cargo_build_flags "${cargo_build_flags} --target=${MC_SCHEM_RUST_TARGET}")
+    set(cargo_build_flags ${cargo_build_flags} --target=${MC_SCHEM_RUST_TARGET})
+    set(manually_assigned_target ${MC_SCHEM_RUST_TARGET})
 endif ()
 
-message(STATUS "Suggested target for cargo is ${suggested_target}")
+if (manually_assigned_target)
+    set(rust_bin_dir "${rust_build_dir}/${manually_assigned_target}/${cargo_build_mode}")
+else ()
+    set(rust_bin_dir "${rust_build_dir}/${cargo_build_mode}")
+endif ()
+
+message(STATUS "manually_assigned_target = ${manually_assigned_target}")
+
+rust_binary_names("${manually_assigned_target}" shared_lib_name export_lib_name link_shared_lib_directly)
 message(STATUS "The shared lib should be ${shared_lib_name}")
 message(STATUS "The export lib should be ${export_lib_name}")
 

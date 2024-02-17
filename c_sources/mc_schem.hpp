@@ -1319,11 +1319,11 @@ namespace mc_schem {
 
   };
 
-  class schem : public detail::wrapper<MC_SCHEM_schem *> {
+  class schem : public detail::wrapper<MC_SCHEM_schematic *> {
   public:
     schem() = delete;
 
-    schem(MC_SCHEM_schem *handle) : detail::wrapper<MC_SCHEM_schem *>{handle} {}
+    schem(MC_SCHEM_schematic *handle) : detail::wrapper<MC_SCHEM_schematic *>{handle} {}
 
   };
 

@@ -23,3 +23,18 @@ bool MC_SCHEM_map_contains_key(const MC_SCHEM_map_ref *map,
 bool MC_SCHEM_map_iterator_is_end(const MC_SCHEM_map_iterator *it) {
   return MC_SCHEM_map_iterator_length(it) == 0;
 }
+
+size_t wrap_stream_read(void *handle, uint8_t *buffer, size_t buffer_size,
+                        bool *ok, char *error, size_t error_capacity) {
+  FILE *fp = (FILE *) handle;
+  const size_t read_bytes = fread(buffer, 1, buffer_size, fp);
+  *ok = true;
+  return read_bytes;
+}
+
+MC_SCHEM_reader MC_SCHEM_reader_wrap_stream(FILE *fp) {
+  MC_SCHEM_reader result;
+  result.handle = fp;
+  result.read_fun = wrap_stream_read;
+  return result;
+}

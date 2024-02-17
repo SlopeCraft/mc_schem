@@ -26,7 +26,7 @@ impl Schematic {
                 Ok(nbt_) => nbt_,
                 Err(e) => return Err(Error::NBTReadError(e)),
             };
-        return Self::from_world_edit_13(&nbt, option);
+        return Self::from_world_edit_13_nbt(&nbt, option);
     }
 
     fn parse_v2(root: &HashMap<String, Value>, option: &WorldEdit13LoadOption) -> Result<Schematic, Error> {
@@ -65,12 +65,21 @@ impl Schematic {
 
         return Ok(schem);
     }
-    pub fn from_world_edit_13(root: &HashMap<String, Value>, option: &WorldEdit13LoadOption) -> Result<Schematic, Error> {
+    pub fn from_world_edit_13_nbt(root: &HashMap<String, Value>, option: &WorldEdit13LoadOption) -> Result<Schematic, Error> {
         return if root.contains_key("Schematic") {//v3
             Self::parse_v3(root, option)
         } else {
             Self::parse_v2(root, option)
         }
+    }
+
+    pub fn from_world_edit_13_reader(src: &mut dyn std::io::Read, option: &WorldEdit13LoadOption) -> Result<Schematic, Error> {
+        let root_opt: Result<HashMap<String, Value>, fastnbt::error::Error> = fastnbt::from_reader(src);
+        let root = match root_opt {
+            Ok(nbt_) => nbt_,
+            Err(e) => return Err(Error::NBTReadError(e)),
+        };
+        return Self::from_world_edit_13_nbt(&root, option);
     }
 }
 

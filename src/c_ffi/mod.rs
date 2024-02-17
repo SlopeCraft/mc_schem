@@ -1,20 +1,24 @@
 use std::collections::{BTreeMap, HashMap};
-use std::ffi::{c_char, CStr};
+use std::ffi::{c_char, c_void, CString};
+use std::fmt::{Debug, Display, Formatter};
 use std::intrinsics::copy_nonoverlapping;
-use std::ptr::{drop_in_place, NonNull, null, null_mut, slice_from_raw_parts, slice_from_raw_parts_mut};
+use std::io::{ErrorKind, Read};
+use std::ptr::{drop_in_place, null, null_mut, slice_from_raw_parts, slice_from_raw_parts_mut};
 use std::str::from_utf8_unchecked;
 use static_assertions as sa;
 use std::mem::size_of;
 use fastnbt::Value;
-use crate::Block;
-use crate::block::BlockIdParseError;
+use crate::{Block};
+use crate::block::{BlockIdParseError, CommonBlock};
 use crate::error::Error;
 use crate::region::{BlockEntity, Entity, PendingTick};
+use crate::schem::{Schematic, LitematicaLoadOption, VanillaStructureLoadOption, WorldEdit13LoadOption, WorldEdit12LoadOption, DataVersion};
 
 mod map_ffi;
 mod nbt_ffi;
 mod block_ffi;
 mod region_ffi;
+mod schem_ffi;
 
 
 #[no_mangle]
@@ -205,6 +209,11 @@ fn sizes() {
     println!("Size of Block = {}", size_of::<Block>());
     println!("Size of Entity = {}", size_of::<Entity>());
     println!("Size of (u8,u8) = {}", size_of::<(u8, u8)>());
+
+    println!("Size of CLitematicaLoadOption = {}", size_of::<CLitematicaLoadOption>());
+    println!("Size of CVanillaStructureLoadOption = {}", size_of::<CVanillaStructureLoadOption>());
+    println!("Size of CWE13LoadOption = {}", size_of::<CWE13LoadOption>());
+    println!("Size of CWE12LoadOption = {}", size_of::<CWE12LoadOption>());
 }
 
 #[repr(u8)]
@@ -331,15 +340,166 @@ unsafe extern "C" fn MC_SCHEM_error_to_string(error: *const Error, dest: *mut c_
     copy_nonoverlapping(s.as_ptr() as *const c_char, dest, s.as_bytes().len());
 }
 
-struct Pointer {
-    ptr: *const Error,
-}
-
 pub fn error_to_box(err: Option<Error>) -> Option<Box<Error>> {
     sa::const_assert!(size_of::<Option<Box<Error>>>()==size_of::<usize>());
     return if let Some(e) = err {
         Some(Box::from(e))
     } else {
         None
+    }
+}
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_error_test_none() -> Option<Box<Error>> {
+    return None;
+}
+
+#[no_mangle]
+extern "C" fn MC_SCHEM_error_test_some() -> Option<Box<Error>> {
+    return error_to_box(Some(Error::UnsupportedVersion { data_version_i32: 0 }));
+}
+
+
+type ReadCallback = extern "C" fn(handle: *mut c_void, buffer: *mut u8, buffer_size: usize,
+                                  ok: *mut bool, error: *mut c_char, error_capacity: usize) -> usize;
+
+#[repr(C)]
+struct CReader {
+    handle: *mut c_void,
+    read_fun: ReadCallback,
+}
+
+#[derive(Debug)]
+struct CReaderError(CString);
+
+impl Display for CReaderError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let cs: &CReaderError = self;
+        return std::fmt::Display::fmt(&cs, f);
+    }
+}
+
+impl std::error::Error for CReaderError {}
+
+unsafe impl Send for CReaderError {}
+
+unsafe impl Sync for CReaderError {}
+
+impl Read for CReader {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let mut error_msg: Vec<u8> = Vec::with_capacity(1024);
+        let mut ok = false;
+        let read_bytes;
+        read_bytes = (self.read_fun)(self.handle, buf.as_mut_ptr(), buf.len(),
+                                     &mut ok as *mut bool, error_msg.as_mut_ptr() as *mut c_char, error_msg.len());
+
+
+        return if ok {
+            Ok(read_bytes)
+        } else {
+            unsafe {
+                let s = CString::from_vec_unchecked(error_msg);
+                Err(std::io::Error::new(ErrorKind::Other,
+                                        Box::new(CReaderError(s))).into())
+            }
+        }
+    }
+}
+
+
+#[repr(C)]
+struct CSchemLoadResult {
+    schematic: Option<Box<Schematic>>,
+    error: Option<Box<Error>>,
+}
+
+impl CSchemLoadResult {
+    pub fn new(src: Result<Schematic, Error>) -> CSchemLoadResult {
+        return match src {
+            Ok(s) => CSchemLoadResult { schematic: Some(Box::new(s)), error: None },
+            Err(e) => CSchemLoadResult { schematic: None, error: Some(Box::new(e)) },
+        }
+    }
+}
+
+
+#[repr(C)]
+struct CLitematicaLoadOption {
+    pub reserved: [u8; 512],
+}
+
+sa::const_assert!(size_of::<CLitematicaLoadOption>() == 512);
+impl CLitematicaLoadOption {
+    pub fn to_option(&self) -> LitematicaLoadOption {
+        return LitematicaLoadOption {};
+    }
+
+    pub fn from_option(_src: &LitematicaLoadOption) -> Self {
+        return Self { reserved: [0; 512] };
+    }
+}
+
+
+#[repr(C)]
+struct CVanillaStructureLoadOption {
+    pub background_block: CommonBlock,
+    reserved: [u8; 510],
+}
+
+sa::const_assert!(size_of::<CVanillaStructureLoadOption>()==512);
+impl CVanillaStructureLoadOption {
+    pub fn to_option(&self) -> VanillaStructureLoadOption {
+        return VanillaStructureLoadOption { background_block: self.background_block };
+    }
+    pub fn from_option(src: &VanillaStructureLoadOption) -> Self {
+        return Self {
+            background_block: src.background_block,
+            reserved: [0; 510],
+        };
+    }
+}
+
+
+#[repr(C)]
+struct CWE13LoadOption {
+    reserved: [u8; 512],
+}
+
+//sa::const_assert!(size_of::<CWE13LoadOption>()==512);
+impl CWE13LoadOption {
+    pub fn to_option(&self) -> WorldEdit13LoadOption {
+        return WorldEdit13LoadOption {};
+    }
+
+    pub fn from_option(_src: &WorldEdit13LoadOption) -> Self {
+        return Self { reserved: [0; 512] };
+    }
+}
+
+
+#[repr(C)]
+struct CWE12LoadOption {
+    pub data_version: DataVersion,
+    pub fix_string_id_with_block_entity_data: bool,
+    pub discard_number_id_array: bool,
+    reserved: [u8; 506],
+}
+sa::const_assert!(size_of::<CWE12LoadOption>()==512);
+
+impl CWE12LoadOption {
+    pub fn to_option(&self) -> WorldEdit12LoadOption {
+        return WorldEdit12LoadOption {
+            data_version: self.data_version,
+            fix_string_id_with_block_entity_data: self.fix_string_id_with_block_entity_data,
+            discard_number_id_array: self.discard_number_id_array,
+        };
+    }
+    pub fn from_option(src: &WorldEdit12LoadOption) -> Self {
+        return Self {
+            data_version: src.data_version,
+            fix_string_id_with_block_entity_data: src.fix_string_id_with_block_entity_data,
+            discard_number_id_array: src.discard_number_id_array,
+            reserved: [0; 506],
+        }
     }
 }

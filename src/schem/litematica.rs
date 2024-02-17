@@ -40,9 +40,9 @@ impl Schematic {
         }
 
         let mut decoder = GzDecoder::new(&mut file);
-        return Self::from_litematica(&mut decoder, option);
+        return Self::from_litematica_reader(&mut decoder, option);
     }
-    pub fn from_litematica(src: &mut dyn std::io::Read, _option: &LitematicaLoadOption) -> Result<Schematic, Error> {
+    pub fn from_litematica_reader(src: &mut dyn std::io::Read, _option: &LitematicaLoadOption) -> Result<Schematic, Error> {
         let parse_res: Result<HashMap<String, Value>, fastnbt::error::Error> = fastnbt::from_reader(src);
         let parsed;
         match parse_res {

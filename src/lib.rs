@@ -22,12 +22,13 @@ pub type LitematicaSaveOption = schem::LitematicaSaveOption;
 pub type VanillaStructureLoadOption = schem::VanillaStructureLoadOption;
 pub type VanillaStructureSaveOption = schem::VanillaStructureSaveOption;
 
+#[repr(u8)]
 #[derive(Debug, Display, Clone, PartialEq)]
 pub enum SchemFormat {
-    Litematica,
-    VanillaStructure,
-    WorldEdit13,
-    WorldEdit12,
+    Litematica = 0,
+    VanillaStructure = 1,
+    WorldEdit13 = 2,
+    WorldEdit12 = 3,
 }
 
 impl SchemFormat {

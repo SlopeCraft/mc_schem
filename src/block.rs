@@ -425,12 +425,12 @@ impl Display for Block {
 //     }
 // }
 
-#[repr(u8)]
-#[derive(Debug, Display)]
+#[repr(u16)]
+#[derive(Debug, Display, Clone, Copy)]
 #[allow(dead_code)]
 pub enum CommonBlock {
-    Air,
-    StructureVoid,
+    Air = 0,
+    StructureVoid = 1,
 }
 
 

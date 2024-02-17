@@ -94,10 +94,18 @@ impl Schematic {
             Ok(n) => n,
             Err(e) => return Err(Error::NBTReadError(e)),
         };
-        return Self::from_world_edit_12(nbt, option);
+        return Self::from_world_edit_12_nbt(nbt, option);
     }
 
-    pub fn from_world_edit_12(mut nbt: HashMap<String, Value>, option: &WorldEdit12LoadOption) -> Result<Schematic, Error> {
+    pub fn from_world_edit_12_reader(src: &mut dyn std::io::Read, option: &WorldEdit12LoadOption) -> Result<Schematic, Error> {
+        let nbt: HashMap<String, Value> = match fastnbt::from_reader(src) {
+            Ok(n) => n,
+            Err(e) => return Err(Error::NBTReadError(e)),
+        };
+        return Self::from_world_edit_12_nbt(nbt, option);
+    }
+
+    pub fn from_world_edit_12_nbt(mut nbt: HashMap<String, Value>, option: &WorldEdit12LoadOption) -> Result<Schematic, Error> {
         let mut schem = Schematic::new();
         // metadata
         {

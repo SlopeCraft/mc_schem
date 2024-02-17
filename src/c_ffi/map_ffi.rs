@@ -388,7 +388,7 @@ extern "C" fn MC_SCHEM_map_iterator_length(it: *const CMapIterator) -> usize {
 }
 
 
-type Callback = fn(idx: usize, key: CMapKeyWrapper, value: CMapValueWrapper, custom_data: *mut c_void);
+type Callback = extern "C" fn(idx: usize, key: CMapKeyWrapper, value: CMapValueWrapper, custom_data: *mut c_void);
 
 #[no_mangle]
 #[allow(improper_ctypes_definitions)]

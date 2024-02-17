@@ -163,10 +163,10 @@ impl Schematic {
         }
 
         let mut decoder = GzDecoder::new(&mut file);
-        return Self::from_vanilla_structure(&mut decoder, option);
+        return Self::from_vanilla_structure_reader(&mut decoder, option);
     }
-    pub fn from_vanilla_structure(src: &mut dyn std::io::Read, option: &VanillaStructureLoadOption)
-        -> Result<Schematic, Error> {
+    pub fn from_vanilla_structure_reader(src: &mut dyn std::io::Read, option: &VanillaStructureLoadOption)
+                                         -> Result<Schematic, Error> {
         let loaded_opt: Result<HashMap<String, Value>, fastnbt::error::Error> = fastnbt::from_reader(src);
         let nbt;
         match loaded_opt {

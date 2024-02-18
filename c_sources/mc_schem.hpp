@@ -1348,8 +1348,33 @@ namespace mc_schem {
     }
   };
 
+  struct litematica_save_option {
+    using c_type = MC_SCHEM_save_option_litematica;
+    static_assert(sizeof(c_type) == 512);
+
+
+    uint32_t compress_level;
+    bool rename_duplicated_regions;
+
+    explicit litematica_save_option(const c_type &src) :
+      compress_level{src.compress_level},
+      rename_duplicated_regions{src.rename_duplicated_regions} {}
+
+    litematica_save_option() : litematica_save_option{MC_SCHEM_save_option_litematica_default()} {}
+
+    [[nodiscard]] c_type to_c_type() const noexcept {
+      return c_type{
+        this->compress_level,
+        this->rename_duplicated_regions,
+        {}
+      };
+    }
+
+  };
+
   struct vanilla_structure_load_option {
     using c_type = MC_SCHEM_load_option_vanilla_structure;
+    static_assert(sizeof(c_type) == 512);
     common_block background_block;
 
     explicit vanilla_structure_load_option(const c_type &src) : background_block{src.background_block} {}
@@ -1364,8 +1389,32 @@ namespace mc_schem {
 
   };
 
+  struct vanilla_structure_save_option {
+    using c_type = MC_SCHEM_save_option_vanilla_structure;
+    static_assert(sizeof(c_type) == 512);
+
+    uint32_t compress_level;
+    bool keep_air;
+
+    explicit vanilla_structure_save_option(const c_type &src) :
+      compress_level{src.compress_level},
+      keep_air{src.keep_air} {}
+
+    vanilla_structure_save_option() : vanilla_structure_save_option{MC_SCHEM_save_option_vanilla_structure_default()} {}
+
+    [[nodiscard]] c_type to_c_type() const noexcept {
+      return c_type{
+        this->compress_level,
+        this->keep_air,
+        {}
+      };
+    }
+
+  };
+
   struct world_edit_13_load_option {
     using c_type = MC_SCHEM_load_option_world_edit_13;
+    static_assert(sizeof(c_type) == 512);
 
     explicit world_edit_13_load_option(const c_type &) {}
 
@@ -1376,7 +1425,28 @@ namespace mc_schem {
       c_type result{};
       return result;
     }
+  };
 
+  struct world_edit_13_save_option {
+    using c_type = MC_SCHEM_save_option_world_edit_13;
+    static_assert(sizeof(c_type) == 512);
+
+    uint32_t compress_level;
+    common_block background_block;
+
+    explicit world_edit_13_save_option(const c_type &src) :
+      compress_level{src.compress_level},
+      background_block{static_cast<common_block>(src.background_block)} {}
+
+    world_edit_13_save_option() : world_edit_13_save_option{MC_SCHEM_save_option_world_edit_13_default()} {}
+
+    [[nodiscard]] c_type to_c_type() const noexcept {
+      return c_type{
+        this->compress_level,
+        static_cast<MC_SCHEM_common_block>(this->background_block),
+        {}
+      };
+    }
   };
 
   struct world_edit_12_load_option {
@@ -1417,21 +1487,71 @@ namespace mc_schem {
 
     using load_result = std::expected<schem_box, error>;
 
-    static load_result c_result_to_load_result(MC_SCHEM_schem_load_result &&src) noexcept {
+    [[nodiscard]] static load_result c_result_to_load_result(MC_SCHEM_schem_load_result &&src) noexcept {
       if (src.error.ptr != nullptr) {
         return std::unexpected(error{std::move(src.error)});
       }
       return schem_box{std::move(src.schematic)};
     }
 
-    static MC_SCHEM_reader wrap_istream(std::istream &src) noexcept {
+    using save_result = std::expected<void, error>;
+
+    [[nodiscard]] static save_result c_error_box_to_save_result(MC_SCHEM_error_box &&ret) noexcept {
+      if (ret.ptr != nullptr) {
+        return std::unexpected(error{std::move(ret)});
+      }
+      return {};
+    }
+
+    [[nodiscard]] static MC_SCHEM_reader wrap_istream(std::istream &src) noexcept {
       MC_SCHEM_reader result;
       result.handle = reinterpret_cast<void *>(&src);
       result.read_fun = [](void *handle, uint8_t *buffer, size_t buffer_size,
-                           bool *ok, char *error, size_t error_capacity) -> size_t {
+                           bool *ok, char *error, size_t error_capacity)noexcept -> size_t {
         auto *is = reinterpret_cast<std::istream *>(handle);
+        size_t bytes = 0;
+        try {
+          bytes = is->readsome(reinterpret_cast<char *>(buffer), buffer_size);
+        } catch (std::exception &e) {
+          *ok = false;
+          snprintf(error, error_capacity, "%s", e.what());
+          return bytes;
+        }
+
         *ok = true;
-        return is->readsome(reinterpret_cast<char *>(buffer), buffer_size);
+        return bytes;
+      };
+      return result;
+    }
+
+    [[nodiscard]] static MC_SCHEM_writer wrap_ostream(std::ostream &dst) noexcept {
+      MC_SCHEM_writer result;
+      result.handle = &dst;
+      result.write_fun = [](void *handle, const uint8_t *buffer, size_t buffer_size,
+                            bool *ok, char *error, size_t error_capacity) noexcept -> size_t {
+        auto *os = reinterpret_cast<std::ostream *>(handle);
+        try {
+          os->write(reinterpret_cast<const char *>(buffer), buffer_size);
+        }
+        catch (std::exception &e) {
+          *ok = false;
+          snprintf(error, error_capacity, "%s", e.what());
+          return 0;
+        }
+        *ok = true;
+        return buffer_size;
+      };
+      result.flush_fun = [](void *handle, bool *ok, char *error, size_t error_capacity)noexcept {
+
+        auto *os = reinterpret_cast<std::ostream *>(handle);
+        try {
+          os->flush();
+        } catch (std::exception &e) {
+          *ok = false;
+          snprintf(error, error_capacity, "%s", e.what());
+          return;
+        }
+        *ok = true;
       };
       return result;
     }
@@ -1543,6 +1663,56 @@ namespace mc_schem {
       auto reader = wrap_istream(src);
       auto result = MC_SCHEM_schem_load_world_edit_12(reader, &c_option);
       return c_result_to_load_result(std::move(result));
+    }
+
+
+    [[nodiscard]] save_result
+    save_litematica_to_file(std::string_view filename, const litematica_save_option &option) const noexcept {
+      auto c_option = option.to_c_type();
+      auto file = detail::string_view_std_to_schem(filename);
+      auto error = MC_SCHEM_schem_save_litematica_file(this->handle, file, &c_option);
+      return c_error_box_to_save_result(std::move(error));
+    }
+
+    [[nodiscard]] save_result
+    save_litematica_to_stream(std::ostream &dest, const litematica_save_option &option) const noexcept {
+      auto c_option = option.to_c_type();
+      auto writer = wrap_ostream(dest);
+      auto error = MC_SCHEM_schem_save_litematica(this->handle, writer, &c_option);
+      return c_error_box_to_save_result(std::move(error));
+    }
+
+    [[nodiscard]] save_result
+    save_vanilla_structure_to_file(std::string_view filename,
+                                   const vanilla_structure_save_option &option) const noexcept {
+      auto c_option = option.to_c_type();
+      auto file = detail::string_view_std_to_schem(filename);
+      auto error = MC_SCHEM_schem_save_vanilla_structure_file(this->handle, file, &c_option);
+      return c_error_box_to_save_result(std::move(error));
+    }
+
+    [[nodiscard]] save_result
+    save_vanilla_structure_to_stream(std::ostream &dest, const vanilla_structure_save_option &option) const noexcept {
+      auto c_option = option.to_c_type();
+      auto writer = wrap_ostream(dest);
+      auto error = MC_SCHEM_schem_save_vanilla_structure(this->handle, writer, &c_option);
+      return c_error_box_to_save_result(std::move(error));
+    }
+
+    [[nodiscard]] save_result
+    save_world_edit_13_to_file(std::string_view filename, const world_edit_13_save_option &option) const noexcept {
+      auto c_option = option.to_c_type();
+      auto file = detail::string_view_std_to_schem(filename);
+      auto error = MC_SCHEM_schem_save_world_edit_13_file(this->handle, file, &c_option);
+      return c_error_box_to_save_result(std::move(error));
+    }
+
+    [[nodiscard]] save_result
+    save_world_edit_13_to_stream(std::ostream &dest, const world_edit_13_save_option &option) const noexcept {
+      auto c_option = option.to_c_type();
+      auto writer = wrap_ostream(dest);
+      auto error = MC_SCHEM_schem_save_world_edit_13(this->handle, writer, &c_option);
+      return c_error_box_to_save_result(std::move(error));
     }
 
   };

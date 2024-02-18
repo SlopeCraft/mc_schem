@@ -566,11 +566,14 @@ typedef struct {
   void (*flush_fun)(void *handle, bool *ok, char *error, size_t error_capacity);
 } MC_SCHEM_writer;
 
+MC_SCHEM_writer MC_SCHEM_writer_wrap_stream(FILE *f);
+
 typedef struct {
   uint32_t compress_level;
   bool rename_duplicated_regions;
   uint8_t reserved[507];
 } MC_SCHEM_save_option_litematica;
+MC_SCHEM_EXPORT MC_SCHEM_save_option_litematica MC_SCHEM_save_option_litematica_default();
 MC_SCHEM_EXPORT MC_SCHEM_error_box
 MC_SCHEM_schem_save_litematica(const MC_SCHEM_schematic *, MC_SCHEM_writer writer,
                                const MC_SCHEM_save_option_litematica *option);
@@ -584,6 +587,7 @@ typedef struct {
   bool keep_air;
   uint8_t reserved[507];
 } MC_SCHEM_save_option_vanilla_structure;
+MC_SCHEM_EXPORT MC_SCHEM_save_option_vanilla_structure MC_SCHEM_save_option_vanilla_structure_default();
 MC_SCHEM_EXPORT MC_SCHEM_error_box
 MC_SCHEM_schem_save_vanilla_structure(const MC_SCHEM_schematic *, MC_SCHEM_writer writer,
                                       const MC_SCHEM_save_option_vanilla_structure *option);
@@ -597,6 +601,7 @@ typedef struct {
   MC_SCHEM_common_block background_block;
   uint8_t reserved[506];
 } MC_SCHEM_save_option_world_edit_13;
+MC_SCHEM_EXPORT MC_SCHEM_save_option_world_edit_13 MC_SCHEM_save_option_world_edit_13_default();
 MC_SCHEM_EXPORT MC_SCHEM_error_box
 MC_SCHEM_schem_save_world_edit_13(const MC_SCHEM_schematic *, MC_SCHEM_writer writer,
                                   const MC_SCHEM_save_option_world_edit_13 *option);

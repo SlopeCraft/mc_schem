@@ -38,3 +38,31 @@ MC_SCHEM_reader MC_SCHEM_reader_wrap_stream(FILE *fp) {
   result.read_fun = wrap_stream_read;
   return result;
 }
+
+size_t
+wrap_stream_write(void *handle, const uint8_t *buf, size_t buf_size, bool *ok, char *error, size_t error_capacity) {
+  FILE *fp = (FILE *) handle;
+  const size_t write_bytes = fwrite(buf, 1, buf_size, fp);
+  *ok = true;
+  return write_bytes;
+}
+
+void wrap_stream_flush(void *handle, bool *ok, char *error, size_t error_capacity) {
+  FILE *fp = (FILE *) handle;
+  const int error_code = fflush(fp);
+  if (error_code != 0) {
+    *ok = false;
+    snprintf(error, error_capacity, "Failed to flush c FILE stream, function fflush returned error code %d",
+             error_code);
+  } else {
+    *ok = true;
+  }
+}
+
+MC_SCHEM_writer MC_SCHEM_writer_wrap_stream(FILE *fp) {
+  MC_SCHEM_writer result;
+  result.handle = fp;
+  result.write_fun = wrap_stream_write;
+  result.flush_fun = wrap_stream_flush;
+  return result;
+}

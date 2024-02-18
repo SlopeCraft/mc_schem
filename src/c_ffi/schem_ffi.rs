@@ -1,7 +1,7 @@
 use std::ptr::{drop_in_place, slice_from_raw_parts};
 use crate::c_ffi::{CLitematicaLoadOption, CLitematicaSaveOption, CReader, CSchemLoadResult, CStringView, CVanillaStructureLoadOption, CVanillaStructureSaveOption, CWE12LoadOption, CWE13LoadOption, CWE13SaveOption, CWriter};
 use crate::error::Error;
-use crate::schem::{LitematicaLoadOption, VanillaStructureLoadOption, WorldEdit12LoadOption, WorldEdit13LoadOption};
+use crate::schem::{LitematicaLoadOption, LitematicaSaveOption, VanillaStructureLoadOption, VanillaStructureSaveOption, WorldEdit12LoadOption, WorldEdit13LoadOption, WorldEdit13SaveOption};
 use crate::Schematic;
 
 #[no_mangle]
@@ -126,6 +126,10 @@ unsafe extern "C" fn MC_SCHEM_schem_load_world_edit_12_bytes(
 }
 
 #[no_mangle]
+extern "C" fn MC_SCHEM_save_option_litematica_default() -> CLitematicaSaveOption {
+    return CLitematicaSaveOption::from_option(&LitematicaSaveOption::default());
+}
+#[no_mangle]
 unsafe extern "C" fn MC_SCHEM_schem_save_litematica(schem: *const Schematic, mut dst: CWriter, option: *const CLitematicaSaveOption) -> Option<Box<Error>> {
     let option = (*option).to_option();
     return match (*schem).save_litematica_writer(&mut dst, &option) {
@@ -143,6 +147,10 @@ unsafe extern "C" fn MC_SCHEM_schem_save_litematica_file(schem: *const Schematic
     }
 }
 
+#[no_mangle]
+extern "C" fn MC_SCHEM_save_option_vanilla_structure_default() -> CVanillaStructureSaveOption {
+    return CVanillaStructureSaveOption::from_option(&VanillaStructureSaveOption::default());
+}
 #[no_mangle]
 unsafe extern "C" fn MC_SCHEM_schem_save_vanilla_structure(schem: *const Schematic, mut dst: CWriter, option: *const CVanillaStructureSaveOption) -> Option<Box<Error>> {
     let option = (*option).to_option();
@@ -162,6 +170,10 @@ unsafe extern "C" fn MC_SCHEM_schem_save_vanilla_structure_file(schem: *const Sc
 }
 
 #[no_mangle]
+extern "C" fn MC_SCHEM_save_option_world_edit_13_default() -> CWE13SaveOption {
+    return CWE13SaveOption::from_option(&WorldEdit13SaveOption::default());
+}
+#[no_mangle]
 unsafe extern "C" fn MC_SCHEM_schem_save_world_edit_13(schem: *const Schematic, mut dst: CWriter, option: *const CWE13SaveOption) -> Option<Box<Error>> {
     let option = (*option).to_option();
     return match (*schem).save_world_edit_13_writer(&mut dst, &option) {
@@ -178,3 +190,4 @@ unsafe extern "C" fn MC_SCHEM_schem_save_world_edit_13_file(schem: *const Schema
         Err(e) => Some(Box::new(e)),
     }
 }
+

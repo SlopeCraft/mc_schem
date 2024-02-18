@@ -857,7 +857,7 @@ namespace mc_schem {
       std::vector<nbt> result;
       result.reserve(arr_view.end - arr_view.begin);
       for (auto p = arr_view.begin; p < arr_view.end; p++) {
-        result.push_back(nbt{p});
+        result.emplace_back(p);
       }
       return result;
     }
@@ -1429,7 +1429,7 @@ namespace mc_schem {
       result.handle = reinterpret_cast<void *>(&src);
       result.read_fun = [](void *handle, uint8_t *buffer, size_t buffer_size,
                            bool *ok, char *error, size_t error_capacity) -> size_t {
-        std::istream *is = reinterpret_cast<std::istream *>(handle);
+        auto *is = reinterpret_cast<std::istream *>(handle);
         *ok = true;
         return is->readsome(reinterpret_cast<char *>(buffer), buffer_size);
       };

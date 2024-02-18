@@ -197,6 +197,23 @@ void test_link() {
   check_fun_ptr(MC_SCHEM_schem_load_world_edit_12_bytes);
 
 
+  check_fun_ptr(MC_SCHEM_schem_save_litematica);
+  check_fun_ptr(MC_SCHEM_schem_save_litematica_file);
+  check_fun_ptr(MC_SCHEM_schem_save_vanilla_structure);
+  check_fun_ptr(MC_SCHEM_schem_save_vanilla_structure_file);
+  check_fun_ptr(MC_SCHEM_schem_save_world_edit_13);
+  check_fun_ptr(MC_SCHEM_schem_save_world_edit_13_file);
+//  check_fun_ptr();
+//  check_fun_ptr();
+//  check_fun_ptr();
+//  check_fun_ptr();
+//  check_fun_ptr();
+//  check_fun_ptr();
+//  check_fun_ptr();
+//  check_fun_ptr();
+//  check_fun_ptr();
+//  check_fun_ptr();
+//  check_fun_ptr();
 //  check_fun_ptr();
 //  check_fun_ptr();
 //  check_fun_ptr();

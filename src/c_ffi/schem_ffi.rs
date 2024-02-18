@@ -1,5 +1,6 @@
 use std::ptr::{drop_in_place, slice_from_raw_parts};
-use crate::c_ffi::{CLitematicaLoadOption, CReader, CSchemLoadResult, CStringView, CVanillaStructureLoadOption, CWE12LoadOption, CWE13LoadOption};
+use crate::c_ffi::{CLitematicaLoadOption, CLitematicaSaveOption, CReader, CSchemLoadResult, CStringView, CVanillaStructureLoadOption, CVanillaStructureSaveOption, CWE12LoadOption, CWE13LoadOption, CWE13SaveOption, CWriter};
+use crate::error::Error;
 use crate::schem::{LitematicaLoadOption, VanillaStructureLoadOption, WorldEdit12LoadOption, WorldEdit13LoadOption};
 use crate::Schematic;
 
@@ -122,4 +123,58 @@ unsafe extern "C" fn MC_SCHEM_schem_load_world_edit_12_bytes(
     let bytes: &mut &[u8] = &mut &*slice_from_raw_parts(bytes, length);
     let option = (*option).to_option();
     return CSchemLoadResult::new(Schematic::from_world_edit_12_reader(bytes, &option));
+}
+
+#[no_mangle]
+unsafe extern "C" fn MC_SCHEM_schem_save_litematica(schem: *const Schematic, mut dst: CWriter, option: *const CLitematicaSaveOption) -> Option<Box<Error>> {
+    let option = (*option).to_option();
+    return match (*schem).save_litematica_writer(&mut dst, &option) {
+        Ok(_) => None,
+        Err(e) => Some(Box::new(e)),
+    }
+}
+
+#[no_mangle]
+unsafe extern "C" fn MC_SCHEM_schem_save_litematica_file(schem: *const Schematic, filename: CStringView, option: *const CLitematicaSaveOption) -> Option<Box<Error>> {
+    let option = (*option).to_option();
+    return match (*schem).save_litematica_file(filename.to_str(), &option) {
+        Ok(_) => None,
+        Err(e) => Some(Box::new(e)),
+    }
+}
+
+#[no_mangle]
+unsafe extern "C" fn MC_SCHEM_schem_save_vanilla_structure(schem: *const Schematic, mut dst: CWriter, option: *const CVanillaStructureSaveOption) -> Option<Box<Error>> {
+    let option = (*option).to_option();
+    return match (*schem).save_vanilla_structure_writer(&mut dst, &option) {
+        Ok(_) => None,
+        Err(e) => Some(Box::new(e)),
+    }
+}
+
+#[no_mangle]
+unsafe extern "C" fn MC_SCHEM_schem_save_vanilla_structure_file(schem: *const Schematic, filename: CStringView, option: *const CVanillaStructureSaveOption) -> Option<Box<Error>> {
+    let option = (*option).to_option();
+    return match (*schem).save_vanilla_structure_file(filename.to_str(), &option) {
+        Ok(_) => None,
+        Err(e) => Some(Box::new(e)),
+    }
+}
+
+#[no_mangle]
+unsafe extern "C" fn MC_SCHEM_schem_save_world_edit_13(schem: *const Schematic, mut dst: CWriter, option: *const CWE13SaveOption) -> Option<Box<Error>> {
+    let option = (*option).to_option();
+    return match (*schem).save_world_edit_13_writer(&mut dst, &option) {
+        Ok(_) => None,
+        Err(e) => Some(Box::new(e)),
+    }
+}
+
+#[no_mangle]
+unsafe extern "C" fn MC_SCHEM_schem_save_world_edit_13_file(schem: *const Schematic, filename: CStringView, option: *const CWE13SaveOption) -> Option<Box<Error>> {
+    let option = (*option).to_option();
+    return match (*schem).save_world_edit_13_file(filename.to_str(), &option) {
+        Ok(_) => None,
+        Err(e) => Some(Box::new(e)),
+    }
 }

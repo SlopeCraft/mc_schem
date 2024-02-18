@@ -1,18 +1,20 @@
+use std::cmp::min;
 use std::collections::{BTreeMap, HashMap};
-use std::ffi::{c_char, c_void, CString};
+use std::ffi::{c_char, c_void, CStr, CString};
 use std::fmt::{Debug, Display, Formatter};
 use std::intrinsics::copy_nonoverlapping;
-use std::io::{ErrorKind, Read};
+use std::io::{ErrorKind, Read, Write};
 use std::ptr::{drop_in_place, null, null_mut, slice_from_raw_parts, slice_from_raw_parts_mut};
 use std::str::from_utf8_unchecked;
 use static_assertions as sa;
 use std::mem::size_of;
 use fastnbt::Value;
+use flate2::Compression;
 use crate::{Block};
 use crate::block::{BlockIdParseError, CommonBlock};
 use crate::error::Error;
 use crate::region::{BlockEntity, Entity, PendingTick};
-use crate::schem::{Schematic, LitematicaLoadOption, VanillaStructureLoadOption, WorldEdit13LoadOption, WorldEdit12LoadOption, DataVersion};
+use crate::schem::{Schematic, LitematicaLoadOption, VanillaStructureLoadOption, WorldEdit13LoadOption, WorldEdit12LoadOption, DataVersion, LitematicaSaveOption, VanillaStructureSaveOption, WorldEdit13SaveOption};
 
 mod map_ffi;
 mod nbt_ffi;
@@ -387,18 +389,19 @@ unsafe impl Sync for CReaderError {}
 
 impl Read for CReader {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        let mut error_msg: Vec<u8> = Vec::with_capacity(1024);
+        let mut error_msg = [0 as c_char; 1024];
         let mut ok = false;
         let read_bytes;
         read_bytes = (self.read_fun)(self.handle, buf.as_mut_ptr(), buf.len(),
-                                     &mut ok as *mut bool, error_msg.as_mut_ptr() as *mut c_char, error_msg.len());
+                                     &mut ok as *mut bool, error_msg.as_mut_ptr(), error_msg.len());
 
 
         return if ok {
             Ok(read_bytes)
         } else {
             unsafe {
-                let s = CString::from_vec_unchecked(error_msg);
+                let c_str = CStr::from_ptr(error_msg.as_ptr());
+                let s = CString::from(c_str);
                 Err(std::io::Error::new(ErrorKind::Other,
                                         Box::new(CReaderError(s))).into())
             }
@@ -499,6 +502,126 @@ impl CWE12LoadOption {
             data_version: src.data_version,
             fix_string_id_with_block_entity_data: src.fix_string_id_with_block_entity_data,
             discard_number_id_array: src.discard_number_id_array,
+            reserved: [0; 506],
+        }
+    }
+}
+
+type CWriterWriterFun = extern "C" fn(handle: *mut c_void, buffer: *const u8, buffer_size: usize,
+                                      ok: *mut bool, error: *mut c_char, error_capacity: usize) -> usize;
+type CWriterFlushFun = extern "C" fn(handle: *mut c_void, ok: *mut bool, error: *mut c_char, error_capacity: usize);
+
+#[repr(C)]
+struct CWriter {
+    handle: *mut c_void,
+    write_fun: CWriterWriterFun,
+    flush_fun: CWriterFlushFun,
+}
+
+impl Write for CWriter {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        let mut error_msg = [0 as c_char; 1024];
+        let mut ok = false;
+        let write_bytes = (self.write_fun)(self.handle, buf.as_ptr(), buf.len(),
+                                           &mut ok, error_msg.as_mut_ptr(), error_msg.len());
+        return if ok {
+            Ok(write_bytes)
+        } else {
+            unsafe {
+                let c_str = CStr::from_ptr(error_msg.as_ptr());
+                let s = CString::from(c_str);
+                Err(std::io::Error::new(ErrorKind::Other,
+                                        Box::new(CReaderError(s))).into())
+            }
+        }
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        let mut error_msg = [0 as c_char; 1024];
+        let mut ok = false;
+        (self.flush_fun)(self.handle, &mut ok, error_msg.as_mut_ptr(), error_msg.len());
+        return if ok {
+            Ok(())
+        } else {
+            unsafe {
+                let c_str = CStr::from_ptr(error_msg.as_ptr());
+                let s = CString::from(c_str);
+                Err(std::io::Error::new(ErrorKind::Other,
+                                        Box::new(CReaderError(s))).into())
+            }
+        }
+    }
+}
+
+#[repr(C)]
+struct CLitematicaSaveOption {
+    compress_level: u32,
+    rename_duplicated_regions: bool,
+    reserved: [u8; 507],
+}
+sa::const_assert!(size_of::<CLitematicaSaveOption>()==512);
+
+impl CLitematicaSaveOption {
+    pub fn to_option(&self) -> LitematicaSaveOption {
+        return LitematicaSaveOption {
+            compress_level: Compression::new(min(self.compress_level, 9)),
+            rename_duplicated_regions: self.rename_duplicated_regions,
+        };
+    }
+
+    pub fn from_option(src: &LitematicaSaveOption) -> Self {
+        return CLitematicaSaveOption {
+            compress_level: src.compress_level.level(),
+            rename_duplicated_regions: src.rename_duplicated_regions,
+            reserved: [0; 507],
+        };
+    }
+}
+
+#[repr(C)]
+struct CVanillaStructureSaveOption {
+    compress_level: u32,
+    keep_air: bool,
+    reserved: [u8; 507],
+}
+sa::const_assert!(size_of::<CVanillaStructureSaveOption>()==512);
+
+impl CVanillaStructureSaveOption {
+    pub fn to_option(&self) -> VanillaStructureSaveOption {
+        return VanillaStructureSaveOption {
+            compress_level: Compression::new(min(self.compress_level, 9)),
+            keep_air: self.keep_air,
+        }
+    }
+    pub fn from_option(src: &VanillaStructureSaveOption) -> Self {
+        return CVanillaStructureSaveOption {
+            compress_level: src.compress_level.level(),
+            keep_air: src.keep_air,
+            reserved: [0; 507],
+        }
+    }
+}
+
+#[repr(C)]
+struct CWE13SaveOption {
+    compress_level: u32,
+    background_block: CommonBlock,
+    reserved: [u8; 506],
+}
+sa::const_assert!(size_of::<CWE13SaveOption>()==512);
+
+impl CWE13SaveOption {
+    pub fn to_option(&self) -> WorldEdit13SaveOption {
+        return WorldEdit13SaveOption {
+            compress_level: Compression::new(min(self.compress_level, 9)),
+            background_block: self.background_block,
+        };
+    }
+
+    pub fn from_option(src: &WorldEdit13SaveOption) -> Self {
+        return CWE13SaveOption {
+            compress_level: src.compress_level.level(),
+            background_block: src.background_block,
             reserved: [0; 506],
         }
     }

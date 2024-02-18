@@ -530,8 +530,8 @@ impl VanillaStructureLoadOption {
 
 #[derive(Debug)]
 pub struct VanillaStructureSaveOption {
-    pub keep_air: bool,
     pub compress_level: Compression,
+    pub keep_air: bool,
 }
 
 impl Default for VanillaStructureSaveOption {
@@ -557,8 +557,8 @@ impl LitematicaLoadOption {
 
 #[derive(Debug)]
 pub struct LitematicaSaveOption {
-    pub rename_duplicated_regions: bool,
     pub compress_level: Compression,
+    pub rename_duplicated_regions: bool,
 }
 
 impl Default for LitematicaSaveOption {
@@ -583,8 +583,8 @@ impl WorldEdit13LoadOption {
 
 #[derive(Debug)]
 pub struct WorldEdit13SaveOption {
-    pub background_block: CommonBlock,
     pub compress_level: Compression,
+    pub background_block: CommonBlock,
 }
 
 #[allow(dead_code)]
@@ -613,3 +613,4 @@ impl Default for WorldEdit12LoadOption {
         }
     }
 }
+

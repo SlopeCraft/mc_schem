@@ -24,22 +24,22 @@ A rust library to generate, load, manipulate and save minecraft schematic files.
    A header-only c++ wrapper based on C ffi of mc_schem
 4. schemtool (executable)
 
-   An executable to do various manipulates to schematics
+   An executable to do various manipulations on schematics
 
 ## Build
 
 1. Build with cargo directly (no c/c++ files)
 
-```shell
-cargo build # debug
-cargo build --release #release
-```
+   ```shell
+   cargo build # debug
+   cargo build --release #release
+   ```
 
 2. Build with cmake (with c/c++ files)
 
-```shell
-mkdir build
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DMC_SCHEM_RUST_TARGET=default -DCMAKE_INSTALL_PREFIX=install
-cmake --build build --parallel
-cmake --install build
-```
+   ```shell
+   mkdir build
+   cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DMC_SCHEM_RUST_TARGET=default -DCMAKE_INSTALL_PREFIX=install
+   cmake --build build --parallel
+   cmake --install build
+   ```

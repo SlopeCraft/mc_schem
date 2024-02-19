@@ -7,6 +7,7 @@ void test_link();
 
 void test_error();
 
+
 int main(int argc, char **argv) {
   printf("version of mc_schem: %s\n", MC_SCHEM_version_string());
 

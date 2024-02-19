@@ -426,9 +426,9 @@ impl CSchemLoadResult {
 }
 
 
-#[repr(C)]
+#[repr(C, align(512))]
 struct CLitematicaLoadOption {
-    pub reserved: [u8; 512],
+    reserved: [u8; 512]
 }
 
 sa::const_assert!(size_of::<CLitematicaLoadOption>() == 512);
@@ -443,10 +443,9 @@ impl CLitematicaLoadOption {
 }
 
 
-#[repr(C)]
+#[repr(C, align(512))]
 struct CVanillaStructureLoadOption {
     pub background_block: CommonBlock,
-    reserved: [u8; 510],
 }
 
 sa::const_assert!(size_of::<CVanillaStructureLoadOption>()==512);
@@ -457,18 +456,17 @@ impl CVanillaStructureLoadOption {
     pub fn from_option(src: &VanillaStructureLoadOption) -> Self {
         return Self {
             background_block: src.background_block,
-            reserved: [0; 510],
         };
     }
 }
 
 
-#[repr(C)]
+#[repr(C, align(512))]
 struct CWE13LoadOption {
-    reserved: [u8; 512],
+    reserved: [u8; 512]
 }
 
-//sa::const_assert!(size_of::<CWE13LoadOption>()==512);
+sa::const_assert!(size_of::<CWE13LoadOption>()==512);
 impl CWE13LoadOption {
     pub fn to_option(&self) -> WorldEdit13LoadOption {
         return WorldEdit13LoadOption {};
@@ -480,12 +478,11 @@ impl CWE13LoadOption {
 }
 
 
-#[repr(C)]
+#[repr(C, align(512))]
 struct CWE12LoadOption {
     pub data_version: DataVersion,
     pub fix_string_id_with_block_entity_data: bool,
     pub discard_number_id_array: bool,
-    reserved: [u8; 506],
 }
 sa::const_assert!(size_of::<CWE12LoadOption>()==512);
 
@@ -502,7 +499,6 @@ impl CWE12LoadOption {
             data_version: src.data_version,
             fix_string_id_with_block_entity_data: src.fix_string_id_with_block_entity_data,
             discard_number_id_array: src.discard_number_id_array,
-            reserved: [0; 506],
         }
     }
 }
@@ -553,11 +549,10 @@ impl Write for CWriter {
     }
 }
 
-#[repr(C)]
+#[repr(C, align(512))]
 struct CLitematicaSaveOption {
     compress_level: u32,
     rename_duplicated_regions: bool,
-    reserved: [u8; 507],
 }
 sa::const_assert!(size_of::<CLitematicaSaveOption>()==512);
 
@@ -573,16 +568,14 @@ impl CLitematicaSaveOption {
         return CLitematicaSaveOption {
             compress_level: src.compress_level.level(),
             rename_duplicated_regions: src.rename_duplicated_regions,
-            reserved: [0; 507],
         };
     }
 }
 
-#[repr(C)]
+#[repr(C, align(512))]
 struct CVanillaStructureSaveOption {
     compress_level: u32,
     keep_air: bool,
-    reserved: [u8; 507],
 }
 sa::const_assert!(size_of::<CVanillaStructureSaveOption>()==512);
 
@@ -597,16 +590,14 @@ impl CVanillaStructureSaveOption {
         return CVanillaStructureSaveOption {
             compress_level: src.compress_level.level(),
             keep_air: src.keep_air,
-            reserved: [0; 507],
         }
     }
 }
 
-#[repr(C)]
+#[repr(C, align(512))]
 struct CWE13SaveOption {
     compress_level: u32,
     background_block: CommonBlock,
-    reserved: [u8; 506],
 }
 sa::const_assert!(size_of::<CWE13SaveOption>()==512);
 
@@ -622,7 +613,6 @@ impl CWE13SaveOption {
         return CWE13SaveOption {
             compress_level: src.compress_level.level(),
             background_block: src.background_block,
-            reserved: [0; 506],
         }
     }
 }

@@ -24,8 +24,16 @@
 
 #define MC_SCHEM_DEFINE_BOX(content_type) \
 typedef struct {                          \
-  content_type*ptr;                       \
+  content_type * ptr;                       \
 } content_type##_box;
+
+
+#define MC_SCHEM_DEFINE_OPTIONAL(type, name) \
+typedef struct {                       \
+  type value;                          \
+  bool has_value;                   \
+}MC_SCHEM_optional_##name;
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -494,6 +502,7 @@ typedef struct {
 typedef struct {
   alignas(512) uint8_t reserved[512];
 } MC_SCHEM_load_option_litematica;
+static_assert(sizeof(MC_SCHEM_load_option_litematica)==512);
 MC_SCHEM_EXPORT MC_SCHEM_load_option_litematica MC_SCHEM_load_option_litematica_default();
 
 MC_SCHEM_EXPORT MC_SCHEM_schem_load_result
@@ -507,9 +516,9 @@ MC_SCHEM_schem_load_litematica_bytes(const uint8_t *bytes, size_t length,
                                      const MC_SCHEM_load_option_litematica *option);
 
 typedef struct {
-  MC_SCHEM_common_block background_block;
-  uint8_t reserved[510];
+  alignas(512) MC_SCHEM_common_block background_block;
 } MC_SCHEM_load_option_vanilla_structure;
+static_assert(sizeof(MC_SCHEM_load_option_vanilla_structure)==512,"");
 MC_SCHEM_EXPORT MC_SCHEM_load_option_vanilla_structure MC_SCHEM_load_option_vanilla_structure_default();
 
 MC_SCHEM_EXPORT MC_SCHEM_schem_load_result
@@ -524,8 +533,9 @@ MC_SCHEM_schem_load_vanilla_structure_bytes(const uint8_t *bytes, size_t length,
                                             const MC_SCHEM_load_option_vanilla_structure *option);
 
 typedef struct {
-  uint8_t reserved[512];
+  alignas(512) uint8_t reserved[512];
 } MC_SCHEM_load_option_world_edit_13;
+static_assert(sizeof(MC_SCHEM_load_option_world_edit_13)==512,"");
 MC_SCHEM_EXPORT MC_SCHEM_load_option_world_edit_13 MC_SCHEM_load_option_world_edit_13_default();
 
 MC_SCHEM_EXPORT MC_SCHEM_schem_load_result
@@ -539,12 +549,11 @@ MC_SCHEM_schem_load_world_edit_13_bytes(const uint8_t *bytes, size_t length,
                                         const MC_SCHEM_load_option_world_edit_13 *option);
 
 typedef struct {
-  int32_t data_version;
+  alignas(512) int32_t data_version;
   bool fix_string_id_with_block_entity_data;
   bool discard_number_id_array;
-
-  uint8_t reserved[506];
 } MC_SCHEM_load_option_world_edit_12;
+static_assert(sizeof(MC_SCHEM_load_option_world_edit_12)==512,"");
 MC_SCHEM_EXPORT MC_SCHEM_load_option_world_edit_12 MC_SCHEM_load_option_world_edit_12_default();
 
 MC_SCHEM_EXPORT MC_SCHEM_schem_load_result
@@ -569,10 +578,11 @@ typedef struct {
 MC_SCHEM_writer MC_SCHEM_writer_wrap_stream(FILE *f);
 
 typedef struct {
-  uint32_t compress_level;
+  alignas(512) uint32_t compress_level;
   bool rename_duplicated_regions;
-  uint8_t reserved[507];
+  //uint8_t reserved[507];
 } MC_SCHEM_save_option_litematica;
+static_assert(sizeof(MC_SCHEM_save_option_litematica)==512,"");
 MC_SCHEM_EXPORT MC_SCHEM_save_option_litematica MC_SCHEM_save_option_litematica_default();
 MC_SCHEM_EXPORT MC_SCHEM_error_box
 MC_SCHEM_schem_save_litematica(const MC_SCHEM_schematic *, MC_SCHEM_writer writer,
@@ -583,10 +593,11 @@ MC_SCHEM_schem_save_litematica_file(const MC_SCHEM_schematic *, MC_SCHEM_string_
                                     const MC_SCHEM_save_option_litematica *option);
 
 typedef struct {
-  uint32_t compress_level;
+  alignas(512) uint32_t compress_level;
   bool keep_air;
-  uint8_t reserved[507];
+  //uint8_t reserved[507];
 } MC_SCHEM_save_option_vanilla_structure;
+static_assert(sizeof(MC_SCHEM_save_option_vanilla_structure)==512,"sizeof(MC_SCHEM_save_option_vanilla_structure) should be 512");
 MC_SCHEM_EXPORT MC_SCHEM_save_option_vanilla_structure MC_SCHEM_save_option_vanilla_structure_default();
 MC_SCHEM_EXPORT MC_SCHEM_error_box
 MC_SCHEM_schem_save_vanilla_structure(const MC_SCHEM_schematic *, MC_SCHEM_writer writer,
@@ -597,10 +608,10 @@ MC_SCHEM_schem_save_vanilla_structure_file(const MC_SCHEM_schematic *, MC_SCHEM_
                                            const MC_SCHEM_save_option_vanilla_structure *option);
 
 typedef struct {
-  uint32_t compress_level;
+  alignas(512) uint32_t compress_level;
   MC_SCHEM_common_block background_block;
-  uint8_t reserved[506];
 } MC_SCHEM_save_option_world_edit_13;
+static_assert(sizeof(MC_SCHEM_save_option_world_edit_13)==512,"");
 MC_SCHEM_EXPORT MC_SCHEM_save_option_world_edit_13 MC_SCHEM_save_option_world_edit_13_default();
 MC_SCHEM_EXPORT MC_SCHEM_error_box
 MC_SCHEM_schem_save_world_edit_13(const MC_SCHEM_schematic *, MC_SCHEM_writer writer,
@@ -609,6 +620,39 @@ MC_SCHEM_schem_save_world_edit_13(const MC_SCHEM_schematic *, MC_SCHEM_writer wr
 MC_SCHEM_EXPORT MC_SCHEM_error_box
 MC_SCHEM_schem_save_world_edit_13_file(const MC_SCHEM_schematic *, MC_SCHEM_string_view filename,
                                        const MC_SCHEM_save_option_world_edit_13 *option);
+
+MC_SCHEM_DEFINE_OPTIONAL(int32_t, i32)
+MC_SCHEM_DEFINE_OPTIONAL(int64_t, i64)
+MC_SCHEM_DEFINE_OPTIONAL(MC_SCHEM_string_view, string_view)
+MC_SCHEM_DEFINE_OPTIONAL(MC_SCHEM_array3_i32, i32_array3)
+
+typedef struct {
+  // universal
+  alignas(1024) int32_t mc_data_version;
+  int64_t time_created;
+  int64_t time_modified;
+  MC_SCHEM_string_view author;
+  MC_SCHEM_string_view name;
+  MC_SCHEM_string_view description;
+  // litematica-related
+  int32_t litematica_version;
+  MC_SCHEM_optional_i32 litematica_subversion;
+
+  // world edit 12&13 (.schem/.schematic) related
+  int32_t schem_version;//world edit schem
+  int32_t schem_offset[3];
+  MC_SCHEM_optional_i32_array3 schem_we_offset;
+
+  MC_SCHEM_optional_i64 date;
+
+  //world edit 12 related
+  MC_SCHEM_optional_string_view schem_world_edit_version;
+  MC_SCHEM_optional_string_view schem_editing_platform;
+  MC_SCHEM_optional_i32_array3 schem_origin;
+  MC_SCHEM_string_view schem_material;//Classic or Alpha
+
+} MC_SCHEM_schem_metadata_c_rep;
+static_assert(sizeof(MC_SCHEM_schem_metadata_c_rep) == 1024, "sizeof(MC_SCHEM_schem_metadata_c_rep) should be 512");
 
 #ifdef __cplusplus
 }

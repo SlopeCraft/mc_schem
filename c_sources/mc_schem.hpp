@@ -569,11 +569,11 @@ namespace mc_schem {
         return this->cend();
       }
 
-      const_iterator cbegin() const noexcept {
+      [[nodiscard]] const_iterator cbegin() const noexcept {
         return const_iterator{this->impl_begin()};
       }
 
-      const_iterator cend() const noexcept {
+      [[nodiscard]] const_iterator cend() const noexcept {
         return const_iterator{this->impl_end()};
       }
     };
@@ -1366,7 +1366,6 @@ namespace mc_schem {
       return c_type{
         this->compress_level,
         this->rename_duplicated_regions,
-        {}
       };
     }
 
@@ -1383,7 +1382,7 @@ namespace mc_schem {
       MC_SCHEM_load_option_vanilla_structure_default()} {}
 
     [[nodiscard]] c_type to_c_type() const noexcept {
-      c_type result{static_cast<MC_SCHEM_common_block>(this->background_block), {}};
+      c_type result{static_cast<MC_SCHEM_common_block>(this->background_block)};
       return result;
     }
 
@@ -1406,7 +1405,6 @@ namespace mc_schem {
       return c_type{
         this->compress_level,
         this->keep_air,
-        {}
       };
     }
 
@@ -1444,7 +1442,6 @@ namespace mc_schem {
       return c_type{
         this->compress_level,
         static_cast<MC_SCHEM_common_block>(this->background_block),
-        {}
       };
     }
   };
@@ -1466,7 +1463,7 @@ namespace mc_schem {
     [[nodiscard]] c_type to_c_type() const noexcept {
       c_type result{this->data_version,
                     this->fix_string_id_with_block_entity_data,
-                    this->discard_number_id_array, {}};
+                    this->discard_number_id_array};
       return result;
     }
   };
@@ -1476,7 +1473,7 @@ namespace mc_schem {
   public:
     schematic() = delete;
 
-    schematic(MC_SCHEM_schematic *handle) : detail::wrapper<MC_SCHEM_schematic *>{handle} {}
+    explicit schematic(MC_SCHEM_schematic *handle) : detail::wrapper<MC_SCHEM_schematic *>{handle} {}
 
     using schem_box = detail::box<schematic, MC_SCHEM_schematic_box>;
 
@@ -1558,7 +1555,7 @@ namespace mc_schem {
 
     // load litematica
     [[nodiscard]] static load_result
-    load_litematica_from_file(std::string_view filename,
+    load_litematica(std::string_view filename,
                               const litematica_load_option &option) noexcept {
       auto c_option = option.to_c_type();
       auto file_name = detail::string_view_std_to_schem(filename);
@@ -1568,7 +1565,7 @@ namespace mc_schem {
     }
 
     [[nodiscard]] static load_result
-    load_litematica_from_bytes(std::span<const uint8_t> bytes,
+    load_litematica(std::span<const uint8_t> bytes,
                                const litematica_load_option &option) noexcept {
       auto c_option = option.to_c_type();
       auto result = MC_SCHEM_schem_load_litematica_bytes(bytes.data(), bytes.size_bytes(), &c_option);
@@ -1576,26 +1573,30 @@ namespace mc_schem {
     }
 
     [[nodiscard]] static load_result
-    load_litematica_from_stream(std::istream &src, const litematica_load_option &option) noexcept {
+    load_litematica(MC_SCHEM_reader &reader, const litematica_load_option &option) noexcept {
       auto c_option = option.to_c_type();
-      auto reader = wrap_istream(src);
       auto result = MC_SCHEM_schem_load_litematica(reader, &c_option);
       return c_result_to_load_result(std::move(result));
     }
 
+    [[nodiscard]] static load_result
+    load_litematica(std::istream &src, const litematica_load_option &option) noexcept {
+      auto reader = wrap_istream(src);
+      return load_litematica(reader, option);
+    }
+
     // load vanilla_structure
     [[nodiscard]] static load_result
-    load_vanilla_structure_from_file(std::string_view filename,
+    load_vanilla_structure(std::string_view filename,
                                      const vanilla_structure_load_option &option) noexcept {
       auto c_option = option.to_c_type();
       auto file_name = detail::string_view_std_to_schem(filename);
       auto result = MC_SCHEM_schem_load_vanilla_structure_file(file_name, &c_option);
-
       return c_result_to_load_result(std::move(result));
     }
 
     [[nodiscard]] static load_result
-    load_vanilla_structure_from_bytes(std::span<const uint8_t> bytes,
+    load_vanilla_structure(std::span<const uint8_t> bytes,
                                       const vanilla_structure_load_option &option) noexcept {
       auto c_option = option.to_c_type();
       auto result = MC_SCHEM_schem_load_vanilla_structure_bytes(bytes.data(), bytes.size_bytes(), &c_option);
@@ -1603,17 +1604,22 @@ namespace mc_schem {
     }
 
     [[nodiscard]] static load_result
-    load_vanilla_structure_from_stream(std::istream &src, const vanilla_structure_load_option &option) noexcept {
+    load_vanilla_structure(MC_SCHEM_reader &reader, const vanilla_structure_load_option &option) noexcept {
       auto c_option = option.to_c_type();
-      auto reader = wrap_istream(src);
       auto result = MC_SCHEM_schem_load_vanilla_structure(reader, &c_option);
       return c_result_to_load_result(std::move(result));
+    }
+
+    [[nodiscard]] static load_result
+    load_vanilla_structure(std::istream &src, const vanilla_structure_load_option &option) noexcept {
+      auto reader = wrap_istream(src);
+      return load_vanilla_structure(reader, option);
     }
 
 
     // load world_edit_13
     [[nodiscard]] static load_result
-    load_world_edit_13_from_file(std::string_view filename,
+    load_world_edit_13(std::string_view filename,
                                  const world_edit_13_load_option &option) noexcept {
       auto c_option = option.to_c_type();
       auto file_name = detail::string_view_std_to_schem(filename);
@@ -1623,7 +1629,7 @@ namespace mc_schem {
     }
 
     [[nodiscard]] static load_result
-    load_world_edit_13_from_bytes(std::span<const uint8_t> bytes,
+    load_world_edit_13(std::span<const uint8_t> bytes,
                                   const world_edit_13_load_option &option) noexcept {
       auto c_option = option.to_c_type();
       auto result = MC_SCHEM_schem_load_world_edit_13_bytes(bytes.data(), bytes.size_bytes(), &c_option);
@@ -1631,16 +1637,21 @@ namespace mc_schem {
     }
 
     [[nodiscard]] static load_result
-    load_world_edit_13_from_stream(std::istream &src, const world_edit_13_load_option &option) noexcept {
+    load_world_edit_13(MC_SCHEM_reader &reader, const world_edit_13_load_option &option) noexcept {
       auto c_option = option.to_c_type();
-      auto reader = wrap_istream(src);
       auto result = MC_SCHEM_schem_load_world_edit_13(reader, &c_option);
       return c_result_to_load_result(std::move(result));
     }
 
+    [[nodiscard]] static load_result
+    load_world_edit_13(std::istream &src, const world_edit_13_load_option &option) noexcept {
+      auto reader = wrap_istream(src);
+      return load_world_edit_13(reader, option);
+    }
+
     // load world_edit_12
     [[nodiscard]] static load_result
-    load_world_edit_12_from_file(std::string_view filename,
+    load_world_edit_12(std::string_view filename,
                                  const world_edit_12_load_option &option) noexcept {
       auto c_option = option.to_c_type();
       auto file_name = detail::string_view_std_to_schem(filename);
@@ -1650,7 +1661,7 @@ namespace mc_schem {
     }
 
     [[nodiscard]] static load_result
-    load_world_edit_12_from_bytes(std::span<const uint8_t> bytes,
+    load_world_edit_12(std::span<const uint8_t> bytes,
                                   const world_edit_12_load_option &option) noexcept {
       auto c_option = option.to_c_type();
       auto result = MC_SCHEM_schem_load_world_edit_12_bytes(bytes.data(), bytes.size_bytes(), &c_option);
@@ -1658,7 +1669,13 @@ namespace mc_schem {
     }
 
     [[nodiscard]] static load_result
-    load_world_edit_12_from_stream(std::istream &src, const world_edit_12_load_option &option) noexcept {
+    load_world_edit_12(MC_SCHEM_reader &reader, const world_edit_12_load_option &option) noexcept {
+      auto c_option = option.to_c_type();
+      auto result = MC_SCHEM_schem_load_world_edit_12(reader, &c_option);
+      return c_result_to_load_result(std::move(result));
+    }
+    [[nodiscard]] static load_result
+    load_world_edit_12(std::istream &src, const world_edit_12_load_option &option) noexcept {
       auto c_option = option.to_c_type();
       auto reader = wrap_istream(src);
       auto result = MC_SCHEM_schem_load_world_edit_12(reader, &c_option);
@@ -1667,7 +1684,7 @@ namespace mc_schem {
 
 
     [[nodiscard]] save_result
-    save_litematica_to_file(std::string_view filename, const litematica_save_option &option) const noexcept {
+    save_litematica(std::string_view filename, const litematica_save_option &option) const noexcept {
       auto c_option = option.to_c_type();
       auto file = detail::string_view_std_to_schem(filename);
       auto error = MC_SCHEM_schem_save_litematica_file(this->handle, file, &c_option);
@@ -1675,15 +1692,20 @@ namespace mc_schem {
     }
 
     [[nodiscard]] save_result
-    save_litematica_to_stream(std::ostream &dest, const litematica_save_option &option) const noexcept {
+    save_litematica(MC_SCHEM_writer &writer, const litematica_save_option &option) const noexcept {
       auto c_option = option.to_c_type();
-      auto writer = wrap_ostream(dest);
       auto error = MC_SCHEM_schem_save_litematica(this->handle, writer, &c_option);
       return c_error_box_to_save_result(std::move(error));
     }
 
     [[nodiscard]] save_result
-    save_vanilla_structure_to_file(std::string_view filename,
+    save_litematica(std::ostream &dest, const litematica_save_option &option) const noexcept {
+      auto writer = wrap_ostream(dest);
+      return this->save_litematica(writer, option);
+    }
+
+    [[nodiscard]] save_result
+    save_vanilla_structure(std::string_view filename,
                                    const vanilla_structure_save_option &option) const noexcept {
       auto c_option = option.to_c_type();
       auto file = detail::string_view_std_to_schem(filename);
@@ -1692,15 +1714,20 @@ namespace mc_schem {
     }
 
     [[nodiscard]] save_result
-    save_vanilla_structure_to_stream(std::ostream &dest, const vanilla_structure_save_option &option) const noexcept {
+    save_vanilla_structure(MC_SCHEM_writer &writer, const vanilla_structure_save_option &option) const noexcept {
       auto c_option = option.to_c_type();
-      auto writer = wrap_ostream(dest);
       auto error = MC_SCHEM_schem_save_vanilla_structure(this->handle, writer, &c_option);
       return c_error_box_to_save_result(std::move(error));
     }
 
     [[nodiscard]] save_result
-    save_world_edit_13_to_file(std::string_view filename, const world_edit_13_save_option &option) const noexcept {
+    save_vanilla_structure(std::ostream &dest, const vanilla_structure_save_option &option) const noexcept {
+      auto writer = wrap_ostream(dest);
+      return this->save_vanilla_structure(writer, option);
+    }
+
+    [[nodiscard]] save_result
+    save_world_edit_13(std::string_view filename, const world_edit_13_save_option &option) const noexcept {
       auto c_option = option.to_c_type();
       auto file = detail::string_view_std_to_schem(filename);
       auto error = MC_SCHEM_schem_save_world_edit_13_file(this->handle, file, &c_option);
@@ -1708,11 +1735,16 @@ namespace mc_schem {
     }
 
     [[nodiscard]] save_result
-    save_world_edit_13_to_stream(std::ostream &dest, const world_edit_13_save_option &option) const noexcept {
+    save_world_edit_13(MC_SCHEM_writer &writer, const world_edit_13_save_option &option) const noexcept {
       auto c_option = option.to_c_type();
-      auto writer = wrap_ostream(dest);
       auto error = MC_SCHEM_schem_save_world_edit_13(this->handle, writer, &c_option);
       return c_error_box_to_save_result(std::move(error));
+    }
+
+    [[nodiscard]] save_result
+    save_world_edit_13(std::ostream &dest, const world_edit_13_save_option &option) const noexcept {
+      auto writer = wrap_ostream(dest);
+      return this->save_world_edit_13(writer, option);
     }
 
   };

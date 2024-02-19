@@ -1149,7 +1149,9 @@ namespace mc_schem {
 
     region(const region &) = delete;
 
-    region(MC_SCHEM_region *handle) : detail::wrapper<MC_SCHEM_region *>{handle} {}
+    region(region &&) = default;
+
+    explicit region(MC_SCHEM_region *handle) : detail::wrapper<MC_SCHEM_region *>{handle} {}
 
     static detail::box<region, MC_SCHEM_region_box> create() noexcept {
       return detail::box<region, MC_SCHEM_region_box>{MC_SCHEM_create_region()};
@@ -1885,6 +1887,42 @@ namespace mc_schem {
       this->set_metadata(&c_md);
     }
 
+  protected:
+    [[nodiscard]] std::vector<region> impl_regions() const noexcept {
+      std::vector<region> result;
+      const size_t num_regions = MC_SCHEM_schem_get_region_num(this->handle);
+      result.reserve(num_regions);
+
+      for (size_t i = 0; i < num_regions; i++) {
+        auto reg_ptr = MC_SCHEM_schem_get_region(this->handle, i);
+        result.emplace_back(reg_ptr);
+      }
+      return result;
+    }
+
+  public:
+    [[nodiscard]] std::vector<region> regions() noexcept {
+      return this->impl_regions();
+    }
+
+    [[nodiscard]] const std::vector<region> regions() const noexcept {
+      return this->impl_regions();
+    }
+
+    using region_box = detail::box<region, MC_SCHEM_region_box>;
+
+    [[nodiscard]] region_box take_region(size_t index) noexcept {
+      return {MC_SCHEM_schem_take_region(this->handle, index)};
+    }
+
+    void insert_region(const region &reg, size_t index) noexcept {
+      MC_SCHEM_schem_insert_region_copy(this->handle, reg.unwrap_handle(), index);
+    }
+
+    void insert_region(region_box &&box, size_t index) noexcept {
+      MC_SCHEM_region_box b{box->unwrap_handle()};
+      MC_SCHEM_schem_insert_region_move(this->handle, &b, index);
+    }
   };
 
 

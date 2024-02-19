@@ -1,8 +1,9 @@
+use std::ops::Deref;
 use std::ptr::{drop_in_place, slice_from_raw_parts};
 use crate::c_ffi::{CLitematicaLoadOption, CLitematicaSaveOption, CMetadata, CReader, CSchemLoadResult, CStringView, CVanillaStructureLoadOption, CVanillaStructureSaveOption, CWE12LoadOption, CWE13LoadOption, CWE13SaveOption, CWriter};
 use crate::error::Error;
 use crate::schem::{LitematicaLoadOption, LitematicaSaveOption, VanillaStructureLoadOption, VanillaStructureSaveOption, WorldEdit12LoadOption, WorldEdit13LoadOption, WorldEdit13SaveOption};
-use crate::Schematic;
+use crate::{Region, Schematic};
 
 #[no_mangle]
 extern "C" fn MC_SCHEM_create_schem() -> Box<Schematic> {
@@ -199,4 +200,31 @@ unsafe extern "C" fn MC_SCHEM_schem_get_metadata(schem: *const Schematic) -> CMe
 #[no_mangle]
 unsafe extern "C" fn MC_SCHEM_schem_set_metadata(schem: *mut Schematic, md: *const CMetadata) {
     (*schem).metadata = (*md).to_metadata();
+}
+
+#[no_mangle]
+unsafe extern "C" fn MC_SCHEM_schem_get_region_num(schem: *const Schematic) -> usize {
+    return (*schem).regions.len();
+}
+
+#[no_mangle]
+unsafe extern "C" fn MC_SCHEM_schem_get_region(schem: *const Schematic, index: usize) -> *mut Region {
+    return (*schem).regions.as_ptr().add(index) as *mut Region;
+}
+
+#[no_mangle]
+unsafe extern "C" fn MC_SCHEM_schem_take_region(schem: *mut Schematic, index: usize) -> Box<Region> {
+    return Box::new((*schem).regions.remove(index));
+}
+
+#[no_mangle]
+unsafe extern "C" fn MC_SCHEM_schem_insert_region_copy(schem: *mut Schematic, region: *const Region, index: usize) {
+    (*schem).regions.insert(index, (*region).clone());
+}
+
+#[no_mangle]
+unsafe extern "C" fn MC_SCHEM_schem_insert_region_move(schem: *mut Schematic, region_box: *mut Box<Region>, index: usize) {
+    let mut region = Region::new();
+    std::mem::swap(&mut region, &mut (*region_box));
+    (*schem).regions.insert(index, region);
 }

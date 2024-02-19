@@ -32,7 +32,7 @@ pub struct PendingTick {
     pub info: PendingTickInfo,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Region {
     pub name: String,
     //XYZ

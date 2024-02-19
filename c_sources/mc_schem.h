@@ -657,6 +657,14 @@ static_assert(sizeof(MC_SCHEM_schem_metadata_c_rep) == 1024, "sizeof(MC_SCHEM_sc
 MC_SCHEM_EXPORT MC_SCHEM_schem_metadata_c_rep MC_SCHEM_schem_get_metadata(const MC_SCHEM_schematic *);
 MC_SCHEM_EXPORT void MC_SCHEM_schem_set_metadata(MC_SCHEM_schematic *, const MC_SCHEM_schem_metadata_c_rep *);
 
+MC_SCHEM_EXPORT size_t MC_SCHEM_schem_get_region_num(const MC_SCHEM_schematic *);
+MC_SCHEM_EXPORT MC_SCHEM_region *MC_SCHEM_schem_get_region(const MC_SCHEM_schematic *, size_t index);
+
+MC_SCHEM_EXPORT MC_SCHEM_region_box MC_SCHEM_schem_take_region(MC_SCHEM_schematic *, size_t index);
+//behaves like std::vector::insert
+MC_SCHEM_EXPORT void MC_SCHEM_schem_insert_region_copy(MC_SCHEM_schematic *, const MC_SCHEM_region *, size_t index);
+MC_SCHEM_EXPORT void MC_SCHEM_schem_insert_region_move(MC_SCHEM_schematic *, MC_SCHEM_region_box *box, size_t index);
+
 #ifdef __cplusplus
 }
 #endif

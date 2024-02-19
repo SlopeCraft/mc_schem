@@ -212,11 +212,12 @@ void test_link() {
   
   check_fun_ptr(MC_SCHEM_schem_get_metadata);
   check_fun_ptr(MC_SCHEM_schem_set_metadata);
-//  check_fun_ptr();
-//  check_fun_ptr();
-//  check_fun_ptr();
-//  check_fun_ptr();
-//  check_fun_ptr();
+
+  check_fun_ptr(MC_SCHEM_schem_get_region_num);
+  check_fun_ptr(MC_SCHEM_schem_get_region);
+  check_fun_ptr(MC_SCHEM_schem_take_region);
+  check_fun_ptr(MC_SCHEM_schem_insert_region_copy);
+  check_fun_ptr(MC_SCHEM_schem_insert_region_move);
 //  check_fun_ptr();
 //  check_fun_ptr();
 //  check_fun_ptr();

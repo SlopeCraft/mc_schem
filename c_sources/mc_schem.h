@@ -654,6 +654,9 @@ typedef struct {
 } MC_SCHEM_schem_metadata_c_rep;
 static_assert(sizeof(MC_SCHEM_schem_metadata_c_rep) == 1024, "sizeof(MC_SCHEM_schem_metadata_c_rep) should be 512");
 
+MC_SCHEM_EXPORT MC_SCHEM_schem_metadata_c_rep MC_SCHEM_schem_get_metadata(const MC_SCHEM_schematic *);
+MC_SCHEM_EXPORT void MC_SCHEM_schem_set_metadata(MC_SCHEM_schematic *, const MC_SCHEM_schem_metadata_c_rep *);
+
 #ifdef __cplusplus
 }
 #endif

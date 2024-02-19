@@ -1,5 +1,5 @@
 use std::ptr::{drop_in_place, slice_from_raw_parts};
-use crate::c_ffi::{CLitematicaLoadOption, CLitematicaSaveOption, CReader, CSchemLoadResult, CStringView, CVanillaStructureLoadOption, CVanillaStructureSaveOption, CWE12LoadOption, CWE13LoadOption, CWE13SaveOption, CWriter};
+use crate::c_ffi::{CLitematicaLoadOption, CLitematicaSaveOption, CMetadata, CReader, CSchemLoadResult, CStringView, CVanillaStructureLoadOption, CVanillaStructureSaveOption, CWE12LoadOption, CWE13LoadOption, CWE13SaveOption, CWriter};
 use crate::error::Error;
 use crate::schem::{LitematicaLoadOption, LitematicaSaveOption, VanillaStructureLoadOption, VanillaStructureSaveOption, WorldEdit12LoadOption, WorldEdit13LoadOption, WorldEdit13SaveOption};
 use crate::Schematic;
@@ -191,3 +191,12 @@ unsafe extern "C" fn MC_SCHEM_schem_save_world_edit_13_file(schem: *const Schema
     }
 }
 
+#[no_mangle]
+unsafe extern "C" fn MC_SCHEM_schem_get_metadata(schem: *const Schematic) -> CMetadata {
+    return CMetadata::new(&(*schem).metadata);
+}
+
+#[no_mangle]
+unsafe extern "C" fn MC_SCHEM_schem_set_metadata(schem: *mut Schematic, md: *const CMetadata) {
+    (*schem).metadata = (*md).to_metadata();
+}

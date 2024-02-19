@@ -14,7 +14,7 @@ use crate::{Block};
 use crate::block::{BlockIdParseError, CommonBlock};
 use crate::error::Error;
 use crate::region::{BlockEntity, Entity, PendingTick};
-use crate::schem::{Schematic, LitematicaLoadOption, VanillaStructureLoadOption, WorldEdit13LoadOption, WorldEdit12LoadOption, DataVersion, LitematicaSaveOption, VanillaStructureSaveOption, WorldEdit13SaveOption};
+use crate::schem::{Schematic, LitematicaLoadOption, VanillaStructureLoadOption, WorldEdit13LoadOption, WorldEdit12LoadOption, DataVersion, LitematicaSaveOption, VanillaStructureSaveOption, WorldEdit13SaveOption, MetaDataIR};
 
 mod map_ffi;
 mod nbt_ffi;
@@ -614,5 +614,131 @@ impl CWE13SaveOption {
             compress_level: src.compress_level.level(),
             background_block: src.background_block,
         }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Clone)]
+struct COption<T> {
+    value: T,
+    has_value: bool,
+}
+
+impl<T> COption<T>
+    where T: Clone {
+    pub fn to_option(&self) -> Option<T> {
+        return if self.has_value {
+            Some(self.value.clone())
+        } else {
+            None
+        }
+    }
+}
+
+impl<T> From<Option<T>> for COption<T>
+    where T: Default {
+    fn from(src: Option<T>) -> Self {
+        return match src {
+            Some(val) => COption { value: val, has_value: true },
+            None => COption { value: T::default(), has_value: false },
+        }
+    }
+}
+
+impl From<&Option<String>> for COption<CStringView> {
+    fn from(src: &Option<String>) -> Self {
+        return match src {
+            Some(s) => COption { value: CStringView::from(&s), has_value: true },
+            None => COption { value: CStringView::from(""), has_value: false },
+        }
+    }
+}
+
+impl COption<CStringView> {
+    pub fn to_option_string(&self) -> Option<String> {
+        return if self.has_value {
+            Some(self.value.to_string())
+        } else {
+            None
+        }
+    }
+}
+
+#[repr(C, align(1024))]
+struct CMetadata {
+    pub mc_data_version: i32,
+
+    pub time_created: i64,
+    pub time_modified: i64,
+    pub author: CStringView,
+    pub name: CStringView,
+    pub description: CStringView,
+
+    pub litematica_version: i32,
+    pub litematica_subversion: COption<i32>,
+
+    pub schem_version: i32,
+    pub schem_offset: [i32; 3],
+    pub schem_we_offset: COption<[i32; 3]>,
+
+    pub date: COption<i64>,
+
+    pub schem_world_edit_version: COption<CStringView>,
+    pub schem_editing_platform: COption<CStringView>,
+    pub schem_origin: COption<[i32; 3]>,
+    pub schem_material: CStringView,
+}
+sa::const_assert!(size_of::<CMetadata>()==1024);
+
+impl CMetadata {
+    pub fn new(src: &MetaDataIR) -> Self {
+        return CMetadata {
+            mc_data_version: src.mc_data_version,
+            time_created: src.time_created,
+            time_modified: src.time_modified,
+            author: CStringView::from(&src.author),
+            name: CStringView::from(&src.name),
+            description: CStringView::from(&src.name),
+
+            litematica_version: src.litematica_version,
+            litematica_subversion: COption::from(src.litematica_subversion),
+
+            schem_version: src.schem_version,
+            schem_offset: src.schem_offset,
+            schem_we_offset: COption::from(src.schem_we_offset),
+
+            date: COption::from(src.date),
+
+            schem_world_edit_version: COption::from(&src.schem_world_edit_version),
+            schem_editing_platform: COption::from(&src.schem_editing_platform),
+            schem_origin: COption::from(src.schem_origin),
+            schem_material: CStringView::from(&src.schem_material),
+
+        };
+    }
+
+    pub fn to_metadata(&self) -> MetaDataIR {
+        return MetaDataIR {
+            mc_data_version: self.mc_data_version,
+            time_created: self.time_created,
+            time_modified: self.time_modified,
+            author: self.author.to_string(),
+            name: self.name.to_string(),
+            description: self.description.to_string(),
+
+            litematica_version: self.litematica_version,
+            litematica_subversion: self.litematica_subversion.to_option(),
+
+            schem_version: self.schem_version,
+            schem_offset: self.schem_offset,
+            schem_we_offset: self.schem_we_offset.to_option(),
+
+            date: self.date.to_option(),
+
+            schem_world_edit_version: self.schem_world_edit_version.to_option_string(),
+            schem_editing_platform: self.schem_editing_platform.to_option_string(),
+            schem_origin: self.schem_origin.to_option(),
+            schem_material: self.schem_material.to_string(),
+        };
     }
 }

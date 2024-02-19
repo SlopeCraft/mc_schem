@@ -1468,6 +1468,131 @@ namespace mc_schem {
     }
   };
 
+  namespace detail {
+    template<typename T, typename c_option_t>
+    [[nodiscard]] std::optional<T> parse_c_option(const c_option_t &src) noexcept {
+      if (src.has_value) {
+        return T{src.value};
+      }
+      return std::nullopt;
+    }
+
+    template<typename c_option_t>
+    [[nodiscard]] std::optional<decltype(c_option_t{}.value)> parse_c_option(const c_option_t &src) noexcept {
+      if (src.has_value) {
+        return {src.value};
+      }
+      return std::nullopt;
+    }
+
+    [[nodiscard]] std::optional<std::string> parse_c_option(const MC_SCHEM_optional_string_view &src) noexcept {
+      if (src.has_value) {
+        return std::string{string_view_schem_to_std(src.value)};
+      }
+      return std::nullopt;
+    }
+
+    [[nodiscard]] std::optional<std::array<int, 3>> parse_c_option(const MC_SCHEM_optional_i32_array3 &src) noexcept {
+      if (src.has_value) {
+        return {array3_i32_schem_to_std(src.value)};
+      }
+      return std::nullopt;
+    }
+
+    [[nodiscard]] MC_SCHEM_optional_i32 make_c_option(const std::optional<int32_t> &src) noexcept {
+      return {src.value_or(0), src.has_value()};
+    }
+
+    [[nodiscard]] MC_SCHEM_optional_i64 make_c_option(const std::optional<int64_t> &src) noexcept {
+      return {src.value_or(0), src.has_value()};
+    }
+
+    [[nodiscard]] MC_SCHEM_optional_string_view make_c_option(const std::optional<std::string> &src) noexcept {
+      if (src.has_value()) {
+        return {string_view_std_to_schem(src.value()), true};
+      }
+      return {MC_SCHEM_string_view{nullptr, nullptr}, false};
+    }
+
+    [[nodiscard]] MC_SCHEM_optional_i32_array3
+    make_c_option(const std::optional<std::array<int32_t, 3>> &src) noexcept {
+      if (src.has_value()) {
+        return {array3_i32_std_to_schem(src.value()), true};
+      }
+      return {MC_SCHEM_array3_i32{{0, 0, 0}}, false};
+    }
+  }
+
+  struct metadata {
+    using c_type = MC_SCHEM_schem_metadata_c_rep;
+    static_assert(sizeof(c_type) == 1024);
+
+    int32_t mc_data_version;
+    int64_t time_created;
+    int64_t time_modified;
+    std::string author;
+    std::string name;
+    std::string description;
+    // litematica-related
+    int32_t litematica_version;
+    std::optional<int32_t> litematica_subversion;
+
+    // world edit 12&13 (.schem/.schematic) related
+    int32_t schem_version;//world edit schem
+    std::array<int32_t, 3> schem_offset;
+    std::optional<std::array<int32_t, 3>> schem_we_offset;
+
+    std::optional<int64_t> date;
+
+    //world edit 12 related
+    std::optional<std::string> schem_world_edit_version;
+    std::optional<std::string> schem_editing_platform;
+    std::optional<std::array<int32_t, 3>> schem_origin;
+    std::string schem_material;//Classic or Alpha
+
+    explicit metadata(const c_type &src) :
+      mc_data_version{src.mc_data_version},
+      time_created{src.time_created},
+      time_modified{src.time_modified},
+      author{detail::string_view_schem_to_std(src.author)},
+      name{detail::string_view_schem_to_std(src.name)},
+      description{detail::string_view_schem_to_std(src.author)},
+      litematica_version{src.litematica_version},
+      litematica_subversion{detail::parse_c_option(src.litematica_subversion)},
+      schem_version{src.schem_version},
+      schem_offset{src.schem_offset[0], src.schem_offset[1], src.schem_offset[2]},
+      schem_we_offset{detail::parse_c_option(src.schem_we_offset)},
+      date{detail::parse_c_option(src.date)},
+      schem_world_edit_version{detail::parse_c_option(src.schem_world_edit_version)},
+      schem_editing_platform{detail::parse_c_option(src.schem_editing_platform)},
+      schem_origin{detail::parse_c_option(src.schem_origin)},
+      schem_material{detail::string_view_schem_to_std(src.schem_material)} {}
+
+    [[nodiscard]] c_type to_c_type() const noexcept {
+      return c_type{
+        this->mc_data_version,
+        this->time_created,
+        this->time_modified,
+        detail::string_view_std_to_schem(this->author),
+        detail::string_view_std_to_schem(this->name),
+        detail::string_view_std_to_schem(this->description),
+
+        this->litematica_version,
+        detail::make_c_option(this->litematica_subversion),
+
+        this->schem_version,
+        {this->schem_offset[0], this->schem_offset[1], this->schem_offset[2]},
+        detail::make_c_option(this->schem_we_offset),
+
+        detail::make_c_option(this->date),
+
+        detail::make_c_option(this->schem_world_edit_version),
+        detail::make_c_option(this->schem_editing_platform),
+        detail::make_c_option(this->schem_origin),
+        detail::string_view_std_to_schem(this->schem_material)
+      };
+    }
+  };
 
   class schematic : public detail::wrapper<MC_SCHEM_schematic *> {
   public:
@@ -1745,6 +1870,19 @@ namespace mc_schem {
     save_world_edit_13(std::ostream &dest, const world_edit_13_save_option &option) const noexcept {
       auto writer = wrap_ostream(dest);
       return this->save_world_edit_13(writer, option);
+    }
+
+    [[nodiscard]] metadata metadata() const noexcept {
+      return ::mc_schem::metadata{MC_SCHEM_schem_get_metadata(this->handle)};
+    }
+
+    void set_metadata(const MC_SCHEM_schem_metadata_c_rep *c_md) noexcept {
+      MC_SCHEM_schem_set_metadata(this->handle, c_md);
+    }
+
+    void set_metadata(const ::mc_schem::metadata &src) noexcept {
+      auto c_md = src.to_c_type();
+      this->set_metadata(&c_md);
     }
 
   };

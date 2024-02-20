@@ -45,6 +45,7 @@ void test_link() {
   check_fun_ptr(MC_SCHEM_version_tweak);
 
   check_fun_ptr(MC_SCHEM_string_unwrap);
+  check_fun_ptr(MC_SCHEM_swap_string);
   check_fun_ptr(MC_SCHEM_c_string_to_string_view);
   check_fun_ptr(MC_SCHEM_string_set);
 
@@ -72,6 +73,7 @@ void test_link() {
   //////////
   check_fun_ptr(MC_SCHEM_create_nbt);
   check_fun_ptr(MC_SCHEM_release_nbt);
+  check_fun_ptr(MC_SCHEM_swap_nbt);
 
   check_fun_ptr(MC_SCHEM_nbt_get_type);
   check_fun_ptr(MC_SCHEM_nbt_get_byte);
@@ -102,6 +104,7 @@ void test_link() {
   //blocks
   check_fun_ptr(MC_SCHEM_create_block);
   check_fun_ptr(MC_SCHEM_release_block);
+  check_fun_ptr(MC_SCHEM_swap_block);
   check_fun_ptr(MC_SCHEM_block_get_namespace);
   check_fun_ptr(MC_SCHEM_block_get_id);
   check_fun_ptr(MC_SCHEM_block_get_attributes);
@@ -113,7 +116,8 @@ void test_link() {
   ////////////////////////////////////
   //entity
   check_fun_ptr(MC_SCHEM_create_entity);
-  check_fun_ptr(MC_SCHEM_release_block);
+  check_fun_ptr(MC_SCHEM_release_entity);
+  check_fun_ptr(MC_SCHEM_swap_entity);
   check_fun_ptr(MC_SCHEM_entity_get_block_pos);
   check_fun_ptr(MC_SCHEM_entity_get_pos);
   check_fun_ptr(MC_SCHEM_entity_set_block_pos);
@@ -123,11 +127,13 @@ void test_link() {
   //block entity
   check_fun_ptr(MC_SCHEM_create_block_entity);
   check_fun_ptr(MC_SCHEM_release_block_entity);
+  check_fun_ptr(MC_SCHEM_swap_block_entity);
   check_fun_ptr(MC_SCHEM_block_entity_get_tags);
   ////////////////////////////////////
   //pending tick
   check_fun_ptr(MC_SCHEM_create_pending_tick);
   check_fun_ptr(MC_SCHEM_release_pending_tick);
+  check_fun_ptr(MC_SCHEM_swap_pending_tick);
   check_fun_ptr(MC_SCHEM_pending_tick_get_priority);
   check_fun_ptr(MC_SCHEM_pending_tick_set_priority);
   check_fun_ptr(MC_SCHEM_pending_tick_get_sub_tick);
@@ -140,6 +146,7 @@ void test_link() {
   ////////////////////////////////////
   //error
   check_fun_ptr(MC_SCHEM_release_error);
+  check_fun_ptr(MC_SCHEM_swap_error);
   check_fun_ptr(MC_SCHEM_error_to_string);
   check_fun_ptr(MC_SCHEM_error_test_none);
   check_fun_ptr(MC_SCHEM_error_test_some);
@@ -147,6 +154,7 @@ void test_link() {
   //region
   check_fun_ptr(MC_SCHEM_create_region);
   check_fun_ptr(MC_SCHEM_release_region);
+  check_fun_ptr(MC_SCHEM_swap_region);
   check_fun_ptr(MC_SCHEM_region_get_name);
   check_fun_ptr(MC_SCHEM_region_set_name);
   check_fun_ptr(MC_SCHEM_region_get_offset);
@@ -176,6 +184,7 @@ void test_link() {
   //schem
   check_fun_ptr(MC_SCHEM_create_schem);
   check_fun_ptr(MC_SCHEM_release_schem);
+  check_fun_ptr(MC_SCHEM_swap_schem);
 
   check_fun_ptr(MC_SCHEM_load_option_litematica_default);
   check_fun_ptr(MC_SCHEM_load_option_vanilla_structure_default);

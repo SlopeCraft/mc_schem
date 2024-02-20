@@ -7,7 +7,7 @@ use std::io::{ErrorKind, Read, Write};
 use std::ptr::{drop_in_place, null, null_mut, slice_from_raw_parts, slice_from_raw_parts_mut};
 use std::str::from_utf8_unchecked;
 use static_assertions as sa;
-use std::mem::size_of;
+use std::mem::{size_of, swap};
 use fastnbt::Value;
 use flate2::Compression;
 use crate::{Block};
@@ -93,6 +93,11 @@ extern "C" fn MC_SCHEM_string_unwrap(src: *const String) -> CStringView {
         let src = &*src;
         return CStringView::from(&src);
     }
+}
+
+#[no_mangle]
+unsafe extern "C" fn MC_SCHEM_swap_string(a: *mut String, b: *mut String) {
+    swap(&mut *a, &mut *b);
 }
 
 #[no_mangle]
@@ -324,6 +329,11 @@ unsafe extern "C" fn MC_SCHEM_release_error(b: *mut Box<Error>) {
     drop_in_place(b);
 }
 
+
+#[no_mangle]
+unsafe extern "C" fn MC_SCHEM_swap_error(a: *mut Error, b: *mut Error) {
+    swap(&mut *a, &mut *b);
+}
 #[no_mangle]
 unsafe extern "C" fn MC_SCHEM_error_to_string(error: *const Error, dest: *mut c_char, capacity: usize, length: *mut usize) {
     let mut s = (*error).to_string();

@@ -24,9 +24,6 @@ int main(int argc, char **argv) {
     assert(attributes.size() == 5);
   }
 
-  {
-    mc_schem::nbt *nbt;
-  }
 
   return 0;
 }

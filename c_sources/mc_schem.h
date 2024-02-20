@@ -70,6 +70,7 @@ typedef struct MC_SCHEM_string_s MC_SCHEM_string;
 MC_SCHEM_DEFINE_BOX(MC_SCHEM_string)
 
 MC_SCHEM_EXPORT MC_SCHEM_string_view MC_SCHEM_string_unwrap(const MC_SCHEM_string *);
+MC_SCHEM_EXPORT void MC_SCHEM_swap_string(MC_SCHEM_string *a, MC_SCHEM_string *b);
 // Set rust string
 MC_SCHEM_EXPORT void MC_SCHEM_string_set(MC_SCHEM_string *, MC_SCHEM_string_view src);
 
@@ -222,6 +223,8 @@ MC_SCHEM_EXPORT MC_SCHEM_nbt_value_box MC_SCHEM_create_nbt();
 
 MC_SCHEM_EXPORT void MC_SCHEM_release_nbt(MC_SCHEM_nbt_value_box *nbt_box);
 
+MC_SCHEM_EXPORT void MC_SCHEM_swap_nbt(MC_SCHEM_nbt_value *a, MC_SCHEM_nbt_value *b);
+
 MC_SCHEM_EXPORT MC_SCHEM_nbt_type MC_SCHEM_nbt_get_type(const MC_SCHEM_nbt_value *);
 
 MC_SCHEM_EXPORT int8_t MC_SCHEM_nbt_get_byte(const MC_SCHEM_nbt_value *, bool *ok);
@@ -296,6 +299,8 @@ MC_SCHEM_EXPORT MC_SCHEM_block_box MC_SCHEM_create_block();
 
 MC_SCHEM_EXPORT void MC_SCHEM_release_block(MC_SCHEM_block_box *);
 
+MC_SCHEM_EXPORT void MC_SCHEM_swap_block(MC_SCHEM_block *a, MC_SCHEM_block *b);
+
 MC_SCHEM_EXPORT MC_SCHEM_string_view MC_SCHEM_block_get_namespace(const MC_SCHEM_block *);
 
 MC_SCHEM_EXPORT MC_SCHEM_string_view MC_SCHEM_block_get_id(const MC_SCHEM_block *);
@@ -344,6 +349,8 @@ MC_SCHEM_EXPORT MC_SCHEM_entity_box MC_SCHEM_create_entity();
 
 MC_SCHEM_EXPORT void MC_SCHEM_release_entity(MC_SCHEM_entity_box *);
 
+MC_SCHEM_EXPORT void MC_SCHEM_swap_entity(MC_SCHEM_entity *a, MC_SCHEM_entity *b);
+
 MC_SCHEM_EXPORT MC_SCHEM_array3_i32 MC_SCHEM_entity_get_block_pos(const MC_SCHEM_entity *);
 
 MC_SCHEM_EXPORT MC_SCHEM_array3_f64 MC_SCHEM_entity_get_pos(const MC_SCHEM_entity *);
@@ -361,6 +368,8 @@ MC_SCHEM_EXPORT MC_SCHEM_block_entity_box MC_SCHEM_create_block_entity();
 
 MC_SCHEM_EXPORT void MC_SCHEM_release_block_entity(MC_SCHEM_block_entity_box *);
 
+MC_SCHEM_EXPORT void MC_SCHEM_swap_block_entity(MC_SCHEM_block_entity *a, MC_SCHEM_block_entity *b);
+
 MC_SCHEM_EXPORT MC_SCHEM_map_ref MC_SCHEM_block_entity_get_tags(const MC_SCHEM_block_entity *);
 
 //////////////////////////////////
@@ -368,6 +377,8 @@ MC_SCHEM_EXPORT MC_SCHEM_map_ref MC_SCHEM_block_entity_get_tags(const MC_SCHEM_b
 MC_SCHEM_EXPORT MC_SCHEM_pending_tick_box MC_SCHEM_create_pending_tick();
 
 MC_SCHEM_EXPORT void MC_SCHEM_release_pending_tick(MC_SCHEM_pending_tick_box *);
+
+MC_SCHEM_EXPORT void MC_SCHEM_swap_pending_tick(MC_SCHEM_pending_tick *a, MC_SCHEM_pending_tick *b);
 
 MC_SCHEM_EXPORT int32_t MC_SCHEM_pending_tick_get_priority(const MC_SCHEM_pending_tick *);
 
@@ -399,6 +410,8 @@ MC_SCHEM_DEFINE_BOX(MC_SCHEM_error)
 
 MC_SCHEM_EXPORT void MC_SCHEM_release_error(MC_SCHEM_error_box *);
 
+MC_SCHEM_EXPORT void MC_SCHEM_swap_error(MC_SCHEM_error *a, MC_SCHEM_error *b);
+
 MC_SCHEM_EXPORT void MC_SCHEM_error_to_string(const MC_SCHEM_error *, char *dest, size_t capacity, size_t *length);
 
 MC_SCHEM_EXPORT MC_SCHEM_error_box MC_SCHEM_error_test_none();
@@ -412,6 +425,8 @@ MC_SCHEM_DEFINE_BOX(MC_SCHEM_region)
 MC_SCHEM_EXPORT MC_SCHEM_region_box MC_SCHEM_create_region();
 
 MC_SCHEM_EXPORT void MC_SCHEM_release_region(MC_SCHEM_region_box *);
+
+MC_SCHEM_EXPORT void MC_SCHEM_swap_region(MC_SCHEM_region *a, MC_SCHEM_region *b);
 
 MC_SCHEM_EXPORT MC_SCHEM_string_view MC_SCHEM_region_get_name(const MC_SCHEM_region *);
 
@@ -484,6 +499,7 @@ MC_SCHEM_EXPORT MC_SCHEM_schematic_box MC_SCHEM_create_schem();
 
 MC_SCHEM_EXPORT void MC_SCHEM_release_schem(MC_SCHEM_schematic_box *);
 
+MC_SCHEM_EXPORT void MC_SCHEM_swap_schem(MC_SCHEM_schematic *a, MC_SCHEM_schematic *b);
 
 typedef struct {
   void *handle;
@@ -518,7 +534,8 @@ MC_SCHEM_schem_load_litematica_bytes(const uint8_t *bytes, size_t length,
 typedef struct {
   alignas(512) MC_SCHEM_common_block background_block;
 } MC_SCHEM_load_option_vanilla_structure;
-static_assert(sizeof(MC_SCHEM_load_option_vanilla_structure)==512,"");
+static_assert(sizeof(MC_SCHEM_load_option_vanilla_structure) == 512,
+              "sizeof(MC_SCHEM_load_option_vanilla_structure) should be 512");
 MC_SCHEM_EXPORT MC_SCHEM_load_option_vanilla_structure MC_SCHEM_load_option_vanilla_structure_default();
 
 MC_SCHEM_EXPORT MC_SCHEM_schem_load_result
@@ -535,7 +552,8 @@ MC_SCHEM_schem_load_vanilla_structure_bytes(const uint8_t *bytes, size_t length,
 typedef struct {
   alignas(512) uint8_t reserved[512];
 } MC_SCHEM_load_option_world_edit_13;
-static_assert(sizeof(MC_SCHEM_load_option_world_edit_13)==512,"");
+static_assert(sizeof(MC_SCHEM_load_option_world_edit_13) == 512,
+              "sizeof(MC_SCHEM_load_option_world_edit_13) should be 512");
 MC_SCHEM_EXPORT MC_SCHEM_load_option_world_edit_13 MC_SCHEM_load_option_world_edit_13_default();
 
 MC_SCHEM_EXPORT MC_SCHEM_schem_load_result
@@ -553,7 +571,8 @@ typedef struct {
   bool fix_string_id_with_block_entity_data;
   bool discard_number_id_array;
 } MC_SCHEM_load_option_world_edit_12;
-static_assert(sizeof(MC_SCHEM_load_option_world_edit_12)==512,"");
+static_assert(sizeof(MC_SCHEM_load_option_world_edit_12) == 512,
+              "sizeof(MC_SCHEM_load_option_world_edit_12)==512 should be 512");
 MC_SCHEM_EXPORT MC_SCHEM_load_option_world_edit_12 MC_SCHEM_load_option_world_edit_12_default();
 
 MC_SCHEM_EXPORT MC_SCHEM_schem_load_result
@@ -582,7 +601,7 @@ typedef struct {
   bool rename_duplicated_regions;
   //uint8_t reserved[507];
 } MC_SCHEM_save_option_litematica;
-static_assert(sizeof(MC_SCHEM_save_option_litematica)==512,"");
+static_assert(sizeof(MC_SCHEM_save_option_litematica) == 512, "sizeof(MC_SCHEM_save_option_litematica) should be 512");
 MC_SCHEM_EXPORT MC_SCHEM_save_option_litematica MC_SCHEM_save_option_litematica_default();
 MC_SCHEM_EXPORT MC_SCHEM_error_box
 MC_SCHEM_schem_save_litematica(const MC_SCHEM_schematic *, MC_SCHEM_writer writer,
@@ -611,7 +630,8 @@ typedef struct {
   alignas(512) uint32_t compress_level;
   MC_SCHEM_common_block background_block;
 } MC_SCHEM_save_option_world_edit_13;
-static_assert(sizeof(MC_SCHEM_save_option_world_edit_13)==512,"");
+static_assert(sizeof(MC_SCHEM_save_option_world_edit_13) == 512,
+              "sizeof(MC_SCHEM_save_option_world_edit_13) should be 512");
 MC_SCHEM_EXPORT MC_SCHEM_save_option_world_edit_13 MC_SCHEM_save_option_world_edit_13_default();
 MC_SCHEM_EXPORT MC_SCHEM_error_box
 MC_SCHEM_schem_save_world_edit_13(const MC_SCHEM_schematic *, MC_SCHEM_writer writer,
@@ -652,7 +672,7 @@ typedef struct {
   MC_SCHEM_string_view schem_material;//Classic or Alpha
 
 } MC_SCHEM_schem_metadata_c_rep;
-static_assert(sizeof(MC_SCHEM_schem_metadata_c_rep) == 1024, "sizeof(MC_SCHEM_schem_metadata_c_rep) should be 512");
+static_assert(sizeof(MC_SCHEM_schem_metadata_c_rep) == 1024, "sizeof(MC_SCHEM_schem_metadata_c_rep) should be 1024");
 
 MC_SCHEM_EXPORT MC_SCHEM_schem_metadata_c_rep MC_SCHEM_schem_get_metadata(const MC_SCHEM_schematic *);
 MC_SCHEM_EXPORT void MC_SCHEM_schem_set_metadata(MC_SCHEM_schematic *, const MC_SCHEM_schem_metadata_c_rep *);

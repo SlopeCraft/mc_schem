@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::ffi::c_char;
 use std::intrinsics::copy_nonoverlapping;
+use std::mem::swap;
 use std::ptr::{drop_in_place, null_mut};
 use crate::block::{Block, BlockIdParseError};
 use crate::c_ffi::{CMapRef, CStringView};
@@ -15,6 +16,11 @@ extern "C" fn MC_SCHEM_release_block(block_box: *mut Box<Block>) {
     unsafe {
         drop_in_place(block_box);
     }
+}
+
+#[no_mangle]
+unsafe extern "C" fn MC_SCHEM_swap_block(a: *mut Block, b: *mut Block) {
+    swap(&mut *a, &mut *b);
 }
 
 #[no_mangle]

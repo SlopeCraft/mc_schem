@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 use std::ffi::{c_double, c_float};
+use std::mem::swap;
 use std::ptr::{drop_in_place, null, null_mut};
 use fastnbt::{Value};
 use crate::c_ffi::{CArrayView, CByteArrayView, CEnumNBTType, CIntArrayView, CLongArrayView, CMapRef, CNBTListView, CStringView, CValueBox};
+use crate::region::Entity;
 
 #[no_mangle]
 extern "C" fn MC_SCHEM_create_nbt() -> CValueBox {
@@ -10,11 +12,13 @@ extern "C" fn MC_SCHEM_create_nbt() -> CValueBox {
 }
 
 #[no_mangle]
-extern "C" fn MC_SCHEM_release_nbt(nbt_box: *mut CValueBox) {
-    unsafe {
+unsafe extern "C" fn MC_SCHEM_release_nbt(nbt_box: *mut CValueBox) {
         drop_in_place(nbt_box);
-        //let nbt_box = &mut *nbt_box;
-    }
+}
+
+#[no_mangle]
+unsafe extern "C" fn MC_SCHEM_swap_nbt(a: *mut Value, b: *mut Value) {
+    swap(&mut *a, &mut *b);
 }
 
 #[no_mangle]

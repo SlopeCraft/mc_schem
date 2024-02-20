@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::mem::swap;
 use std::ptr::{drop_in_place, null, null_mut};
 use fastnbt::Value;
 use crate::Block;
@@ -16,6 +17,11 @@ extern "C" fn MC_SCHEM_release_entity(entity_box: *mut Box<Entity>) {
     unsafe {
         drop_in_place(entity_box);
     }
+}
+
+#[no_mangle]
+unsafe extern "C" fn MC_SCHEM_swap_entity(a: *mut Entity, b: *mut Entity) {
+    swap(&mut *a, &mut *b);
 }
 
 #[no_mangle]
@@ -71,6 +77,11 @@ extern "C" fn MC_SCHEM_release_block_entity(b: *mut Box<BlockEntity>) {
 }
 
 #[no_mangle]
+unsafe extern "C" fn MC_SCHEM_swap_block_entity(a: *mut BlockEntity, b: *mut BlockEntity) {
+    swap(&mut *a, &mut *b);
+}
+
+#[no_mangle]
 extern "C" fn MC_SCHEM_block_entity_get_tags(be: *const BlockEntity) -> CMapRef {
     unsafe {
         let be = &*be;
@@ -89,6 +100,12 @@ extern "C" fn MC_SCHEM_release_pending_tick(b: *mut Box<PendingTick>) {
     unsafe {
         drop_in_place(b);
     }
+}
+
+
+#[no_mangle]
+unsafe extern "C" fn MC_SCHEM_swap_pending_tick(a: *mut PendingTick, b: *mut PendingTick) {
+    swap(&mut *a, &mut *b);
 }
 
 #[no_mangle]
@@ -175,6 +192,10 @@ unsafe extern "C" fn MC_SCHEM_release_region(b: *mut Box<Region>) {
     drop_in_place(b);
 }
 
+#[no_mangle]
+unsafe extern "C" fn MC_SCHEM_swap_region(a: *mut Region, b: *mut Region) {
+    swap(&mut *a, &mut *b);
+}
 #[no_mangle]
 unsafe extern "C" fn MC_SCHEM_region_get_name(region: *const Region) -> CStringView {
     return CStringView::from((*region).name.as_str());

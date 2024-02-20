@@ -46,7 +46,7 @@ namespace mc_schem {
     }
 
     [[nodiscard]] std::array<int, 3> array3_i32_schem_to_std(MC_SCHEM_array3_i32 arr) noexcept {
-      std::array<int, 3> result;
+      std::array<int, 3> result{};
       std::copy_n(arr.pos, 3, result.begin());
       return result;
     }
@@ -55,6 +55,43 @@ namespace mc_schem {
       MC_SCHEM_array3_i32 result;
       std::copy_n(arr.begin(), 3, result.pos);
       return result;
+    }
+
+
+    void deep_swap(MC_SCHEM_string *a, MC_SCHEM_string *b) {
+      MC_SCHEM_swap_string(a, b);
+    }
+
+    void deep_swap(MC_SCHEM_nbt_value *a, MC_SCHEM_nbt_value *b) {
+      MC_SCHEM_swap_nbt(a, b);
+    }
+
+    void deep_swap(MC_SCHEM_block *a, MC_SCHEM_block *b) {
+      MC_SCHEM_swap_block(a, b);
+    }
+
+    void deep_swap(MC_SCHEM_entity *a, MC_SCHEM_entity *b) {
+      MC_SCHEM_swap_entity(a, b);
+    }
+
+    void deep_swap(MC_SCHEM_block_entity *a, MC_SCHEM_block_entity *b) {
+      MC_SCHEM_swap_block_entity(a, b);
+    }
+
+    void deep_swap(MC_SCHEM_pending_tick *a, MC_SCHEM_pending_tick *b) {
+      MC_SCHEM_swap_pending_tick(a, b);
+    }
+
+    void deep_swap(MC_SCHEM_error *a, MC_SCHEM_error *b) {
+      MC_SCHEM_swap_error(a, b);
+    }
+
+    void deep_swap(MC_SCHEM_region *a, MC_SCHEM_region *b) {
+      MC_SCHEM_swap_region(a, b);
+    }
+
+    void deep_swap(MC_SCHEM_schematic *a, MC_SCHEM_schematic *b) {
+      MC_SCHEM_swap_schem(a, b);
     }
 
     template<typename handle_t>
@@ -66,11 +103,11 @@ namespace mc_schem {
 
       wrapper() = delete;
 
-      wrapper(handle_t p) : handle{p} {}
+      explicit wrapper(handle_t p) : handle{p} {}
 
       wrapper(const wrapper &) = delete;
 
-      wrapper(wrapper &&src) {
+      wrapper(wrapper &&src) noexcept {
         std::swap(this->handle, src.handle);
       }
 
@@ -88,13 +125,18 @@ namespace mc_schem {
         return this->handle;
       }
 
-      void swap(wrapper &another) noexcept {
+      void swap_handle(wrapper &another) noexcept {
         std::swap(this->handle, another.handle);
+      }
+
+      void deep_swap(wrapper &another) noexcept {
+        deep_swap(this->handle, another.handle);
       }
 
       void reset_handle(handle_t ptr) noexcept {
         this->handle = ptr;
       }
+
     };
 
 
@@ -176,10 +218,10 @@ namespace mc_schem {
       box(const box &) = delete;
 
       box(box &&src) noexcept {
-        this->content.swap(src.content);
+        this->content.swap_handle(src.content);
       }
 
-      box(c_box_t &&src) : content{src.ptr} {
+      explicit box(c_box_t &&src) : content{src.ptr} {
         src.ptr = nullptr;
       }
 
@@ -265,7 +307,7 @@ namespace mc_schem {
   public:
     rust_string() = delete;
 
-    rust_string(MC_SCHEM_string *handle) : detail::wrapper<MC_SCHEM_string *>(handle) {}
+    explicit rust_string(MC_SCHEM_string *handle) : detail::wrapper<MC_SCHEM_string *>(handle) {}
 
     explicit operator std::string_view() const noexcept {
       auto schem_sv = MC_SCHEM_string_unwrap(this->handle);
@@ -295,14 +337,14 @@ namespace mc_schem {
     public:
       map_wrapper() = delete;
 
-      map_wrapper(MC_SCHEM_map_ref handel) : map_ref{handel} {
+      explicit map_wrapper(MC_SCHEM_map_ref handel) : map_ref{handel} {
         assert(MC_SCHEM_map_get_key_type(&handel) == static_cast<MC_SCHEM_map_key_type>(key_e));
         assert(MC_SCHEM_map_get_value_type(&handel) == static_cast<MC_SCHEM_map_value_type>(value_e));
       }
 
       map_wrapper(const map_wrapper &) = delete;
 
-      map_wrapper(map_wrapper &&b) {
+      map_wrapper(map_wrapper &&b) noexcept {
         std::swap(this->map_ref, b.map_ref);
       }
 
@@ -488,7 +530,7 @@ namespace mc_schem {
       public:
         iterator_impl() = delete;
 
-        const key_ref_type key() const noexcept {
+        [[nodiscard]] const key_ref_type key() const noexcept {
           MC_SCHEM_iterator_deref_result deref = MC_SCHEM_map_iterator_deref(&this->it);
           assert(deref.has_value);
           if (!deref.has_value) {
@@ -497,14 +539,14 @@ namespace mc_schem {
           return unwrap_key(deref.key);
         }
 
-        std::conditional_t<is_const, const value_t, value_t> value() const noexcept {
+        [[nodiscard]] std::conditional_t<is_const, const value_t, value_t> value() const noexcept {
           MC_SCHEM_iterator_deref_result deref = MC_SCHEM_map_iterator_deref(&this->it);
           assert(deref.has_value);
           if (!deref.has_value) {
             abort();
           }
           auto value = unwrap_value(deref.value);
-          return value;
+          return value_t{value};
 //          if constexpr (value_e == map_value_type::string) {
 //            auto str = MC_SCHEM_string_unwrap(value);
 //            return string_view_schem_to_std(str);
@@ -517,13 +559,13 @@ namespace mc_schem {
           return *this;
         }
 
-        iterator_impl operator++(int) noexcept {
+        const iterator_impl operator++(int) noexcept {
           iterator_impl copy{*this};
           (*this)++;
           return copy;
         }
 
-        bool operator==(const iterator_impl &b) const noexcept {
+        [[nodiscard]] bool operator==(const iterator_impl &b) const noexcept {
           return MC_SCHEM_map_iterator_equal(&this->it, &b.it);
         }
 
@@ -553,11 +595,11 @@ namespace mc_schem {
       }
 
     public:
-      iterator begin() noexcept {
+      [[nodiscard]] iterator begin() noexcept {
         return iterator{this->impl_begin()};
       }
 
-      iterator end() noexcept {
+      [[nodiscard]] iterator end() noexcept {
         return iterator{this->impl_end()};
       }
 
@@ -599,7 +641,7 @@ namespace mc_schem {
   public:
     block() = delete;
 
-    block(MC_SCHEM_block *handle) : detail::wrapper<MC_SCHEM_block *>{handle} {}
+    explicit block(MC_SCHEM_block *handle) : detail::wrapper<MC_SCHEM_block *>{handle} {}
 
     [[nodiscard]] std::string_view get_namespace() const noexcept {
       return detail::string_view_schem_to_std(MC_SCHEM_block_get_namespace(this->handle));
@@ -1043,7 +1085,7 @@ namespace mc_schem {
     using tag_nbt_map_t = detail::map_wrapper<map_key_type::string, std::string_view, map_value_type::nbt, nbt>;
   protected:
     [[nodiscard]] tag_nbt_map_t impl_tags() const noexcept {
-      return {MC_SCHEM_entity_get_tags(this->handle)};
+      return tag_nbt_map_t{MC_SCHEM_entity_get_tags(this->handle)};
     }
 
   public:
@@ -1137,7 +1179,7 @@ namespace mc_schem {
     }
 
     static detail::box<pending_tick, MC_SCHEM_pending_tick_box> create() noexcept {
-      return {MC_SCHEM_create_pending_tick()};
+      return detail::box<pending_tick, MC_SCHEM_pending_tick_box>{MC_SCHEM_create_pending_tick()};
     }
 
   };
@@ -1635,7 +1677,7 @@ namespace mc_schem {
         auto *is = reinterpret_cast<std::istream *>(handle);
         size_t bytes = 0;
         try {
-          bytes = is->readsome(reinterpret_cast<char *>(buffer), buffer_size);
+          bytes = is->readsome(reinterpret_cast<char *>(buffer), static_cast<ptrdiff_t>(buffer_size));
         } catch (std::exception &e) {
           *ok = false;
           snprintf(error, error_capacity, "%s", e.what());
@@ -1912,7 +1954,7 @@ namespace mc_schem {
     using region_box = detail::box<region, MC_SCHEM_region_box>;
 
     [[nodiscard]] region_box take_region(size_t index) noexcept {
-      return {MC_SCHEM_schem_take_region(this->handle, index)};
+      return region_box{MC_SCHEM_schem_take_region(this->handle, index)};
     }
 
     void insert_region(const region &reg, size_t index) noexcept {

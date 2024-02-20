@@ -1,4 +1,3 @@
-use std::ops::Deref;
 use std::ptr::{drop_in_place, slice_from_raw_parts};
 use crate::c_ffi::{CLitematicaLoadOption, CLitematicaSaveOption, CMetadata, CReader, CSchemLoadResult, CStringView, CVanillaStructureLoadOption, CVanillaStructureSaveOption, CWE12LoadOption, CWE13LoadOption, CWE13SaveOption, CWriter};
 use crate::error::Error;
@@ -15,7 +14,10 @@ unsafe extern "C" fn MC_SCHEM_release_schem(b: *mut Box<Schematic>) {
     drop_in_place(b);
 }
 
-
+#[no_mangle]
+unsafe extern "C" fn MC_SCHEM_swap_schem(a: *mut Schematic, b: *mut Schematic) {
+    std::mem::swap(&mut *a, &mut *b);
+}
 #[no_mangle]
 extern "C" fn MC_SCHEM_load_option_litematica_default() -> CLitematicaLoadOption {
     return CLitematicaLoadOption::from_option(&LitematicaLoadOption::default());

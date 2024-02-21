@@ -5,7 +5,7 @@ use std::fs::File;
 use fastnbt::{LongArray, Value};
 use flate2::{GzBuilder};
 use flate2::read::GzDecoder;
-use crate::schem::{LitematicaMetaData, Schematic, id_of_nbt_tag, RawMetaData, MetaDataIR, Region, LitematicaLoadOption, BlockEntity, LitematicaSaveOption};
+use crate::schem::{LitematicaMetaData, Schematic, id_of_nbt_tag, MetaDataIR, Region, LitematicaLoadOption, BlockEntity, LitematicaSaveOption};
 use crate::error::{Error};
 use crate::{unwrap_opt_tag, unwrap_tag};
 use crate::schem::common;
@@ -31,7 +31,7 @@ impl MetaDataIR {
 
 
 impl Schematic {
-    pub fn from_litematica_file(filename: &str, option: &LitematicaLoadOption) -> Result<Schematic, Error> {
+    pub fn from_litematica_file(filename: &str, option: &LitematicaLoadOption) -> Result<(Schematic, LitematicaMetaData), Error> {
         let file_res = File::open(filename);
         let mut file;
         match file_res {
@@ -42,7 +42,7 @@ impl Schematic {
         let mut decoder = GzDecoder::new(&mut file);
         return Self::from_litematica_reader(&mut decoder, option);
     }
-    pub fn from_litematica_reader(src: &mut dyn std::io::Read, _option: &LitematicaLoadOption) -> Result<Schematic, Error> {
+    pub fn from_litematica_reader(src: &mut dyn std::io::Read, _option: &LitematicaLoadOption) -> Result<(Schematic, LitematicaMetaData), Error> {
         let parse_res: Result<HashMap<String, Value>, fastnbt::error::Error> = fastnbt::from_reader(src);
         let parsed;
         match parse_res {
@@ -51,10 +51,11 @@ impl Schematic {
         }
 
         let mut schem = Schematic::new();
+        let raw_metadata;
         match parse_metadata(&parsed) {
             Ok(md) => {
                 schem.metadata = MetaDataIR::from_litematica(&md);
-                schem.original_metadata = Some(RawMetaData::Litematica(md));
+                raw_metadata = md;
             }
             Err(e) => return Err(e)
         }
@@ -73,7 +74,7 @@ impl Schematic {
         }
 
 
-        return Ok(schem);
+        return Ok((schem, raw_metadata));
     }
 }
 

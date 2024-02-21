@@ -8,7 +8,7 @@ use crate::block::Block;
 use crate::error::Error;
 use crate::old_block::OldBlockParseError;
 use crate::region::{BlockEntity, Region};
-use crate::schem::{common, id_of_nbt_tag, MetaDataIR, RawMetaData, Schematic, WE12MetaData, WorldEdit12LoadOption};
+use crate::schem::{common, id_of_nbt_tag, MetaDataIR, Schematic, WE12MetaData, WorldEdit12LoadOption};
 use crate::{unwrap_opt_tag, unwrap_tag};
 
 
@@ -84,7 +84,7 @@ impl Schematic {
         return Ok((md, raw));
     }
 
-    pub fn from_world_edit_12_file(filename: &str, option: &WorldEdit12LoadOption) -> Result<Schematic, Error> {
+    pub fn from_world_edit_12_file(filename: &str, option: &WorldEdit12LoadOption) -> Result<(Schematic, WE12MetaData), Error> {
         let file = match File::open(filename) {
             Ok(f) => f,
             Err(e) => return Err(Error::FileOpenError(e)),
@@ -97,7 +97,7 @@ impl Schematic {
         return Self::from_world_edit_12_nbt(nbt, option);
     }
 
-    pub fn from_world_edit_12_reader(src: &mut dyn std::io::Read, option: &WorldEdit12LoadOption) -> Result<Schematic, Error> {
+    pub fn from_world_edit_12_reader(src: &mut dyn std::io::Read, option: &WorldEdit12LoadOption) -> Result<(Schematic, WE12MetaData), Error> {
         let nbt: HashMap<String, Value> = match fastnbt::from_reader(src) {
             Ok(n) => n,
             Err(e) => return Err(Error::NBTReadError(e)),
@@ -105,19 +105,18 @@ impl Schematic {
         return Self::from_world_edit_12_nbt(nbt, option);
     }
 
-    pub fn from_world_edit_12_nbt(mut nbt: HashMap<String, Value>, option: &WorldEdit12LoadOption) -> Result<Schematic, Error> {
+    pub fn from_world_edit_12_nbt(mut nbt: HashMap<String, Value>, option: &WorldEdit12LoadOption) -> Result<(Schematic, WE12MetaData), Error> {
         let mut schem = Schematic::new();
         // metadata
-        {
-            let (md, raw) = Self::parse_metadata(&mut nbt, option)?;
-            schem.metadata = md;
-            schem.original_metadata = Some(RawMetaData::WE12(raw));
-        }
+
+        let (md, raw) = Self::parse_metadata(&mut nbt, option)?;
+        schem.metadata = md;
+
 
         let region = Region::from_world_edit_12(&mut nbt, option)?;
         schem.regions.push(region);
 
-        return Ok(schem);
+        return Ok((schem, raw));
     }
 }
 

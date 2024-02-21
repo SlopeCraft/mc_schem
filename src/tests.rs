@@ -164,7 +164,7 @@ fn litematica_3d_array_decode() {
     println!("Current dir: {}", env::current_dir().unwrap().to_string_lossy());
     let src_filename = "./test_files/litematica/test01.litematic";
 
-    let schem = Schematic::from_litematica_file(src_filename, &LitematicaLoadOption::default()).unwrap();
+    let schem = Schematic::from_litematica_file(src_filename, &LitematicaLoadOption::default()).unwrap().0;
 
     for y in 0..19 {
         let bid = schem.first_block_index_at([0, y, 0]).unwrap();
@@ -270,7 +270,9 @@ fn parse_full_blocks_mc12() {
         let nbt = fastnbt::from_reader(decoder).unwrap();
         num_id_array = Schematic::parse_number_id_from_we12(&nbt).unwrap();
     }
-    let litematic = Schematic::from_litematica_file("./test_files/litematica/full-blocks-1.12.2.litematic", &LitematicaLoadOption::default()).unwrap();
+    let litematic = Schematic::from_litematica_file(
+        "./test_files/litematica/full-blocks-1.12.2.litematic",
+        &LitematicaLoadOption::default()).unwrap().0;
     let lite_region = &litematic.regions[0];
     for dim in 0..3 {
         assert_eq!(num_id_array.shape()[dim], lite_region.shape()[dim] as usize);
@@ -355,8 +357,10 @@ fn make_mc12_numeric_lut() {
 
     let mut schem_option = WorldEdit12LoadOption::default();
     schem_option.fix_string_id_with_block_entity_data = false;
-    let schem = Schematic::from_world_edit_12_file(schem_file, &schem_option).unwrap();
-    let lite = Schematic::from_litematica_file("./test_files/litematica/full-blocks-1.12.2.litematic", &LitematicaLoadOption::default()).unwrap();
+    let schem = Schematic::from_world_edit_12_file(schem_file, &schem_option).unwrap().0;
+    let lite = Schematic::from_litematica_file(
+        "./test_files/litematica/full-blocks-1.12.2.litematic",
+        &LitematicaLoadOption::default()).unwrap().0;
 
     let num_id_array = schem.regions[0].array_number_id_damage.as_ref().unwrap();
     for dim in 0..3 {
@@ -394,7 +398,7 @@ fn load_save_vanilla_structure() {
     let schem =
         Schematic::from_vanilla_structure_file(
             "./test_files/vanilla_structure/test01.nbt",
-            &VanillaStructureLoadOption::default()).unwrap();
+            &VanillaStructureLoadOption::default()).unwrap().0;
 
     create_dir_all("./target/test/load_save_vanilla_structure").unwrap();
 
@@ -420,7 +424,7 @@ fn load_save_litematica() {
         let src_filename = format!("{}/test{:02}.litematic", src_dir, id);
         let dst_filename = format!("{}/out{:02}.litematic", out_dir, id);
 
-        let schem = Schematic::from_litematica_file(&src_filename, &LitematicaLoadOption::default()).unwrap();
+        let schem = Schematic::from_litematica_file(&src_filename, &LitematicaLoadOption::default()).unwrap().0;
 
         schem.save_litematica_file(&dst_filename, &LitematicaSaveOption::default()).expect("Failed to save litematica file");
 
@@ -444,7 +448,7 @@ fn load_save_world_edit13() {
         let src_filename = format!("{}/test{:02}.schem", src_dir, id);
         let dst_filename = format!("{}/out{:02}.schem", out_dir, id);
 
-        let schem = Schematic::from_world_edit_13_file(&src_filename, &WorldEdit13LoadOption::default()).unwrap();
+        let schem = Schematic::from_world_edit_13_file(&src_filename, &WorldEdit13LoadOption::default()).unwrap().0;
 
         schem.save_world_edit_13_file(&dst_filename, &WorldEdit13SaveOption::default()).expect("Failed to save .schem file");
 
@@ -548,7 +552,9 @@ fn correct_test_litematica() {
         ([10, 10, 10], "yellow_concrete"),
     ];
 
-    let schem = Schematic::from_litematica_file("./test_files/litematica/correct_test.litematic", &LitematicaLoadOption::default()).unwrap();
+    let schem = Schematic::from_litematica_file(
+        "./test_files/litematica/correct_test.litematic",
+        &LitematicaLoadOption::default()).unwrap().0;
 
     for x in 0..schem.shape()[0] {
         for y in 0..schem.shape()[1] {
@@ -578,9 +584,9 @@ fn correct_test_mc13_plus() {
 
 
         let schem_file = format!("./test_files/schem/full-blocks-{ver}.schem");
-        let schem = Schematic::from_world_edit_13_file(&schem_file, &WorldEdit13LoadOption::default()).unwrap();
+        let schem = Schematic::from_world_edit_13_file(&schem_file, &WorldEdit13LoadOption::default()).unwrap().0;
 
-        let lite = Schematic::from_litematica_file(&litematica_file, &LitematicaLoadOption::default()).unwrap();
+        let lite = Schematic::from_litematica_file(&litematica_file, &LitematicaLoadOption::default()).unwrap().0;
         assert_eq!(lite.shape(), schem.shape());
         for x in 0..lite.shape()[0] {
             for y in 0..lite.shape()[1] {
@@ -621,9 +627,9 @@ fn correct_test_mc12() {
 
         let schem;
         let schem_file = format!("./test_files/schematic/full-blocks-{ver}.schematic");
-        schem = Schematic::from_world_edit_12_file(&schem_file, &WorldEdit12LoadOption::default()).unwrap();
+        schem = Schematic::from_world_edit_12_file(&schem_file, &WorldEdit12LoadOption::default()).unwrap().0;
 
-        let lite = Schematic::from_litematica_file(&litematica_file, &LitematicaLoadOption::default()).unwrap();
+        let lite = Schematic::from_litematica_file(&litematica_file, &LitematicaLoadOption::default()).unwrap().0;
         let mut ok_counter = 0;
         assert_eq!(lite.shape(), schem.shape());
         for x in 0..lite.shape()[0] {

@@ -129,7 +129,6 @@ pub struct WE13MetaDataV3Extra {
     pub world_edit_version: String,
     pub editing_platform: String,
     pub origin: [i32; 3],
-
 }
 
 impl Default for WE13MetaData {
@@ -211,14 +210,14 @@ impl VanillaStructureMetaData {
 }
 
 
-#[derive(Debug)]
-#[allow(dead_code)]
-pub enum RawMetaData {
-    Litematica(LitematicaMetaData),
-    WE12(WE12MetaData),
-    WE13(WE13MetaData),
-    VanillaStructure(VanillaStructureMetaData),
-}
+// #[derive(Debug)]
+// #[allow(dead_code)]
+// pub enum RawMetaData {
+//     Litematica(LitematicaMetaData),
+//     WE12(WE12MetaData),
+//     WE13(WE13MetaData),
+//     VanillaStructure(VanillaStructureMetaData),
+// }
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
@@ -286,7 +285,6 @@ impl MetaDataIR {
 #[derive(Debug)]
 pub struct Schematic {
     pub metadata: MetaDataIR,
-    pub original_metadata: Option<RawMetaData>,
 
     pub regions: Vec<Region>,
     //pub enclosing_size: [i64; 3],
@@ -306,7 +304,6 @@ impl Schematic {
         return Schematic {
             //data_version: mc_version::DataVersion::new() as i32,
             metadata: MetaDataIR::default(),
-            original_metadata: None,
             regions: Vec::new(),
             //enclosing_size: [1, 1, 1],
 
@@ -460,16 +457,16 @@ impl Schematic {
 
     pub fn from_file(filename: &str) -> Result<Schematic, Error> {
         if filename.ends_with(".litematic") {
-            return Self::from_litematica_file(filename, &LitematicaLoadOption::default());
+            return Ok(Self::from_litematica_file(filename, &LitematicaLoadOption::default())?.0);
         }
         if filename.ends_with(".nbt") {
-            return Self::from_vanilla_structure_file(filename, &VanillaStructureLoadOption::default());
+            return Ok(Self::from_vanilla_structure_file(filename, &VanillaStructureLoadOption::default())?.0);
         }
         if filename.ends_with(".schem") {
-            return Self::from_world_edit_13_file(filename, &WorldEdit13LoadOption::default());
+            return Ok(Self::from_world_edit_13_file(filename, &WorldEdit13LoadOption::default())?.0);
         }
         if filename.ends_with(".schematic") {
-            return Self::from_world_edit_12_file(filename, &WorldEdit12LoadOption::default());
+            return Ok(Self::from_world_edit_12_file(filename, &WorldEdit12LoadOption::default())?.0);
         }
 
         let split = filename.split(".");

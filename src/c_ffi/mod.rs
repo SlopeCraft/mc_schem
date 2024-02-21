@@ -427,9 +427,9 @@ struct CSchemLoadResult {
 }
 
 impl CSchemLoadResult {
-    pub fn new(src: Result<Schematic, Error>) -> CSchemLoadResult {
+    pub fn new<T>(src: Result<(Schematic, T), Error>) -> CSchemLoadResult {
         return match src {
-            Ok(s) => CSchemLoadResult { schematic: Some(Box::new(s)), error: None },
+            Ok((s, _)) => CSchemLoadResult { schematic: Some(Box::new(s)), error: None },
             Err(e) => CSchemLoadResult { schematic: None, error: Some(Box::new(e)) },
         }
     }

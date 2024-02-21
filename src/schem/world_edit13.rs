@@ -7,13 +7,13 @@ use ndarray::Array3;
 use crate::block::Block;
 use crate::error::{Error};
 use crate::region::{BlockEntity, Region};
-use crate::schem::{common, MetaDataIR, RawMetaData, Schematic, WE13MetaData, WE13MetaDataV3Extra, WorldEdit13LoadOption, WorldEdit13SaveOption};
+use crate::schem::{common, MetaDataIR, Schematic, WE13MetaData, WE13MetaDataV3Extra, WorldEdit13LoadOption, WorldEdit13SaveOption};
 use crate::{unwrap_opt_tag, unwrap_tag};
 use crate::schem::id_of_nbt_tag;
 
 #[allow(dead_code)]
 impl Schematic {
-    pub fn from_world_edit_13_file(filename: &str, option: &WorldEdit13LoadOption) -> Result<Schematic, Error> {
+    pub fn from_world_edit_13_file(filename: &str, option: &WorldEdit13LoadOption) -> Result<(Schematic, WE13MetaData), Error> {
         let mut file;
         match File::open(filename) {
             Ok(f) => file = f,
@@ -29,43 +29,32 @@ impl Schematic {
         return Self::from_world_edit_13_nbt(&nbt, option);
     }
 
-    fn parse_v2(root: &HashMap<String, Value>, option: &WorldEdit13LoadOption) -> Result<Schematic, Error> {
+    fn parse_v2(root: &HashMap<String, Value>, option: &WorldEdit13LoadOption) -> Result<(Schematic, WE13MetaData), Error> {
         let mut schem = Schematic::new();
         // metadata
-        {
-            let we13;
-            match parse_metadata(&root, "", option) {
-                Ok(we13_) => we13 = we13_,
-                Err(e) => return Err(e),
-            }
-
-            let ir = MetaDataIR::from_world_edit13(&we13);
-            schem.original_metadata = Some(RawMetaData::WE13(we13));
-            schem.metadata = ir;
-        }
+        let we13 = parse_metadata(&root, "", option)?;
+        schem.metadata = MetaDataIR::from_world_edit13(&we13);
         match Region::from_world_edit_13_v2(&root, option) {
             Ok(reg) => schem.regions.push(reg),
             Err(e) => return Err(e),
         }
-        return Ok(schem);
+        return Ok((schem, we13));
     }
 
-    fn parse_v3(root: &HashMap<String, Value>, option: &WorldEdit13LoadOption) -> Result<Schematic, Error> {
+    fn parse_v3(root: &HashMap<String, Value>, option: &WorldEdit13LoadOption) -> Result<(Schematic, WE13MetaData), Error> {
         let tag_schem = unwrap_opt_tag!(root.get("Schematic"),Compound,HashMap::new(),"/Schematic");
         let mut schem = Schematic::new();
         // metadata
-        {
-            let we13 = parse_metadata(tag_schem, "/Schematic", option)?;
-            let ir = MetaDataIR::from_world_edit13(&we13);
-            schem.original_metadata = Some(RawMetaData::WE13(we13));
-            schem.metadata = ir;
-        }
+
+        let we13 = parse_metadata(tag_schem, "/Schematic", option)?;
+        schem.metadata = MetaDataIR::from_world_edit13(&we13);
+
         let region = Region::from_world_edit_13_v3(tag_schem, option)?;
         schem.regions.push(region);
 
-        return Ok(schem);
+        return Ok((schem, we13));
     }
-    pub fn from_world_edit_13_nbt(root: &HashMap<String, Value>, option: &WorldEdit13LoadOption) -> Result<Schematic, Error> {
+    pub fn from_world_edit_13_nbt(root: &HashMap<String, Value>, option: &WorldEdit13LoadOption) -> Result<(Schematic, WE13MetaData), Error> {
         return if root.contains_key("Schematic") {//v3
             Self::parse_v3(root, option)
         } else {
@@ -73,7 +62,7 @@ impl Schematic {
         }
     }
 
-    pub fn from_world_edit_13_reader(src: &mut dyn std::io::Read, option: &WorldEdit13LoadOption) -> Result<Schematic, Error> {
+    pub fn from_world_edit_13_reader(src: &mut dyn std::io::Read, option: &WorldEdit13LoadOption) -> Result<(Schematic, WE13MetaData), Error> {
         let root_opt: Result<HashMap<String, Value>, fastnbt::error::Error> = fastnbt::from_reader(src);
         let root = match root_opt {
             Ok(nbt_) => nbt_,

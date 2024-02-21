@@ -11,7 +11,6 @@ use flate2::read::GzDecoder;
 use crate::error::{Error};
 use crate::{unwrap_tag, unwrap_opt_tag};
 use crate::error::Error::FileOpenError;
-use crate::schem::RawMetaData::VanillaStructure;
 
 
 #[allow(dead_code)]
@@ -154,7 +153,7 @@ fn parse_entity(tag: &Value, tag_path: &str) -> Result<Entity, Error> {
 
 
 impl Schematic {
-    pub fn from_vanilla_structure_file(filename: &str, option: &VanillaStructureLoadOption) -> Result<Schematic, Error> {
+    pub fn from_vanilla_structure_file(filename: &str, option: &VanillaStructureLoadOption) -> Result<(Schematic, VanillaStructureMetaData), Error> {
         let file_res = File::open(filename);
         let mut file;
         match file_res {
@@ -166,7 +165,7 @@ impl Schematic {
         return Self::from_vanilla_structure_reader(&mut decoder, option);
     }
     pub fn from_vanilla_structure_reader(src: &mut dyn std::io::Read, option: &VanillaStructureLoadOption)
-                                         -> Result<Schematic, Error> {
+        -> Result<(Schematic, VanillaStructureMetaData), Error> {
         let loaded_opt: Result<HashMap<String, Value>, fastnbt::error::Error> = fastnbt::from_reader(src);
         let nbt;
         match loaded_opt {
@@ -176,11 +175,10 @@ impl Schematic {
 
         let mut schem = Schematic::new();
 
+        let mut md = VanillaStructureMetaData::default();
         {
-            let mut md = VanillaStructureMetaData::default();
             md.data_version = *unwrap_opt_tag!(nbt.get("DataVersion"),Int,0,"/DataVersion");
             schem.metadata = MetaDataIR::from_vanilla_structure(&md);
-            schem.original_metadata = Some(VanillaStructure(md));
         }
 
         let mut region = schem::Region::new();
@@ -284,7 +282,7 @@ impl Schematic {
         }
 
         schem.regions.push(region);
-        return Ok(schem);
+        return Ok((schem, md));
     }
 }
 

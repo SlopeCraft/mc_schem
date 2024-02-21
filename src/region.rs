@@ -44,7 +44,7 @@ pub struct Region {
 
     pub offset: [i32; 3],
 
-    pub array_number_id_damage: Option<Array3<(u8, u8)>>
+    //pub array_number_id_damage: Option<Array3<(u8, u8)>>
 }
 
 impl Entity {
@@ -83,7 +83,6 @@ impl Region {
             pending_ticks: HashMap::new(),
             entities: Vec::new(),
             offset: [0, 0, 0],
-            array_number_id_damage: None,
         };
         result.find_or_append_to_palette(&Block::air());
         return result;

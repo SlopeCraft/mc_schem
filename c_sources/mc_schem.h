@@ -452,8 +452,8 @@ typedef struct {
   uint8_t id;
   uint8_t damage;
 } MC_SCHEM_number_id;
-MC_SCHEM_EXPORT MC_SCHEM_number_id *
-MC_SCHEM_region_get_number_id_array(const MC_SCHEM_region *);
+//MC_SCHEM_EXPORT MC_SCHEM_number_id *
+//MC_SCHEM_region_get_number_id_array(const MC_SCHEM_region *);
 
 MC_SCHEM_EXPORT MC_SCHEM_array3_i32 MC_SCHEM_region_get_shape(const MC_SCHEM_region *);
 

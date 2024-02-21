@@ -84,7 +84,7 @@ impl Schematic {
         return Ok((md, raw));
     }
 
-    pub fn from_world_edit_12_file(filename: &str, option: &WorldEdit12LoadOption) -> Result<(Schematic, WE12MetaData), Error> {
+    pub fn from_world_edit_12_file(filename: &str, option: &WorldEdit12LoadOption) -> Result<(Schematic, WE12MetaData, Array3<(u8, u8)>), Error> {
         let file = match File::open(filename) {
             Ok(f) => f,
             Err(e) => return Err(Error::FileOpenError(e)),
@@ -97,7 +97,7 @@ impl Schematic {
         return Self::from_world_edit_12_nbt(nbt, option);
     }
 
-    pub fn from_world_edit_12_reader(src: &mut dyn std::io::Read, option: &WorldEdit12LoadOption) -> Result<(Schematic, WE12MetaData), Error> {
+    pub fn from_world_edit_12_reader(src: &mut dyn std::io::Read, option: &WorldEdit12LoadOption) -> Result<(Schematic, WE12MetaData, Array3<(u8, u8)>), Error> {
         let nbt: HashMap<String, Value> = match fastnbt::from_reader(src) {
             Ok(n) => n,
             Err(e) => return Err(Error::NBTReadError(e)),
@@ -105,7 +105,7 @@ impl Schematic {
         return Self::from_world_edit_12_nbt(nbt, option);
     }
 
-    pub fn from_world_edit_12_nbt(mut nbt: HashMap<String, Value>, option: &WorldEdit12LoadOption) -> Result<(Schematic, WE12MetaData), Error> {
+    pub fn from_world_edit_12_nbt(mut nbt: HashMap<String, Value>, option: &WorldEdit12LoadOption) -> Result<(Schematic, WE12MetaData, Array3<(u8, u8)>), Error> {
         let mut schem = Schematic::new();
         // metadata
 
@@ -113,10 +113,10 @@ impl Schematic {
         schem.metadata = md;
 
 
-        let region = Region::from_world_edit_12(&mut nbt, option)?;
+        let (region, number_id) = Region::from_world_edit_12(&mut nbt, option)?;
         schem.regions.push(region);
 
-        return Ok((schem, raw));
+        return Ok((schem, raw, number_id));
     }
 }
 
@@ -139,9 +139,9 @@ impl Default for BlockStats {
 
 impl Region {
     pub fn from_world_edit_12(nbt: &mut HashMap<String, Value>, option: &WorldEdit12LoadOption)
-        -> Result<Region, Error> {
+        -> Result<(Region, Array3<(u8, u8)>), Error> {
         let data_version = option.data_version;
-        let id_damage_array = Schematic::parse_number_id_from_we12(&nbt)?;
+        let mut id_damage_array = Schematic::parse_number_id_from_we12(&nbt)?;
         let mut region = Region::new();
 
         let mut id_damage_counter = [[BlockStats::default(); 16]; 256];
@@ -276,12 +276,10 @@ impl Region {
             }
         }
 
-        region.array_number_id_damage = if option.discard_number_id_array {
-            None
-        } else {
-            Some(id_damage_array)
-        };
+        // if option.discard_number_id_array {
+        //     id_damage_array.
+        // }
 
-        return Ok(region);
+        return Ok((region, id_damage_array));
     }
 }

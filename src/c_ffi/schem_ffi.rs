@@ -110,14 +110,14 @@ unsafe extern "C" fn MC_SCHEM_schem_load_world_edit_13_bytes(
 unsafe extern "C" fn MC_SCHEM_schem_load_world_edit_12(mut src: CReader,
                                                        option: *const CWE12LoadOption) -> CSchemLoadResult {
     let option = (*option).to_option();
-    return CSchemLoadResult::new(Schematic::from_world_edit_12_reader(&mut src, &option));
+    return CSchemLoadResult::from(Schematic::from_world_edit_12_reader(&mut src, &option));
 }
 
 #[no_mangle]
 unsafe extern "C" fn MC_SCHEM_schem_load_world_edit_12_file(filename: CStringView,
                                                             option: *const CWE12LoadOption) -> CSchemLoadResult {
     let option = (*option).to_option();
-    return CSchemLoadResult::new(Schematic::from_world_edit_12_file(filename.to_str(), &option));
+    return CSchemLoadResult::from(Schematic::from_world_edit_12_file(filename.to_str(), &option));
 }
 
 #[no_mangle]
@@ -125,7 +125,7 @@ unsafe extern "C" fn MC_SCHEM_schem_load_world_edit_12_bytes(
     bytes: *const u8, length: usize, option: *const CWE12LoadOption) -> CSchemLoadResult {
     let bytes: &mut &[u8] = &mut &*slice_from_raw_parts(bytes, length);
     let option = (*option).to_option();
-    return CSchemLoadResult::new(Schematic::from_world_edit_12_reader(bytes, &option));
+    return CSchemLoadResult::from(Schematic::from_world_edit_12_reader(bytes, &option));
 }
 
 #[no_mangle]

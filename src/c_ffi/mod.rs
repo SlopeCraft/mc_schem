@@ -10,11 +10,12 @@ use static_assertions as sa;
 use std::mem::{size_of, swap};
 use fastnbt::Value;
 use flate2::Compression;
+use ndarray::Array3;
 use crate::{Block};
 use crate::block::{BlockIdParseError, CommonBlock};
 use crate::error::Error;
 use crate::region::{BlockEntity, Entity, PendingTick};
-use crate::schem::{Schematic, LitematicaLoadOption, VanillaStructureLoadOption, WorldEdit13LoadOption, WorldEdit12LoadOption, DataVersion, LitematicaSaveOption, VanillaStructureSaveOption, WorldEdit13SaveOption, MetaDataIR};
+use crate::schem::{Schematic, LitematicaLoadOption, VanillaStructureLoadOption, WorldEdit13LoadOption, WorldEdit12LoadOption, DataVersion, LitematicaSaveOption, VanillaStructureSaveOption, WorldEdit13SaveOption, MetaDataIR, WE12MetaData};
 
 mod map_ffi;
 mod nbt_ffi;
@@ -430,6 +431,15 @@ impl CSchemLoadResult {
     pub fn new<T>(src: Result<(Schematic, T), Error>) -> CSchemLoadResult {
         return match src {
             Ok((s, _)) => CSchemLoadResult { schematic: Some(Box::new(s)), error: None },
+            Err(e) => CSchemLoadResult { schematic: None, error: Some(Box::new(e)) },
+        }
+    }
+}
+
+impl<T, U> From<Result<(Schematic, T, U), Error>> for CSchemLoadResult {
+    fn from(value: Result<(Schematic, T, U), Error>) -> Self {
+        return match value {
+            Ok((s, ..)) => CSchemLoadResult { schematic: Some(Box::new(s)), error: None },
             Err(e) => CSchemLoadResult { schematic: None, error: Some(Box::new(e)) },
         }
     }

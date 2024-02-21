@@ -165,7 +165,7 @@ void test_link() {
   check_fun_ptr(MC_SCHEM_region_get_pending_ticks);
   check_fun_ptr(MC_SCHEM_region_get_entities);
   check_fun_ptr(MC_SCHEM_region_get_block_index_array);
-  check_fun_ptr(MC_SCHEM_region_get_number_id_array);
+  //check_fun_ptr(MC_SCHEM_region_get_number_id_array);
   check_fun_ptr(MC_SCHEM_region_get_shape);
   check_fun_ptr(MC_SCHEM_region_reshape);
   check_fun_ptr(MC_SCHEM_region_get_block);

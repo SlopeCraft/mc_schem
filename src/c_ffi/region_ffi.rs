@@ -260,15 +260,6 @@ unsafe extern "C" fn MC_SCHEM_region_get_block_index_array(region: *const Region
 }
 
 #[no_mangle]
-unsafe extern "C" fn MC_SCHEM_region_get_number_id_array(region: *const Region) -> *mut CNumberId {
-    let region = &mut *(region as *mut Region);
-    if let Some(arr) = &mut region.array_number_id_damage {
-        return arr.as_mut_ptr() as *mut CNumberId;
-    }
-    return null_mut();
-}
-
-#[no_mangle]
 unsafe extern "C" fn MC_SCHEM_region_get_shape(region: *const Region) -> CPosInt {
     return CPosInt { pos: (*region).shape() };
 }

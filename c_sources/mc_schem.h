@@ -685,6 +685,28 @@ MC_SCHEM_EXPORT MC_SCHEM_region_box MC_SCHEM_schem_take_region(MC_SCHEM_schemati
 MC_SCHEM_EXPORT void MC_SCHEM_schem_insert_region_copy(MC_SCHEM_schematic *, const MC_SCHEM_region *, size_t index);
 MC_SCHEM_EXPORT void MC_SCHEM_schem_insert_region_move(MC_SCHEM_schematic *, MC_SCHEM_region_box *box, size_t index);
 
+
+MC_SCHEM_EXPORT void
+MC_SCHEM_schem_get_block_indices_at(const MC_SCHEM_schematic *, MC_SCHEM_array3_i32 pos,
+                                    size_t *num_blocks,
+                                    uint16_t *dest, size_t dest_capacity);
+MC_SCHEM_EXPORT void
+MC_SCHEM_schem_get_blocks_at(const MC_SCHEM_schematic *, MC_SCHEM_array3_i32 pos,
+                             size_t *num_blocks,
+                             const MC_SCHEM_block **dest, size_t dest_capacity);
+
+MC_SCHEM_DEFINE_OPTIONAL(uint16_t, u16)
+MC_SCHEM_EXPORT MC_SCHEM_optional_u16
+MC_SCHEM_schem_get_first_block_index_at(const MC_SCHEM_schematic *, MC_SCHEM_array3_i32 pos);
+
+MC_SCHEM_EXPORT const MC_SCHEM_block *
+MC_SCHEM_schem_get_first_block_at(const MC_SCHEM_schematic *, MC_SCHEM_array3_i32 pos);
+
+MC_SCHEM_EXPORT MC_SCHEM_array3_i32 MC_SCHEM_schem_get_shape(const MC_SCHEM_schematic*);
+MC_SCHEM_EXPORT uint64_t MC_SCHEM_schem_get_volume(const MC_SCHEM_schematic*);
+MC_SCHEM_EXPORT uint64_t MC_SCHEM_schem_get_total_blocks(const MC_SCHEM_schematic*,bool include_air);
+
+
 #ifdef __cplusplus
 }
 #endif

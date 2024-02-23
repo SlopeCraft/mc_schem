@@ -1,8 +1,9 @@
-use std::ptr::{drop_in_place, slice_from_raw_parts};
-use crate::c_ffi::{CLitematicaLoadOption, CLitematicaSaveOption, CMetadata, CReader, CSchemLoadResult, CStringView, CVanillaStructureLoadOption, CVanillaStructureSaveOption, CWE12LoadOption, CWE13LoadOption, CWE13SaveOption, CWriter};
+use std::ptr::{drop_in_place, null, slice_from_raw_parts};
+use crate::c_ffi::{CLitematicaLoadOption, CLitematicaSaveOption, CMetadata, COption, CPosInt, CReader, CSchemLoadResult, CStringView, CVanillaStructureLoadOption, CVanillaStructureSaveOption, CWE12LoadOption, CWE13LoadOption, CWE13SaveOption, CWriter, write_to_c_buffer};
 use crate::error::Error;
 use crate::schem::{LitematicaLoadOption, LitematicaSaveOption, VanillaStructureLoadOption, VanillaStructureSaveOption, WorldEdit12LoadOption, WorldEdit13LoadOption, WorldEdit13SaveOption};
 use crate::{Region, Schematic};
+use crate::block::Block;
 
 #[no_mangle]
 extern "C" fn MC_SCHEM_create_schem() -> Box<Schematic> {
@@ -229,4 +230,59 @@ unsafe extern "C" fn MC_SCHEM_schem_insert_region_move(schem: *mut Schematic, re
     let mut region = Region::new();
     std::mem::swap(&mut region, &mut (*region_box));
     (*schem).regions.insert(index, region);
+}
+
+
+#[no_mangle]
+unsafe extern "C" fn MC_SCHEM_schem_get_block_indices_at(schem: *const Schematic, pos: CPosInt,
+                                                         num_blocks: *mut usize,
+                                                         dest: *mut u16, dest_capacity: usize) {
+    let result = (*schem).block_indices_at(pos.pos);
+    write_to_c_buffer(&result, num_blocks, dest, dest_capacity);
+}
+
+#[no_mangle]
+unsafe extern "C" fn MC_SCHEM_schem_get_blocks_at(schem: *const Schematic, pos: CPosInt,
+                                                  num_blocks: *mut usize,
+                                                  dest: *mut *const Block, dest_capacity: usize) {
+    let result = (*schem).blocks_at(pos.pos);
+    *num_blocks = result.len();
+
+    if dest_capacity >= result.len() {
+        for (idx, blk) in result.iter().enumerate() {
+            *(dest.clone().add(idx)) = *blk as *const Block;
+        }
+    }
+}
+
+#[no_mangle]
+unsafe extern "C" fn MC_SCHEM_schem_get_first_block_index_at(schem: *const Schematic, pos: CPosInt) -> COption<u16> {
+    let opt = (*schem).first_block_index_at(pos.pos);
+    return COption::from(opt);
+}
+
+#[no_mangle]
+unsafe extern "C" fn MC_SCHEM_schem_get_first_block_at(schem: *const Schematic, pos: CPosInt) -> *const Block {
+    let opt = (*schem).first_block_at(pos.pos);
+    return match opt {
+        Some(blk) => blk as *const Block,
+        None => null()
+    };
+}
+
+#[no_mangle]
+unsafe extern "C" fn MC_SCHEM_schem_get_shape(schem: *const Schematic) -> CPosInt {
+    return CPosInt { pos: (*schem).shape() };
+}
+
+
+#[no_mangle]
+unsafe extern "C" fn MC_SCHEM_schem_get_volume(schem: *const Schematic) -> u64 {
+    return (*schem).volume();
+}
+
+
+#[no_mangle]
+unsafe extern "C" fn MC_SCHEM_schem_get_total_blocks(schem: *const Schematic, include_air: bool) -> u64 {
+    return (*schem).total_blocks(include_air);
 }

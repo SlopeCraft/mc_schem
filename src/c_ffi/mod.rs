@@ -10,12 +10,11 @@ use static_assertions as sa;
 use std::mem::{size_of, swap};
 use fastnbt::Value;
 use flate2::Compression;
-use ndarray::Array3;
 use crate::{Block};
 use crate::block::{BlockIdParseError, CommonBlock};
 use crate::error::Error;
 use crate::region::{BlockEntity, Entity, PendingTick};
-use crate::schem::{Schematic, LitematicaLoadOption, VanillaStructureLoadOption, WorldEdit13LoadOption, WorldEdit12LoadOption, DataVersion, LitematicaSaveOption, VanillaStructureSaveOption, WorldEdit13SaveOption, MetaDataIR, WE12MetaData};
+use crate::schem::{Schematic, LitematicaLoadOption, VanillaStructureLoadOption, WorldEdit13LoadOption, WorldEdit12LoadOption, DataVersion, LitematicaSaveOption, VanillaStructureSaveOption, WorldEdit13SaveOption, MetaDataIR};
 
 mod map_ffi;
 mod nbt_ffi;
@@ -760,5 +759,15 @@ impl CMetadata {
             schem_origin: self.schem_origin.to_option(),
             schem_material: self.schem_material.to_string(),
         };
+    }
+}
+
+pub unsafe fn write_to_c_buffer<T>(src: &[T], dest_size: *mut usize, dest: *mut T, dest_capacity: usize)
+    where T: Copy {
+    *dest_size = src.len();
+    if dest_capacity >= src.len() {
+        for (idx, t) in src.iter().enumerate() {
+            *(dest.clone().add(idx)) = *t;
+        }
     }
 }

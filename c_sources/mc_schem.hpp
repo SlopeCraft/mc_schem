@@ -1929,6 +1929,9 @@ namespace mc_schem {
       this->set_metadata(&c_md);
     }
 
+    [[nodiscard]] size_t num_regions() const noexcept {
+      return MC_SCHEM_schem_get_region_num(this->handle);
+    }
   protected:
     [[nodiscard]] std::vector<region> impl_regions() const noexcept {
       std::vector<region> result;
@@ -1964,6 +1967,65 @@ namespace mc_schem {
     void insert_region(region_box &&box, size_t index) noexcept {
       MC_SCHEM_region_box b{box->unwrap_handle()};
       MC_SCHEM_schem_insert_region_move(this->handle, &b, index);
+    }
+
+    void block_indices_at(std::span<const int, 3> pos, std::vector<uint16_t> &dest) const noexcept {
+      size_t size = 0;
+      dest.resize(this->num_regions());
+      MC_SCHEM_schem_get_block_indices_at(this->handle, detail::array3_i32_std_to_schem(pos), &size, dest.data(),
+                                          dest.size());
+      assert(size <= dest.size());
+      dest.resize(size);
+    }
+
+    [[nodiscard]] std::vector<uint16_t> block_indices_at(std::span<const int, 3> pos) const noexcept {
+      std::vector<uint16_t> result;
+      this->block_indices_at(pos, result);
+      return result;
+    }
+
+    void blocks_at(std::span<const int, 3> pos, std::vector<const MC_SCHEM_block *> &dest) const noexcept {
+      size_t size = 0;
+      dest.resize(this->num_regions());
+      MC_SCHEM_schem_get_blocks_at(this->handle, detail::array3_i32_std_to_schem(pos), &size, dest.data(), dest.size());
+      assert(size <= dest.size());
+      dest.resize(size);
+    }
+
+    [[nodiscard]] const std::vector<block> blocks_at(std::span<const int, 3> pos) const noexcept {
+      std::vector<const MC_SCHEM_block *> temp;
+      this->blocks_at(pos, temp);
+      std::vector<block> result;
+      result.reserve(temp.size());
+      for (auto handle: temp) {
+        result.emplace_back(const_cast<MC_SCHEM_block *>(handle));
+      }
+      return result;
+    }
+
+    [[nodiscard]] std::optional<uint16_t> first_block_index_at(std::span<const int, 3> pos) const noexcept {
+      return detail::parse_c_option(
+        MC_SCHEM_schem_get_first_block_index_at(this->handle, detail::array3_i32_std_to_schem(pos)));
+    }
+
+    [[nodiscard]] std::optional<const block> first_block_at(std::span<const int, 3> pos) const noexcept {
+      auto blkp = MC_SCHEM_schem_get_first_block_at(this->handle, detail::array3_i32_std_to_schem(pos));
+      if (blkp != nullptr) {
+        return block{const_cast<MC_SCHEM_block *>(blkp)};
+      }
+      return std::nullopt;
+    }
+
+    [[nodiscard]] std::array<int, 3> shape() const noexcept {
+      return detail::array3_i32_schem_to_std(MC_SCHEM_schem_get_shape(this->handle));
+    }
+
+    [[nodiscard]] uint64_t volume() const noexcept {
+      return MC_SCHEM_schem_get_volume(this->handle);
+    }
+
+    [[nodiscard]] uint64_t total_blocks(bool include_air) const noexcept {
+      return MC_SCHEM_schem_get_total_blocks(this->handle, include_air);
     }
   };
 

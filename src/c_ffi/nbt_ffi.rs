@@ -4,7 +4,7 @@ use std::mem::swap;
 use std::ptr::{drop_in_place, null, null_mut};
 use fastnbt::{Value};
 use crate::c_ffi::{CArrayView, CByteArrayView, CEnumNBTType, CIntArrayView, CLongArrayView, CMapRef, CNBTListView, CStringView, CValueBox};
-use crate::region::Entity;
+
 
 #[no_mangle]
 extern "C" fn MC_SCHEM_create_nbt() -> CValueBox {

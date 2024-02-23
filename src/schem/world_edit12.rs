@@ -141,7 +141,7 @@ impl Region {
     pub fn from_world_edit_12(nbt: &mut HashMap<String, Value>, option: &WorldEdit12LoadOption)
         -> Result<(Region, Array3<(u8, u8)>), Error> {
         let data_version = option.data_version;
-        let mut id_damage_array = Schematic::parse_number_id_from_we12(&nbt)?;
+        let id_damage_array = Schematic::parse_number_id_from_we12(&nbt)?;
         let mut region = Region::new();
 
         let mut id_damage_counter = [[BlockStats::default(); 16]; 256];

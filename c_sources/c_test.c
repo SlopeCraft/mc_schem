@@ -227,11 +227,14 @@ void test_link() {
   check_fun_ptr(MC_SCHEM_schem_take_region);
   check_fun_ptr(MC_SCHEM_schem_insert_region_copy);
   check_fun_ptr(MC_SCHEM_schem_insert_region_move);
-//  check_fun_ptr();
-//  check_fun_ptr();
-//  check_fun_ptr();
-//  check_fun_ptr();
-//  check_fun_ptr();
+  check_fun_ptr(MC_SCHEM_schem_get_block_indices_at);
+  check_fun_ptr(MC_SCHEM_schem_get_blocks_at);
+  check_fun_ptr(MC_SCHEM_schem_get_first_block_index_at);
+  check_fun_ptr(MC_SCHEM_schem_get_first_block_at);
+
+  check_fun_ptr(MC_SCHEM_schem_get_shape);
+  check_fun_ptr(MC_SCHEM_schem_get_volume);
+  check_fun_ptr(MC_SCHEM_schem_get_total_blocks);
 }
 
 

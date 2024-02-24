@@ -9,13 +9,14 @@ pub mod common;
 
 use std::cmp::max;
 use std::collections::hash_map::DefaultHasher;
+use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use crate::block::{Block, CommonBlock};
 use fastnbt;
 use flate2::Compression;
 use crate::error::{Error};
 //use schem::mc_version;
-use crate::schem;
+use crate::{PendingTick, schem};
 use crate::region::{BlockEntity, Region};
 
 
@@ -338,14 +339,20 @@ impl Schematic {
     }
 
     pub fn blocks_at(&self, pos: [i32; 3]) -> Vec<&Block> {
-        let mut result = Vec::with_capacity(self.regions.len());
+        let mut result = Vec::new();
+        self.get_blocks_at(pos, &mut result);
+        return result;
+    }
+
+    pub fn get_blocks_at<'a>(&'a self, pos: [i32; 3], dest: &mut Vec<&'a Block>) {
+        dest.clear();
+        dest.reserve(self.regions.len());
         for reg in &self.regions {
             let cur_pos = reg.global_pos_to_relative_pos(pos);
             if let Some(blk) = reg.block_at(cur_pos) {
-                result.push(blk);
+                dest.push(blk);
             }
         }
-        return result;
     }
 
     pub fn block_entities_at(&self, pos: [i32; 3]) -> Vec<&BlockEntity> {
@@ -357,6 +364,16 @@ impl Schematic {
             }
         }
         return result;
+    }
+
+    pub fn first_region_index_at(&self, pos: [i32; 3]) -> Option<usize> {
+        for (idx, reg) in self.regions.iter().enumerate() {
+            let r_pos = reg.global_pos_to_relative_pos(pos);
+            if reg.contains_coord(r_pos) {
+                return Some(idx);
+            }
+        }
+        return None;
     }
 
 
@@ -380,6 +397,15 @@ impl Schematic {
         for reg in &self.regions {
             if let Some(b) = reg.block_entities.get(&reg.global_pos_to_relative_pos(pos)) {
                 return Some(b);
+            }
+        }
+        return None;
+    }
+
+    pub fn first_block_info_at(&self, pos: [i32; 3]) -> Option<(u16, &Block, Option<&BlockEntity>, Option<&PendingTick>)> {
+        for reg in &self.regions {
+            if let Some(info) = reg.block_info_at(reg.global_pos_to_relative_pos(pos)) {
+                return Some(info);
             }
         }
         return None;
@@ -455,6 +481,7 @@ impl Schematic {
         return (palette, lut_lut);
     }
 
+
     pub fn from_file(filename: &str) -> Result<Schematic, Error> {
         if filename.ends_with(".litematic") {
             return Ok(Self::from_litematica_file(filename, &LitematicaLoadOption::default())?.0);
@@ -492,6 +519,117 @@ impl Schematic {
 
 
         return Err(Error::UnrecognisedExtension { extension: extension.to_string() });
+    }
+
+    pub fn duplicated_blocks(&self) -> HashMap<[i32; 3], Vec<&Block>> {
+        let mut result = HashMap::new();
+        let mut temp = Vec::new();
+
+        fn deduplicate<'a>(src: &[&'a Block], dest: &mut Vec<&'a Block>) {
+            dest.reserve(src.len());
+            dest.clear();
+            for blk in src {
+                if dest.contains(&*blk) {
+                    continue;
+                }
+                dest.push(&*blk);
+            }
+        }
+
+        let mut temp_deduplicated = Vec::with_capacity(self.regions.len());
+
+        for y in 0..self.shape()[1] {
+            for z in 0..self.shape()[2] {
+                for x in 0..self.shape()[0] {
+                    let pos = [x, y, z];
+                    self.get_blocks_at(pos, &mut temp);
+                    deduplicate(&temp, &mut temp_deduplicated);
+                    if temp_deduplicated.len() >= 2 {
+                        result.insert(pos, temp_deduplicated.clone());
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    pub fn to_single_region(&self, background_block: &Block) -> Region {
+        let mut region = Region::new();
+        region.reshape(&self.shape());
+        {
+            let mut entity_num = 0;
+            let mut be_num = 0;
+            let mut pb_num = 0;
+            for reg in &self.regions {
+                entity_num += reg.entities.len();
+                be_num += reg.block_entities.len();
+                pb_num += reg.pending_ticks.len();
+            }
+            region.entities.reserve(entity_num);
+            region.pending_ticks.reserve(pb_num);
+            region.block_entities.reserve(be_num);
+        }
+
+        let (full_pal, lut_lut) = self.full_palette();
+        let background_block_index;
+        {
+            region.palette.clear();
+            region.palette.reserve(full_pal.len() + 1);
+            for (blk, _hash) in &full_pal {
+                region.palette.push((*blk).clone());
+            }
+            background_block_index = region.find_or_append_to_palette(background_block);
+        }
+
+        for y in 0..self.shape()[1] {
+            for z in 0..self.shape()[2] {
+                for x in 0..self.shape()[0] {
+                    let g_pos = [x, y, z];
+                    {
+                        let res = region.set_block_id(g_pos, background_block_index);
+                        debug_assert!(res.is_ok());
+                    }
+                    let reg_idx = self.first_region_index_at(g_pos);
+                    let info = self.first_block_info_at(g_pos);
+                    debug_assert!(reg_idx.is_some() == info.is_some());
+                    let reg_idx = match reg_idx {
+                        Some(ri) => ri,
+                        None => continue,
+                    };
+                    let (local_block_idx, _blk, be_opt, pd_opt) = info.unwrap();
+                    let global_block_idx = lut_lut[reg_idx][local_block_idx as usize] as u16;
+                    {
+                        let res = region.set_block_id(g_pos, global_block_idx);
+                        debug_assert!(res.is_ok());
+                    }
+                    if let Some(be) = be_opt {
+                        region.block_entities.insert(g_pos, be.clone());
+                    }
+                    if let Some(pb) = pd_opt {
+                        region.pending_ticks.insert(g_pos, pb.clone());
+                    }
+                }
+            }
+        }
+
+        // entities
+        {
+            for reg in &self.regions {
+                let negative_offset = [-reg.offset[0], -reg.offset[1], -reg.offset[2]];
+                for entity in &reg.entities {
+                    let mut e = entity.clone();
+                    e.pos_shift(negative_offset);
+                    region.entities.push(e);
+                }
+            }
+        }
+
+        return region;
+    }
+
+    pub fn merge_regions(&mut self, background_block: &Block) {
+        let new_reg = self.to_single_region(background_block);
+        self.regions = vec![new_reg];
     }
 }
 

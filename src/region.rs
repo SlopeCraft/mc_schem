@@ -55,6 +55,14 @@ impl Entity {
             block_pos: [0, 0, 0],
         };
     }
+
+    /// Add adder to position and block_pos
+    pub fn pos_shift(&mut self, adder: [i32; 3]) {
+        for dim in 0..3 {
+            self.block_pos[dim] += adder[dim];
+            self.position[dim] += adder[dim] as f64;
+        }
+    }
 }
 
 impl BlockEntity {
@@ -265,6 +273,14 @@ impl Region {
             g_pos[0] - self.offset[0],
             g_pos[1] - self.offset[1],
             g_pos[2] - self.offset[2],
+        ];
+    }
+
+    pub fn relative_pos_to_global_pos(&self, r_pos: [i32; 3]) -> [i32; 3] {
+        return [
+            r_pos[0] + self.offset[0],
+            r_pos[1] + self.offset[1],
+            r_pos[2] + self.offset[2],
         ];
     }
 

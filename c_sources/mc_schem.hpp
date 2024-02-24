@@ -1586,7 +1586,7 @@ namespace mc_schem {
     std::array<int32_t, 3> schem_offset;
     std::optional<std::array<int32_t, 3>> schem_we_offset;
 
-    std::optional<int64_t> date;
+    //std::optional<int64_t> date;
 
     //world edit 12 related
     std::optional<std::string> schem_world_edit_version;
@@ -1606,7 +1606,7 @@ namespace mc_schem {
       schem_version{src.schem_version},
       schem_offset{src.schem_offset[0], src.schem_offset[1], src.schem_offset[2]},
       schem_we_offset{detail::parse_c_option(src.schem_we_offset)},
-      date{detail::parse_c_option(src.date)},
+      //date{detail::parse_c_option(src.date)},
       schem_world_edit_version{detail::parse_c_option(src.schem_world_edit_version)},
       schem_editing_platform{detail::parse_c_option(src.schem_editing_platform)},
       schem_origin{detail::parse_c_option(src.schem_origin)},
@@ -1628,7 +1628,7 @@ namespace mc_schem {
         {this->schem_offset[0], this->schem_offset[1], this->schem_offset[2]},
         detail::make_c_option(this->schem_we_offset),
 
-        detail::make_c_option(this->date),
+        //detail::make_c_option(this->date),
 
         detail::make_c_option(this->schem_world_edit_version),
         detail::make_c_option(this->schem_editing_platform),

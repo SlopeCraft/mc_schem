@@ -700,7 +700,7 @@ struct CMetadata {
     pub schem_offset: [i32; 3],
     pub schem_we_offset: COption<[i32; 3]>,
 
-    pub date: COption<i64>,
+    //pub date: COption<i64>,
 
     pub schem_world_edit_version: COption<CStringView>,
     pub schem_editing_platform: COption<CStringView>,
@@ -726,7 +726,7 @@ impl CMetadata {
             schem_offset: src.schem_offset,
             schem_we_offset: COption::from(src.schem_we_offset),
 
-            date: COption::from(src.date),
+            //date: COption::from(src.date),
 
             schem_world_edit_version: COption::from(&src.schem_world_edit_version),
             schem_editing_platform: COption::from(&src.schem_editing_platform),
@@ -752,7 +752,7 @@ impl CMetadata {
             schem_offset: self.schem_offset,
             schem_we_offset: self.schem_we_offset.to_option(),
 
-            date: self.date.to_option(),
+            //date: self.date.to_option(),
 
             schem_world_edit_version: self.schem_world_edit_version.to_option_string(),
             schem_editing_platform: self.schem_editing_platform.to_option_string(),

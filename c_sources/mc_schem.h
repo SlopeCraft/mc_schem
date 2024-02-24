@@ -11,15 +11,15 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdalign.h>
-
+#include <assert.h>
 #else
-
 #include <cstdint>
 #include <cstdbool>
 #include <cstddef>
 #include <cstring>
 #include <cstdio>
 #include <cstdalign>
+#include <cassert>
 #endif
 
 #define MC_SCHEM_DEFINE_BOX(content_type) \
@@ -663,7 +663,7 @@ typedef struct {
   int32_t schem_offset[3];
   MC_SCHEM_optional_i32_array3 schem_we_offset;
 
-  MC_SCHEM_optional_i64 date;
+  //MC_SCHEM_optional_i64 date;
 
   //world edit 12 related
   MC_SCHEM_optional_string_view schem_world_edit_version;

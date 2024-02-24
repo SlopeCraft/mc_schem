@@ -24,7 +24,7 @@ impl MetaDataIR {
 
         result.litematica_version = src.version;
         result.litematica_subversion = src.sub_version;
-        result.date = Some(src.time_modified);
+        //result.date = Some(src.time_modified);
         return result;
     }
 }

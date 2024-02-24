@@ -237,7 +237,7 @@ pub struct MetaDataIR {
     pub schem_offset: [i32; 3],
     pub schem_we_offset: Option<[i32; 3]>,
 
-    pub date: Option<i64>,
+    //pub date: Option<i64>,
 
     pub schem_world_edit_version: Option<String>,
     pub schem_editing_platform: Option<String>,
@@ -272,7 +272,7 @@ impl MetaDataIR {
             schem_version: WE13MetaData::default().version,
             schem_offset: [0, 0, 0],
             schem_we_offset: Some([0, 0, 0]),
-            date: Some(time),
+            //date: Some(time),
             schem_world_edit_version: None,
             schem_editing_platform: None,
             schem_origin: Some([0, 0, 0]),

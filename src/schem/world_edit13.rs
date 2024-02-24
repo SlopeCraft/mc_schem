@@ -80,13 +80,10 @@ impl MetaDataIR {
         result.schem_version = src.version;
         result.schem_offset = src.offset;
         result.schem_we_offset = Some(src.we_offset);
-        result.date = src.date;
-
         if let Some(date) = src.date {
             result.time_created = date;
             result.time_modified = date;
         }
-
 
         if let Some(extra) = &src.v3_extra {
             result.schem_editing_platform = Some(extra.editing_platform.clone());
@@ -102,6 +99,9 @@ impl MetaDataIR {
 fn parse_metadata(nbt: &HashMap<String, Value>, tag_path: &str, _option: &WorldEdit13LoadOption)
     -> Result<WE13MetaData, Error> {
     let mut we13 = WE13MetaData::default();
+
+    we13.date = None;
+    we13.v3_extra = None;
 
     we13.version = *unwrap_opt_tag!(nbt.get("Version"),Int,0,format!("{tag_path}/Version"));
     we13.data_version = *unwrap_opt_tag!(nbt.get("DataVersion"),Int,0,format!("{tag_path}/DataVersion"));
@@ -434,6 +434,7 @@ impl Schematic {
 
         result.data_version = self.metadata.mc_data_version;
         result.offset = [0, 0, 0];
+        result.date = Some(self.metadata.time_modified);
 
         return Ok(result);
     }

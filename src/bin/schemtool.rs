@@ -1,6 +1,7 @@
+use chrono::DateTime;
 use clap::{command, Parser, Subcommand};
 use mc_schem::schem;
-use mc_schem::schem::Schematic;
+use mc_schem::schem::{RawMetaData, Schematic};
 
 /// Read, write, convert minecraft schematic files via different versions
 #[derive(Parser, Debug)]
@@ -64,7 +65,7 @@ fn main() {
         Commands::Convert { input, output, benchmark } => {
             let begin_time = std::time::SystemTime::now();
             let schem = match Schematic::from_file(&input) {
-                Ok(s) => s,
+                Ok(s) => s.0,
                 Err(e) => {
                     eprintln!("Failed to load {}: {e}", input);
                     std::process::exit(1);
@@ -93,7 +94,7 @@ fn main() {
             }
         }
         Commands::See { file, mut all, size, metadata } => {
-            let schematic = match Schematic::from_file(&file) {
+            let (schematic, raw) = match Schematic::from_file(&file) {
                 Ok(s) => s,
                 Err(e) => {
                     eprintln!("Failed to load {}: {e}", file);
@@ -106,6 +107,55 @@ fn main() {
 
             if size || all {
                 println!("Size: {}, volume: {}", schem::common::format_size(&schematic.shape()), schematic.volume());
+            }
+
+            if metadata || all {
+                let dim_letters = ['X', 'Y', 'Z'];
+                println!("Metadata: ");
+                type DT = DateTime<chrono::Utc>;
+                match raw {
+                    RawMetaData::Litematica(raw) => {
+                        println!("\tDataVersion: {}", raw.data_version);
+                        println!("\tVersion: {}", raw.version);
+                        if let Some(sv) = &raw.sub_version {
+                            println!("\tSubVersion: {sv}");
+                        }
+                        //(schem::common::i64_ms_timestamp_to_date(raw.time_created))
+                        println!("\tTimeCreated: {} (aka {})", raw.time_created, DT::from(schem::common::i64_ms_timestamp_to_system_time(raw.time_created)));
+                        println!("\tTimeModified: {} (aka {})", raw.time_modified, DT::from(schem::common::i64_ms_timestamp_to_system_time(raw.time_modified)));
+                        println!("\tAuthor: {}", raw.author);
+                        println!("\tName: {}", raw.name);
+                        println!("\tDescription: {}", raw.description);
+                    },
+                    RawMetaData::VanillaStructure(raw) => {
+                        println!("\tDataVersion: {}", raw.data_version);
+                    },
+                    RawMetaData::WE13(raw) => {
+                        println!("\tDataVersion: {}", raw.data_version);
+                        println!("\tVersion: {}", raw.version);
+                        for dim in 0..3 {
+                            println!("\tWEOffset{}: {}", dim_letters[dim], raw.we_offset[dim]);
+                        }
+                        println!("\tOffset: {}", schem::common::format_size(&raw.offset));
+                        if let Some(date) = raw.date {
+                            println!("\tDate: {} (aka {})", date, DT::from(schem::common::i64_ms_timestamp_to_system_time(date)));
+                        }
+                        if let Some(extra) = raw.v3_extra {
+                            println!("\tMetadata/WorldEdit/Version: {}", extra.world_edit_version);
+                            println!("\tEditingPlatform: {}", extra.editing_platform);
+                            println!("\tOrigin: {}", schem::common::format_size(&extra.origin));
+                        }
+                    },
+                    RawMetaData::WE12(raw) => {
+                        println!("\tMaterials: {}", raw.materials);
+                        for dim in 0..3 {
+                            println!("\tWEOffset{}: {}", dim_letters[dim], raw.we_offset[dim]);
+                        }
+                        for dim in 0..3 {
+                            println!("\tWEOrigin{}: {}", dim_letters[dim], raw.we_origin[dim]);
+                        }
+                    },
+                }
             }
         }
         Commands::Print { supported_formats, loadable_formats, savable_formats } => {

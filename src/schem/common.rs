@@ -1,5 +1,9 @@
 use std::collections::HashMap;
 use std::fmt::Display;
+use std::ops::Add;
+use std::time;
+use std::time::SystemTime;
+use chrono::{DateTime, TimeZone};
 use fastnbt::Value;
 use crate::error::Error;
 use crate::{unwrap_opt_tag, schem::{id_of_nbt_tag}, unwrap_tag};
@@ -103,4 +107,9 @@ pub fn parse_block(nbt: &HashMap<String, Value>, tag_path: &str) -> Result<Block
 pub fn format_size<T>(size: &[T; 3]) -> String
     where T: Display {
     return format!("[{}, {}, {}]", size[0], size[1], size[2]);
+}
+
+pub fn i64_ms_timestamp_to_system_time(timestamp: i64) -> SystemTime {
+    let time = time::UNIX_EPOCH.add(time::Duration::from_millis(timestamp as u64));
+    return time;
 }

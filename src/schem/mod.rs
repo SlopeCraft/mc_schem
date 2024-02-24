@@ -211,14 +211,13 @@ impl VanillaStructureMetaData {
 }
 
 
-// #[derive(Debug)]
-// #[allow(dead_code)]
-// pub enum RawMetaData {
-//     Litematica(LitematicaMetaData),
-//     WE12(WE12MetaData),
-//     WE13(WE13MetaData),
-//     VanillaStructure(VanillaStructureMetaData),
-// }
+#[derive(Debug)]
+pub enum RawMetaData {
+    Litematica(LitematicaMetaData),
+    WE12(WE12MetaData),
+    WE13(WE13MetaData),
+    VanillaStructure(VanillaStructureMetaData),
+}
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
@@ -486,18 +485,22 @@ impl Schematic {
     }
 
 
-    pub fn from_file(filename: &str) -> Result<Schematic, Error> {
+    pub fn from_file(filename: &str) -> Result<(Schematic, RawMetaData), Error> {
         if filename.ends_with(".litematic") {
-            return Ok(Self::from_litematica_file(filename, &LitematicaLoadOption::default())?.0);
+            let (schem, raw) = Self::from_litematica_file(filename, &LitematicaLoadOption::default())?;
+            return Ok((schem, RawMetaData::Litematica(raw)));
         }
         if filename.ends_with(".nbt") {
-            return Ok(Self::from_vanilla_structure_file(filename, &VanillaStructureLoadOption::default())?.0);
+            let (schem, raw) = Self::from_vanilla_structure_file(filename, &VanillaStructureLoadOption::default())?;
+            return Ok((schem, RawMetaData::VanillaStructure(raw)));
         }
         if filename.ends_with(".schem") {
-            return Ok(Self::from_world_edit_13_file(filename, &WorldEdit13LoadOption::default())?.0);
+            let (schem, raw) = Self::from_world_edit_13_file(filename, &WorldEdit13LoadOption::default())?;
+            return Ok((schem, RawMetaData::WE13(raw)));
         }
         if filename.ends_with(".schematic") {
-            return Ok(Self::from_world_edit_12_file(filename, &WorldEdit12LoadOption::default())?.0);
+            let (schem, raw, ..) = Self::from_world_edit_12_file(filename, &WorldEdit12LoadOption::default())?;
+            return Ok((schem, RawMetaData::WE12(raw)));
         }
 
         let split = filename.split(".");

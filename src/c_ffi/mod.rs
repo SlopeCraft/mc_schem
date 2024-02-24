@@ -10,9 +10,10 @@ use static_assertions as sa;
 use std::mem::{size_of, swap};
 use fastnbt::Value;
 use flate2::Compression;
-use crate::{Block};
-use crate::block::{BlockIdParseError, CommonBlock};
+#[allow(unused_imports)]
+use crate::block::{CommonBlock, Block, BlockIdParseError};
 use crate::error::Error;
+#[allow(unused_imports)]
 use crate::region::{BlockEntity, Entity, PendingTick};
 use crate::schem::{Schematic, LitematicaLoadOption, VanillaStructureLoadOption, WorldEdit13LoadOption, WorldEdit12LoadOption, DataVersion, LitematicaSaveOption, VanillaStructureSaveOption, WorldEdit13SaveOption, MetaDataIR};
 
@@ -300,6 +301,7 @@ enum CPendingTickType {
 }
 
 #[repr(C)]
+#[allow(dead_code)]
 struct CNumberId {
     id: u8,
     damage: u8,

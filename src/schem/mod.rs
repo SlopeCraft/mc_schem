@@ -404,7 +404,11 @@ impl Schematic {
 
     pub fn first_block_info_at(&self, pos: [i32; 3]) -> Option<(u16, &Block, Option<&BlockEntity>, Option<&PendingTick>)> {
         for reg in &self.regions {
-            if let Some(info) = reg.block_info_at(reg.global_pos_to_relative_pos(pos)) {
+            let r_pos = reg.global_pos_to_relative_pos(pos);
+            if !reg.contains_coord(r_pos) {
+                continue;
+            }
+            if let Some(info) = reg.block_info_at(r_pos) {
                 return Some(info);
             }
         }
@@ -580,10 +584,10 @@ impl Schematic {
             }
             background_block_index = region.find_or_append_to_palette(background_block);
         }
-
-        for y in 0..self.shape()[1] {
-            for z in 0..self.shape()[2] {
-                for x in 0..self.shape()[0] {
+        let shape = self.shape();
+        for y in 0..shape[1] {
+            for z in 0..shape[2] {
+                for x in 0..shape[0] {
                     let g_pos = [x, y, z];
                     {
                         let res = region.set_block_id(g_pos, background_block_index);
@@ -615,10 +619,9 @@ impl Schematic {
         // entities
         {
             for reg in &self.regions {
-                let negative_offset = [-reg.offset[0], -reg.offset[1], -reg.offset[2]];
                 for entity in &reg.entities {
                     let mut e = entity.clone();
-                    e.pos_shift(negative_offset);
+                    e.pos_shift(reg.offset);
                     region.entities.push(e);
                 }
             }

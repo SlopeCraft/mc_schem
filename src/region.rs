@@ -230,7 +230,7 @@ impl Region {
     }
     pub fn contains_coord(&self, r_pos: [i32; 3]) -> bool {
         for dim in 0..3 {
-            if r_pos[dim] >= 0 && r_pos[dim] <= self.shape()[dim] {
+            if r_pos[dim] >= 0 && r_pos[dim] < self.shape()[dim] {
                 continue;
             }
             return false;

@@ -9,7 +9,7 @@ use crate::schem;
 use crate::schem::{DataVersion, LitematicaLoadOption, LitematicaSaveOption, MetaDataIR, Schematic, WorldEdit12LoadOption, WorldEdit13LoadOption, WorldEdit13SaveOption};
 use crate::old_block;
 use crate::region::{BlockEntity, Region};
-use crate::block::Block;
+use crate::block::{Block, CommonBlock};
 
 #[test]
 fn block_id_parse() {
@@ -357,12 +357,11 @@ fn make_mc12_numeric_lut() {
 
     let mut schem_option = WorldEdit12LoadOption::default();
     schem_option.fix_string_id_with_block_entity_data = false;
-    let schem = Schematic::from_world_edit_12_file(schem_file, &schem_option).unwrap().0;
+    let (schem, _, num_id_array) = Schematic::from_world_edit_12_file(schem_file, &schem_option).unwrap();
     let lite = Schematic::from_litematica_file(
         "./test_files/litematica/full-blocks-1.12.2.litematic",
         &LitematicaLoadOption::default()).unwrap().0;
 
-    let num_id_array = schem.regions[0].array_number_id_damage.as_ref().unwrap();
     for dim in 0..3 {
         assert_eq!(num_id_array.shape()[dim], schem.shape()[dim] as usize);
         assert_eq!(schem.shape()[dim], lite.shape()[dim]);
@@ -656,4 +655,16 @@ fn correct_test_mc12() {
     }
     println!("err_counter = {}", err_counter);
     assert_eq!(err_counter, 0);
+}
+
+
+#[test]
+fn test_merge_regions() {
+    let mut schem = Schematic::from_litematica_file("./test_files/litematica/multi-region01.litematic",
+                                                    &LitematicaLoadOption::default()).unwrap().0;
+    schem.merge_regions(&CommonBlock::Air.to_block());
+
+    create_dir_all("./target/test/test_merge_regions").unwrap();
+    let out_file = "./target/test/test_merge_regions/multi-region01-out.litematic";
+    schem.save_litematica_file(out_file, &LitematicaSaveOption::default()).unwrap()
 }

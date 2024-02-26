@@ -171,6 +171,7 @@ fn parse_entity(tag: &Value, tag_path: &str) -> Result<Entity, Error> {
 
 
 impl Schematic {
+    /// Load vanilla structure from file
     pub fn from_vanilla_structure_file(filename: &str, option: &VanillaStructureLoadOption) -> Result<(Schematic, VanillaStructureMetaData), Error> {
         let file_res = File::open(filename);
         let mut file;
@@ -182,6 +183,7 @@ impl Schematic {
         let mut decoder = GzDecoder::new(&mut file);
         return Self::from_vanilla_structure_reader(&mut decoder, option);
     }
+    /// Load vanilla structure from reader
     pub fn from_vanilla_structure_reader(src: &mut dyn std::io::Read, option: &VanillaStructureLoadOption)
         -> Result<(Schematic, VanillaStructureMetaData), Error> {
         let loaded_opt: Result<HashMap<String, Value>, fastnbt::error::Error> = fastnbt::from_reader(src);
@@ -331,6 +333,7 @@ fn pos_to_nbt(pos: &[i32; 3]) -> Value {
 
 #[allow(dead_code)]
 impl Schematic {
+    /// Save schematic to nbt as vanilla structure
     pub fn to_nbt_vanilla_structure(&self, option: &VanillaStructureSaveOption) -> Result<HashMap<String, Value>, Error> {
         let mut nbt: HashMap<String, Value> = HashMap::new();
 
@@ -449,6 +452,8 @@ impl Schematic {
     //     }
     // }
 
+    /// Save schematic to file as vanilla structure
+
     pub fn save_vanilla_structure_file(&self, filename: &str, option: &VanillaStructureSaveOption) -> Result<(), Error> {
         let nbt = self.to_nbt_vanilla_structure(option)?;
 
@@ -470,6 +475,8 @@ impl Schematic {
         return Ok(());
     }
 
+
+    /// Save schematic to writer as vanilla structure
     pub fn save_vanilla_structure_writer(&self, dest: &mut dyn std::io::Write, option: &VanillaStructureSaveOption) -> Result<(), Error> {
         let nbt = self.to_nbt_vanilla_structure(option)?;
 

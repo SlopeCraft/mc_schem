@@ -39,6 +39,7 @@ fn i8_to_u8(a: i8) -> u8 {
 }
 
 impl Schematic {
+    /// Parse number id
     pub fn parse_number_id_from_we12(nbt: &HashMap<String, Value>) -> Result<Array3<(u8, u8)>, Error> {
         let x_size = *unwrap_opt_tag!(nbt.get("Width"),Short,0,"/Width".to_string()) as usize;
         let y_size = *unwrap_opt_tag!(nbt.get("Height"),Short,0,"/Height".to_string()) as usize;
@@ -102,6 +103,7 @@ impl Schematic {
         return Ok((md, raw));
     }
 
+    /// Load `.schematic` from file
     pub fn from_world_edit_12_file(filename: &str, option: &WorldEdit12LoadOption) -> Result<(Schematic, WE12MetaData, Array3<(u8, u8)>), Error> {
         let file = match File::open(filename) {
             Ok(f) => f,
@@ -115,6 +117,7 @@ impl Schematic {
         return Self::from_world_edit_12_nbt(nbt, option);
     }
 
+    /// Load `.schematic` from reader
     pub fn from_world_edit_12_reader(src: &mut dyn std::io::Read, option: &WorldEdit12LoadOption) -> Result<(Schematic, WE12MetaData, Array3<(u8, u8)>), Error> {
         let nbt: HashMap<String, Value> = match fastnbt::from_reader(src) {
             Ok(n) => n,
@@ -123,6 +126,7 @@ impl Schematic {
         return Self::from_world_edit_12_nbt(nbt, option);
     }
 
+    /// Load `.schematic` from nbt
     pub fn from_world_edit_12_nbt(mut nbt: HashMap<String, Value>, option: &WorldEdit12LoadOption) -> Result<(Schematic, WE12MetaData, Array3<(u8, u8)>), Error> {
         let mut schem = Schematic::new();
         // metadata
@@ -156,6 +160,7 @@ impl Default for BlockStats {
 }
 
 impl Region {
+    /// Load region from nbt
     pub fn from_world_edit_12(nbt: &mut HashMap<String, Value>, option: &WorldEdit12LoadOption)
         -> Result<(Region, Array3<(u8, u8)>), Error> {
         let data_version = option.data_version;

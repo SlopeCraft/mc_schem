@@ -31,6 +31,7 @@ use crate::schem::id_of_nbt_tag;
 
 #[allow(dead_code)]
 impl Schematic {
+    /// Load `.schem` from file
     pub fn from_world_edit_13_file(filename: &str, option: &WorldEdit13LoadOption) -> Result<(Schematic, WE13MetaData), Error> {
         let mut file;
         match File::open(filename) {
@@ -72,6 +73,7 @@ impl Schematic {
 
         return Ok((schem, we13));
     }
+    /// Load `.schem` from nbt
     pub fn from_world_edit_13_nbt(root: &HashMap<String, Value>, option: &WorldEdit13LoadOption) -> Result<(Schematic, WE13MetaData), Error> {
         return if root.contains_key("Schematic") {//v3
             Self::parse_v3(root, option)
@@ -79,7 +81,7 @@ impl Schematic {
             Self::parse_v2(root, option)
         }
     }
-
+    /// Load `.schem` from reader
     pub fn from_world_edit_13_reader(src: &mut dyn std::io::Read, option: &WorldEdit13LoadOption) -> Result<(Schematic, WE13MetaData), Error> {
         let root_opt: Result<HashMap<String, Value>, fastnbt::error::Error> = fastnbt::from_reader(src);
         let root = match root_opt {
@@ -301,6 +303,7 @@ impl Region {
         return Ok(result);
     }
 
+    /// Load region from nbt, for `.schem` v2
     pub fn from_world_edit_13_v2(root: &HashMap<String, Value>, option: &WorldEdit13LoadOption) -> Result<Region, Error> {
         let mut region = Region::new();
         let tag_path = "";
@@ -329,6 +332,7 @@ impl Region {
         return Ok(region);
     }
 
+    /// Load region from nbt, for `.schem` v3
     pub fn from_world_edit_13_v3(tag_schem: &HashMap<String, Value>, option: &WorldEdit13LoadOption) -> Result<Region, Error> {
         let tag_schem_path = "/Schematic";
         let mut region = Region::new();
@@ -601,6 +605,7 @@ impl Schematic {
         return Ok(be_list);
     }
 
+    /// Save `.schem` v2 to nbt
     pub fn to_nbt_world_edit_13_v2(&self, md: WE13MetaData, option: &WorldEdit13SaveOption) -> Result<HashMap<String, Value>, Error> {
         let mut root = HashMap::new();
         // metadata
@@ -637,6 +642,7 @@ impl Schematic {
         return Ok(root);
     }
 
+    /// Save `.schem` v3 to nbt
     pub fn to_nbt_world_edit_13_v3(&self, md: WE13MetaData, option: &WorldEdit13SaveOption) -> Result<HashMap<String, Value>, Error> {
         let mut tag_schem = HashMap::new();
         // metadata
@@ -675,6 +681,7 @@ impl Schematic {
         return Ok(root);
     }
 
+    /// Save `.schem` to nbt
     pub fn to_nbt_world_edit_13(&self, option: &WorldEdit13SaveOption) -> Result<HashMap<String, Value>, Error> {
         let md = self.metadata_world_edit_13()?;
         let schem_version = md.version;
@@ -692,6 +699,7 @@ impl Schematic {
         //Self::write_metadata_v3(&mut root, &md)
     }
 
+    /// Save `.schem` to writer
     pub fn save_world_edit_13_writer(&self, dest: &mut dyn std::io::Write, option: &WorldEdit13SaveOption) -> Result<(), Error> {
         let nbt = match self.to_nbt_world_edit_13(option) {
             Ok(n) => n,
@@ -711,7 +719,8 @@ impl Schematic {
 
         return Ok(());
     }
-
+    
+    /// Save `.schem` to file
     pub fn save_world_edit_13_file(&self, filename: &str, option: &WorldEdit13SaveOption) -> Result<(), Error> {
         let nbt = match self.to_nbt_world_edit_13(option) {
             Ok(n) => n,

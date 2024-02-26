@@ -12,12 +12,13 @@ license = "GPL-3"
 license-file = "LICENSE"
 keywords = ["Minecraft"]
 categories = ["game-development"]
-include = ["/test_files", "/c_sources", "/cmake"]
+include = ["/src", "/docs", "/c_sources", "/cmake", "/CMakeLists.txt"]
 
 # Example of customizing the library in Cargo.toml.
 [lib]
 crate-type = ["rlib", "cdylib"]
 bench = false
+#path = "src"
 
 [[bin]]
 name = "schemtool"

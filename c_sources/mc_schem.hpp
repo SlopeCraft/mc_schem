@@ -332,9 +332,9 @@ namespace mc_schem {
       using key_ref_type = std::conditional_t<key_e == map_key_type::string, std::string_view, std::span<const int, 3>>;
 
     protected:
-      MC_SCHEM_map_ref map_ref;
+      MC_SCHEM_map_ref map_ref{{0, 0}};
 
-    public:
+     public:
       map_wrapper() = delete;
 
       explicit map_wrapper(MC_SCHEM_map_ref handel) : map_ref{handel} {
@@ -530,11 +530,12 @@ namespace mc_schem {
       public:
         iterator_impl() = delete;
 
-        [[nodiscard]] const key_ref_type key() const noexcept {
-          MC_SCHEM_iterator_deref_result deref = MC_SCHEM_map_iterator_deref(&this->it);
-          assert(deref.has_value);
-          if (!deref.has_value) {
-            abort();
+       [[nodiscard]] key_ref_type key() const noexcept {
+         MC_SCHEM_iterator_deref_result deref =
+           MC_SCHEM_map_iterator_deref(&this->it);
+         assert(deref.has_value);
+         if (!deref.has_value) {
+           abort();
           }
           return unwrap_key(deref.key);
         }
@@ -691,7 +692,7 @@ namespace mc_schem {
       }
     }
 
-    std::string full_id() const noexcept {
+    [[nodiscard]] std::string full_id() const noexcept {
       std::string result;
       this->full_id(result);
       return result;
@@ -769,7 +770,8 @@ namespace mc_schem {
   public:
     nbt() = delete;
 
-    nbt(MC_SCHEM_nbt_value *handle) : detail::wrapper<MC_SCHEM_nbt_value *>{handle} {}
+   explicit nbt(MC_SCHEM_nbt_value *handle)
+     : detail::wrapper<MC_SCHEM_nbt_value *>{handle} {}
 
     [[nodiscard]] tag_type type() const noexcept {
       return static_cast<enum tag_type>(MC_SCHEM_nbt_get_type(this->handle));
@@ -1338,7 +1340,7 @@ namespace mc_schem {
 
     struct block_info {
       uint16_t block_index;
-      const block block;
+      const ::mc_schem::block block;
       block_entity blockEntity;
       pending_tick pendingTick;
     };
@@ -1916,7 +1918,7 @@ namespace mc_schem {
       return this->save_world_edit_13(writer, option);
     }
 
-    [[nodiscard]] metadata metadata() const noexcept {
+    [[nodiscard]] ::mc_schem::metadata metadata() const noexcept {
       return ::mc_schem::metadata{MC_SCHEM_schem_get_metadata(this->handle)};
     }
 

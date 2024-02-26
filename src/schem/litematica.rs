@@ -49,6 +49,7 @@ impl MetaDataIR {
 
 
 impl Schematic {
+    /// Load litematica from file.
     pub fn from_litematica_file(filename: &str, option: &LitematicaLoadOption) -> Result<(Schematic, LitematicaMetaData), Error> {
         let file_res = File::open(filename);
         let mut file;
@@ -60,6 +61,7 @@ impl Schematic {
         let mut decoder = GzDecoder::new(&mut file);
         return Self::from_litematica_reader(&mut decoder, option);
     }
+    /// Load litematica from a reader
     pub fn from_litematica_reader(src: &mut dyn std::io::Read, _option: &LitematicaLoadOption) -> Result<(Schematic, LitematicaMetaData), Error> {
         let parse_res: Result<HashMap<String, Value>, fastnbt::error::Error> = fastnbt::from_reader(src);
         let parsed;
@@ -157,6 +159,7 @@ pub fn block_required_bits(palette_size: usize) -> usize {
 }
 
 impl Region {
+    /// Load a region from nbt
     pub fn from_nbt_litematica(nbt: &HashMap<String, Value>, tag_path: &str) -> Result<Region, Error> {
         let mut region = Region::new();
 
@@ -316,7 +319,7 @@ impl Region {
 }
 
 
-
+/// Bit-packed vector of unsigned integers. Used to encode and decode litematica
 #[derive(Debug)]
 pub struct MultiBitSet {
     arr: Vec<u64>,
@@ -647,6 +650,7 @@ fn parse_pending_tick(nbt: &HashMap<String, Value>, tag_path: &str, region_size:
 
 #[allow(dead_code)]
 impl Schematic {
+    /// Returns litematica metadata
     pub fn metadata_litematica(&self) -> Result<LitematicaMetaData, Error> {
         let mut md =
             LitematicaMetaData::from_data_version_i32(self.metadata.mc_data_version)?;
@@ -671,6 +675,7 @@ impl Schematic {
             return cur_name;
         }
     }
+    /// Save into nbt format
     pub fn to_nbt_litematica(&self, option: &LitematicaSaveOption) -> Result<HashMap<String, Value>, Error> {
         let mut nbt: HashMap<String, Value> = HashMap::new();
 
@@ -726,6 +731,7 @@ impl Schematic {
         return Ok(nbt);
     }
 
+    /// Save to writer
     pub fn save_litematica_writer(&self, dest: &mut dyn std::io::Write, option: &LitematicaSaveOption) -> Result<(), Error> {
         let nbt = match self.to_nbt_litematica(option) {
             Ok(nbt_) => nbt_,
@@ -744,6 +750,7 @@ impl Schematic {
         return Ok(());
     }
 
+    /// Save to file
     pub fn save_litematica_file(&self, filename: &str, option: &LitematicaSaveOption) -> Result<(), Error> {
         let nbt = match self.to_nbt_litematica(option) {
             Ok(nbt_) => nbt_,
@@ -775,6 +782,7 @@ impl Schematic {
 
 
 impl Region {
+    /// Save region to nbt
     pub fn to_nbt_litematica(&self) -> Result<HashMap<String, Value>, Error> {
         let mut nbt = HashMap::new();
         //Size
@@ -855,6 +863,7 @@ impl Region {
 
 
 impl PendingTick {
+    /// Save a pending tick to nbt, in litematica format
     pub fn to_nbt(&self, pos: &[i32; 3]) -> HashMap<String, Value> {
         let mut res = common::size_to_compound(pos);
         res.insert("Priority".to_string(), Value::Int(self.priority));

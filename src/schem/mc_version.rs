@@ -19,6 +19,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 use std::cmp::Ordering;
 use strum::Display;
 
+/// Minecraft data versions.
+/// Data version was introduced in snapshot 15w32a. Data version before 15w32a has no meaning without
+/// this crate, we assign i32 to these versions simply to satisfy the requirement of rust enumeration
 #[allow(non_camel_case_types)]
 #[derive(Debug, PartialEq, PartialOrd, Copy, Clone, Display)]
 #[repr(i32)]
@@ -1050,6 +1053,7 @@ pub enum DataVersion {
 
 #[allow(dead_code)]
 impl DataVersion {
+    /// The latest data version
     pub fn latest() -> DataVersion {
         return DataVersion::Snapshot_23w51b;
     }

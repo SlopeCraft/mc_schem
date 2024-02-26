@@ -42,7 +42,7 @@ void test_link() {
   check_fun_ptr(MC_SCHEM_version_major);
   check_fun_ptr(MC_SCHEM_version_minor);
   check_fun_ptr(MC_SCHEM_version_patch);
-  check_fun_ptr(MC_SCHEM_version_tweak);
+  // check_fun_ptr(MC_SCHEM_version_tweak);
 
   check_fun_ptr(MC_SCHEM_string_unwrap);
   check_fun_ptr(MC_SCHEM_swap_string);

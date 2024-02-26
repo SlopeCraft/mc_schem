@@ -26,17 +26,17 @@ mod schem_ffi;
 
 #[no_mangle]
 extern "C" fn MC_SCHEM_version_string() -> *const c_char {
-    return "0.1.0\0".as_ptr() as *const c_char;
+    return "1.0.0\0".as_ptr() as *const c_char;
 }
 
 #[no_mangle]
 extern "C" fn MC_SCHEM_version_major() -> u16 {
-    return 0;
+    return 1;
 }
 
 #[no_mangle]
 extern "C" fn MC_SCHEM_version_minor() -> u16 {
-    return 1;
+    return 0;
 }
 
 #[no_mangle]
@@ -44,10 +44,10 @@ extern "C" fn MC_SCHEM_version_patch() -> u16 {
     return 0;
 }
 
-#[no_mangle]
-extern "C" fn MC_SCHEM_version_tweak() -> u16 {
-    return 0;
-}
+// #[no_mangle]
+// extern "C" fn MC_SCHEM_version_tweak() -> u16 {
+//     return 0;
+// }
 
 #[repr(C, align(8))]
 #[derive(Debug, Clone, Copy)]

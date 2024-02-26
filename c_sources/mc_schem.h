@@ -48,7 +48,7 @@ MC_SCHEM_EXPORT uint16_t MC_SCHEM_version_minor();
 
 MC_SCHEM_EXPORT uint16_t MC_SCHEM_version_patch();
 
-MC_SCHEM_EXPORT uint16_t MC_SCHEM_version_tweak();
+// MC_SCHEM_EXPORT uint16_t MC_SCHEM_version_tweak();
 
 /////////////////////////////////////////////
 

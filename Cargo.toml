@@ -1,6 +1,6 @@
 [package]
 name = "mc_schem"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 
 # Example of customizing the library in Cargo.toml.

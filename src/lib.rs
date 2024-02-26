@@ -26,10 +26,12 @@ pub mod old_block;
 
 mod c_ffi;
 
+/// `Block` is a type of block with namespace and properties(aka attributes) in MC.
 pub type Block = block::Block;
 pub type Entity = region::Entity;
 pub type BlockEntity = region::BlockEntity;
 pub type PendingTick = region::PendingTick;
+/// Region is a 3d area in Minecraft, containing blocks and entities.
 pub type Region = region::Region;
 pub type Schematic = schem::Schematic;
 pub type MetaDataIR = schem::MetaDataIR;
@@ -41,7 +43,10 @@ pub type WorldEdit13LoadOption = schem::WorldEdit13LoadOption;
 pub type WorldEdit13SaveOption = schem::WorldEdit13SaveOption;
 pub type WorldEdit12LoadOption = schem::WorldEdit12LoadOption;
 pub type DataVersion = schem::DataVersion;
+/// Errors when loading and saving schematic
+pub type Error = error::Error;
 
+/// Format of known schematics
 #[repr(u8)]
 #[derive(Debug, Display, Clone, PartialEq)]
 pub enum SchemFormat {
@@ -52,6 +57,7 @@ pub enum SchemFormat {
 }
 
 impl SchemFormat {
+    /// Filename extension with `.`
     pub fn extension(&self) -> &'static str {
         return match self {
             SchemFormat::Litematica => ".litematic",
@@ -61,22 +67,25 @@ impl SchemFormat {
         }
     }
 
+    /// Return all supported formats
     pub fn supported_formats() -> &'static [SchemFormat] {
         return Self::loadable_formats();
     }
+    /// Return all loadable formats
     pub fn loadable_formats() -> &'static [SchemFormat] {
         use SchemFormat::*;
         return &[Litematica, VanillaStructure, WorldEdit13, WorldEdit12];
     }
+    /// Return all savable formats
     pub fn savable_formats() -> &'static [SchemFormat] {
         use SchemFormat::*;
         return &[Litematica, VanillaStructure, WorldEdit13];
     }
-
+    /// Return if the format can be loaded
     pub fn loadable(&self) -> bool {
         return Self::loadable_formats().contains(self);
     }
-
+    /// Return if the format can be saved
     pub fn savable(&self) -> bool {
         return Self::savable_formats().contains(self);
     }

@@ -22,14 +22,19 @@ use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use fastnbt::Value;
 
+/// `Block` is a type of block with namespace and properties(aka attributes) in MC.
 #[derive(Debug, Clone, Eq)]
 pub struct Block {
+    /// Namespace of the block. All vanilla blocks have namespace `minecraft`
     pub namespace: String,
+    /// ID of the block. for example: `stone`
     pub id: String,
+    /// Properties of the block. The key is property names, and value is property value
     pub attributes: BTreeMap<String, String>,
 
 }
 
+/// Error of parsing block id in string
 #[repr(u8)]
 #[derive(Debug,EnumString,Display,PartialEq,Copy,Clone)]
 pub enum BlockIdParseError {
@@ -123,6 +128,7 @@ fn check_attributes_segment(att_seg: &str) -> Result<(), BlockIdParseError> {
     return Ok(());
 }
 
+/// Split a string id into 3 segments: namespace, id and property list.
 pub fn parse_block_id(full_id: &str) -> Result<(&str, &str, &str), BlockIdParseError> {
     match check_blockid_characters(full_id) {
         Err(err) => return Err(err),
@@ -184,6 +190,7 @@ pub fn parse_block_id(full_id: &str) -> Result<(&str, &str, &str), BlockIdParseE
     return Ok((namespace, id, attributes));
 }
 
+/// Parse property list of a string id.
 pub fn parse_attributes_segment(att_seg: &str) -> Result<Vec<(&str, &str)>, BlockIdParseError> {
     let mut result: Vec<(&str, &str)> = Vec::new();
 
@@ -243,6 +250,7 @@ impl PartialEq<Self> for Block {
 
 #[allow(dead_code)]
 impl Block {
+    /// Returns `minecraft:air`
     pub fn new() -> Block {
         return Block {
             namespace: String::from("minecraft"),
@@ -250,7 +258,7 @@ impl Block {
             attributes: BTreeMap::new(),
         };
     }
-
+    /// Parse a block from `blkid`
     pub fn from_id(blkid: &str) -> Result<Block, BlockIdParseError> {
         let parse_res = parse_block_id(blkid);
         let segmented: (&str, &str, &str);
@@ -276,7 +284,7 @@ impl Block {
 
         return Ok(blk);
     }
-
+    /// Returns property list in string
     pub fn attribute_str(&self) -> String {
         let mut result: String = String::new();
         for (k, v) in &self.attributes {
@@ -289,7 +297,7 @@ impl Block {
         result.pop();
         return result;
     }
-
+    /// Format property list
     pub fn fmt_attributes(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         for (idx, (k, v)) in self.attributes.iter().enumerate() {
             write!(f, "{}={}", k, v)?;
@@ -301,7 +309,7 @@ impl Block {
         return Ok(());
     }
 
-
+    /// Returns the full id
     pub fn full_id(&self) -> String {
         // return if self.attributes.is_empty() {
         //     format!("{}:{}", self.namespace.as_str(), self.id.as_str())
@@ -311,7 +319,7 @@ impl Block {
         // };
         return self.to_string();
     }
-
+    /// Returns true if the block is `minecraft:structure_void`
     pub fn is_structure_void(&self) -> bool {
         if self.namespace != "minecraft" {
             return false;
@@ -325,6 +333,7 @@ impl Block {
 
         return true;
     }
+    /// Returns true if the block is `minecraft:air`
     pub fn is_air(&self) -> bool {
         if self.namespace != "minecraft" {
             return false;
@@ -337,7 +346,7 @@ impl Block {
         }
         return true;
     }
-
+    /// Returns `minecraft:air`
     pub fn air() -> Block {
         return Block {
             namespace: String::from("minecraft"),
@@ -345,7 +354,7 @@ impl Block {
             attributes: BTreeMap::new(),
         }
     }
-
+    /// Returns a block with empty namespace, id and properties
     pub fn empty_block() -> Block {
         return Block {
             namespace: "".to_string(),
@@ -354,6 +363,7 @@ impl Block {
         }
     }
 
+    /// Returns true if the block is `minecraft:structure_void`
     pub fn structure_void() -> Block {
         return Block {
             namespace: String::from("minecraft"),
@@ -361,7 +371,7 @@ impl Block {
             attributes: BTreeMap::new(),
         }
     }
-
+    /// Convert the block info nbt format
     pub fn to_nbt(&self) -> HashMap<String, Value> {
         let mut nbt: HashMap<String, Value> = HashMap::new();
         nbt.insert(String::from("Name"),
@@ -377,12 +387,13 @@ impl Block {
         return nbt;
     }
 
-
+    ///Set property of a block
     pub fn set_property<V: ?Sized>(&mut self, key: &str, value: &V)
         where for<'a> &'a V: Display {
         self.attributes.insert(key.to_string(), value.to_string());
     }
 
+    /// Returns true if `self` can be made by adding 1 or more properties to `blk_less_attr`
     pub fn is_inherited_from(&self, blk_less_attr: &Block) -> bool {
         if self.attributes.len() < blk_less_attr.attributes.len() {
             return false;
@@ -443,6 +454,7 @@ impl Display for Block {
 //     }
 // }
 
+/// Enumerate common blocks
 #[repr(u16)]
 #[derive(Debug, Display, Clone, Copy)]
 #[allow(dead_code)]
@@ -453,6 +465,7 @@ pub enum CommonBlock {
 
 
 impl CommonBlock {
+    /// Convert `CommonBlock` to `Block`
     pub fn to_block(&self) -> Block {
         return match self {
             CommonBlock::Air => Block::air(),

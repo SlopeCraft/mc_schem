@@ -21,14 +21,17 @@ use crate::block::Block;
 use crate::region::BlockEntity;
 use crate::schem::DataVersion;
 
+/// A look-up table from number id to string
 pub const OLD_BLOCK_ID: [&'static str; 256] = ["air", "stone", "grass", "dirt", "cobblestone", "planks", "sapling", "bedrock", "flowing_water", "water", "flowing_lava", "lava", "sand", "gravel", "gold_ore", "iron_ore", "coal_ore", "log", "leaves", "sponge", "glass", "lapis_ore", "lapis_block", "dispenser", "sandstone", "noteblock", "bed", "golden_rail", "detector_rail", "sticky_piston", "web", "tallgrass", "deadbush", "piston", "piston_head", "wool", "piston_extension", "yellow_flower", "red_flower", "brown_mushroom", "red_mushroom", "gold_block", "iron_block", "double_stone_slab", "stone_slab", "brick_block", "tnt", "bookshelf", "mossy_cobblestone", "obsidian", "torch", "fire", "mob_spawner", "oak_stairs", "chest", "redstone_wire", "diamond_ore", "diamond_block", "crafting_table", "wheat", "farmland", "furnace", "lit_furnace", "standing_sign", "wooden_door", "ladder", "rail", "stone_stairs", "wall_sign", "lever", "stone_pressure_plate", "iron_door", "wooden_pressure_plate", "redstone_ore", "lit_redstone_ore", "unlit_redstone_torch", "redstone_torch", "stone_button", "snow_layer", "ice", "snow", "cactus", "clay", "reeds", "jukebox", "fence", "pumpkin", "netherrack", "soul_sand", "glowstone", "portal", "lit_pumpkin", "cake", "unpowered_repeater", "powered_repeater", "stained_glass", "trapdoor", "monster_egg", "stonebrick", "brown_mushroom_block", "red_mushroom_block", "iron_bars", "glass_pane", "melon_block", "pumpkin_stem", "melon_stem", "vine", "fence_gate", "brick_stairs", "stone_brick_stairs", "mycelium", "waterlily", "nether_brick", "nether_brick_fence", "nether_brick_stairs", "nether_wart", "enchanting_table", "brewing_stand", "cauldron", "end_portal", "end_portal_frame", "end_stone", "dragon_egg", "redstone_lamp", "lit_redstone_lamp", "double_wooden_slab", "wooden_slab", "cocoa", "sandstone_stairs", "emerald_ore", "ender_chest", "tripwire_hook", "tripwire", "emerald_block", "spruce_stairs", "birch_stairs", "jungle_stairs", "command_block", "beacon", "cobblestone_wall", "flower_pot", "carrots", "potatoes", "wooden_button", "skull", "anvil", "trapped_chest", "light_weighted_pressure_plate", "heavy_weighted_pressure_plate", "unpowered_comparator", "powered_comparator", "daylight_detector", "redstone_block", "quartz_ore", "hopper", "quartz_block", "quartz_stairs", "activator_rail", "dropper", "stained_hardened_clay", "stained_glass_pane", "leaves2", "log2", "acacia_stairs", "dark_oak_stairs", "slime", "barrier", "iron_trapdoor", "prismarine", "sea_lantern", "hay_block", "carpet", "hardened_clay", "coal_block", "packed_ice", "double_plant", "standing_banner", "wall_banner", "daylight_detector_inverted", "red_sandstone", "red_sandstone_stairs", "double_stone_slab2", "stone_slab2", "spruce_fence_gate", "birch_fence_gate", "jungle_fence_gate", "dark_oak_fence_gate", "acacia_fence_gate", "spruce_fence", "birch_fence", "jungle_fence", "dark_oak_fence", "acacia_fence", "spruce_door", "birch_door", "jungle_door", "acacia_door", "dark_oak_door", "end_rod", "chorus_plant", "chorus_flower", "purpur_block", "purpur_pillar", "purpur_stairs", "purpur_double_slab", "purpur_slab", "end_bricks", "beetroots", "grass_path", "end_gateway", "repeating_command_block", "chain_command_block", "frosted_ice", "magma", "nether_wart_block", "red_nether_brick", "bone_block", "structure_void", "observer", "white_shulker_box", "orange_shulker_box", "magenta_shulker_box", "light_blue_shulker_box", "yellow_shulker_box", "lime_shulker_box", "pink_shulker_box", "gray_shulker_box", "silver_shulker_box", "cyan_shulker_box", "purple_shulker_box", "blue_shulker_box", "brown_shulker_box", "green_shulker_box", "red_shulker_box", "black_shulker_box", "white_glazed_terracotta", "orange_glazed_terracotta", "magenta_glazed_terracotta", "light_blue_glazed_terracotta", "yellow_glazed_terracotta", "lime_glazed_terracotta", "pink_glazed_terracotta", "gray_glazed_terracotta", "silver_glazed_terracotta", "cyan_glazed_terracotta", "purple_glazed_terracotta", "blue_glazed_terracotta", "brown_glazed_terracotta", "green_glazed_terracotta", "red_glazed_terracotta", "black_glazed_terracotta", "concrete", "concrete_powder", "", "", "structure_block"];
 
-
+/// All horizontal directions
 pub const HORIZONTAL_DIRECTIONS: [&'static str; 4] = ["east", "north", "south", "west"];
 
+/// All directions
 pub const ALL_DIRECTIONS: [&'static str; 6] = ["east", "north", "south", "west", "up", "down"];
 const VALID_DAMAGE_LUT: [u16; 256] = [0b00000000000001, 0b00000001111111, 0b00000000000001, 0b00000000000111, 0b00000000000001, 0b00000000111111, 0b11111100111111, 0b00000000000001, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b00000000000011, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b1111111111111111, 0b1111111111111111, 0b00000000000011, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b11111100111111, 0b00000000000111, 0b00000000000001, 0b1111111100001111, 0b11111100111111, 0b11111100111111, 0b11111100111111, 0b00000000000001, 0b00000000000111, 0b00000000000001, 0b11111100111111, 0b11111100111111, 0b1111111111111111, 0b11111100111111, 0b00000000000001, 0b00000111111111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b1111111111111111, 0b1111111111111111, 0b00000000000001, 0b00000000000011, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000111110, 0b1111111111111111, 0b00000000000001, 0b00000011111111, 0b00000000111100, 0b1111111111111111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000011111111, 0b00000011111111, 0b00000000111100, 0b00000000111100, 0b1111111111111111, 0b00111111111111, 0b00000000111100, 0b00001111111111, 0b00000011111111, 0b00000000111100, 0b1111111111111111, 0b00000000000011, 0b00111111111111, 0b00000000000011, 0b00000000000001, 0b00000000000001, 0b00000000111110, 0b00000000111110, 0b11111100111111, 0b00000011111111, 0b00000000000001, 0b00000000000001, 0b1111111111111111, 0b00000000000001, 0b1111111111111111, 0b00000000000011, 0b00000000000001, 0b00000000001111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000110, 0b00000000001111, 0b00000001111111, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b00000000111111, 0b00000000001111, 0b1100011111111111, 0b1100011111111111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000011111111, 0b00000011111111, 0b1111111111111111, 0b1111111111111111, 0b00000011111111, 0b00000011111111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000011111111, 0b00000000001111, 0b00000000000001, 0b00000011111111, 0b00000000001111, 0b00000000000001, 0b00000011111111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000111111, 0b11111100111111, 0b00111111111111, 0b00000011111111, 0b00000000000001, 0b00000000111100, 0b1111111111111111, 0b11001100110011, 0b00000000000001, 0b00000011111111, 0b00000011111111, 0b00000011111111, 0b11111100111111, 0b00000000000001, 0b00000000000011, 0b1111111111111111, 0b00000011111111, 0b00000011111111, 0b11111100111111, 0b11111100111111, 0b00111111111111, 0b00000000111100, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b00000000000001, 0b00000000000001, 0b11110100111101, 0b00000000011111, 0b00000011111111, 0b11111100111111, 0b11111100111111, 0b1111111111111111, 0b1111111111111111, 0b11001100110011, 0b11001100110011, 0b00000011111111, 0b00000011111111, 0b00000000000001, 0b00000000000001, 0b1111111111111111, 0b00000000000111, 0b00000000000001, 0b00000100010001, 0b1111111111111111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00111100111111, 0b1111111111111111, 0b00000000111100, 0b1111111111111111, 0b00000000000111, 0b00000011111111, 0b00000100000001, 0b00000100000001, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b1111111111111111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00111111111111, 0b00111111111111, 0b00111111111111, 0b00111111111111, 0b00111111111111, 0b00000000111111, 0b00000000000001, 0b00000000111111, 0b00000000000001, 0b00000100010001, 0b00000011111111, 0b00000000000001, 0b00000100000001, 0b00000000000001, 0b00000000001111, 0b00000000000001, 0b00000000000001, 0b11111100111111, 0b11111100111111, 0b00000000001111, 0b00000000000001, 0b00000000000001, 0b00000000000001, 0b00000100010001, 0b00000000000001, 0b11111100111111, 0b00000000111111, 0b00000000111111, 0b00000000111111, 0b00000000111111, 0b00000000111111, 0b00000000111111, 0b00000000111111, 0b00000000111111, 0b00000000111111, 0b00000000111111, 0b00000000111111, 0b00000000111111, 0b00000000111111, 0b00000000111111, 0b00000000111111, 0b00000000111111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b00000000001111, 0b1111111111111111, 0b1111111111111111, 0b00000000000000, 0b00000000000000, 0b00000000001111, ];
 
+/// Error about parsing number id
 #[derive(Debug, Display)]
 #[allow(dead_code)]
 pub enum OldBlockParseError {
@@ -40,6 +43,7 @@ pub enum OldBlockParseError {
     NotImplemented { id: u8, damage: u8, version: DataVersion }
 }
 
+/// Returns if the number id is valid
 pub fn is_number_id_valid(id: u8) -> Result<(), OldBlockParseError> {
     if id == 253 || id == 254 {
         return Err(OldBlockParseError::ReservedBlockId { id });
@@ -47,6 +51,7 @@ pub fn is_number_id_valid(id: u8) -> Result<(), OldBlockParseError> {
     return Ok(());
 }
 
+/// Returns if the number id with damage is valid
 pub fn is_damage_valid(id: u8, damage: u8) -> Result<(), OldBlockParseError> {
     is_number_id_valid(id)?;
 
@@ -63,6 +68,7 @@ pub fn is_damage_valid(id: u8, damage: u8) -> Result<(), OldBlockParseError> {
     return Err(OldBlockParseError::DamageNotDefinedForThisBlock { id, damage });
 }
 
+/// Returns the number of valid damages of a number id
 pub fn num_valid_damage_values(id: u8) -> u8 {
     if let Err(_) = is_number_id_valid(id) {
         return 0;
@@ -80,6 +86,7 @@ pub fn num_valid_damage_values(id: u8) -> u8 {
     return counter;
 }
 
+/// Get a list of valid damage values of a number id
 pub fn get_valid_damage_values(id: u8, dest: &mut Vec<u8>) {
     dest.clear();
     dest.reserve(16);
@@ -96,7 +103,7 @@ pub fn get_valid_damage_values(id: u8, dest: &mut Vec<u8>) {
     }
 }
 
-// empty string means invalid
+//empty string means invalid
 pub fn index_to_wood_variant(idx: u8) -> &'static str {
     return match idx {
         0 => "oak",
@@ -336,6 +343,7 @@ pub fn index_to_hay_block_axis(idx: u8) -> &'static str {
 
 #[allow(dead_code)]
 impl Block {
+    /// Convert `Block` from number id
     pub fn from_old(id: u8, damage: u8, version: DataVersion) -> Result<Block, OldBlockParseError> {
         if version > DataVersion::Java_1_12_2 as i32 {
             return Err(OldBlockParseError::NotAnOldVersion { version });
@@ -1219,7 +1227,7 @@ impl Block {
         return Err(OldBlockParseError::NotImplemented { id, damage, version });
     }
 
-    // returns the fixed block. None means that the block don't need to be fixed
+    /// Returns the fixed block. `None` means that the block don't need to be fixed
     pub fn fix_block_property_with_block_entity(&self, _id: u8, _damage: u8, _be: &BlockEntity) -> Result<Option<Block>, OldBlockParseError> {
         let mut _block = self.clone();
 

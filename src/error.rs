@@ -23,6 +23,7 @@ use crate::old_block::OldBlockParseError;
 use crate::region::Region;
 use crate::schem::common::format_size;
 
+/// Errors when loading and saving schematic
 #[derive(Debug)]
 #[allow(dead_code)]
 pub enum Error {
@@ -149,7 +150,9 @@ impl Display for Error {
         }
     }
 }
-
+/// Unwrap a `Option<&Value>` or `Option<&mut Value>` as some type, if the option is `None`, returns
+/// `Err(Error::TagMissing)`. If the option is not none, but the type doesn't match, returns
+/// `Err(Error::TagTypeMismatch)`.
 #[macro_export]
 macro_rules! unwrap_opt_tag {
         ($value_opt:expr,$expected_type:ident,$expected_default_ctor:expr,$tag_path:expr) => {
@@ -169,6 +172,9 @@ macro_rules! unwrap_opt_tag {
             }
         };
     }
+
+
+/// Unwrap a `Value` as some type, otherwise return `Err(Error::TagTypeMismatch)`.
 #[macro_export]
 macro_rules! unwrap_tag {
         ($value:expr,$expected_type:ident,$expected_default_ctor:expr,$tag_path:expr) => {
@@ -185,6 +191,7 @@ macro_rules! unwrap_tag {
         };
     }
 
+/// Not used now.
 #[repr(u8)]
 #[derive(Debug, Display)]
 #[allow(dead_code)]
@@ -217,12 +224,14 @@ impl<T> ErrorHandleResult<T> {
     }
 }
 
+/// Not used now.
 #[allow(dead_code)]
 pub enum BlockPosOutOfRangeFixMethod {
     IgnoreThisBlock,
     FixPos([i32; 3]),
 }
 
+/// Not used now.
 pub trait ErrorHandler {
     // returns the fixed block index
     fn fix_block_index_out_of_range(
@@ -241,10 +250,12 @@ pub trait ErrorHandler {
     }
 }
 
+/// Not used now.
 pub struct StrictErrorHandler {}
 
 impl ErrorHandler for StrictErrorHandler {}
 
+/// Not used now.
 pub struct DefaultErrorHandler {}
 
 impl ErrorHandler for DefaultErrorHandler {

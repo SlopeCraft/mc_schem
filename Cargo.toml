@@ -2,6 +2,17 @@
 name = "mc_schem"
 version = "1.0.0"
 edition = "2021"
+authors = ["Joseph <tokinobug@163.com>"]
+rust-version = "1.75"
+description = "A library to read, create, modify and write various Minecraft schematic files"
+readme = "README.md"
+homepage = "https://github.com/SlopeCraft/mc_schem"
+repository = "https://github.com/SlopeCraft/mc_schem"
+license = "GPL-3"
+license-file = "LICENSE"
+keywords = ["Minecraft"]
+categories = ["game-development"]
+include = ["/test_files", "/c_sources", "/cmake"]
 
 # Example of customizing the library in Cargo.toml.
 [lib]

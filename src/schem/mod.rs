@@ -40,7 +40,7 @@ use crate::region::{BlockEntity, Region};
 
 pub type DataVersion = mc_version::DataVersion;
 
-
+/// Metadata of litematica
 #[derive(Debug, Clone)]
 pub struct LitematicaMetaData {
     pub data_version: i32,
@@ -65,6 +65,7 @@ impl LitematicaMetaData {
         return Self::from_data_version(DataVersion::Java_1_20_4).unwrap();
     }
 
+    /// Guess litematica version from data version
     pub fn data_version_to_lite_version(data_version: i32) -> Option<i32> {
         return if data_version < DataVersion::Java_1_12 as i32 {
             None
@@ -77,6 +78,7 @@ impl LitematicaMetaData {
         };
     }
 
+    /// Guess litematica sub version from data version
     pub fn data_version_to_lite_subversion(data_version: i32) -> Option<i32> {
         return if data_version < DataVersion::Java_1_18 as i32 {
             None
@@ -85,6 +87,7 @@ impl LitematicaMetaData {
         };
     }
 
+    /// Get default metadata from data version in `i32`
     pub fn from_data_version_i32(data_version: i32) -> Result<LitematicaMetaData, Error> {
         use std::time::{SystemTime, UNIX_EPOCH};
         if data_version < DataVersion::Java_1_12 as i32 {
@@ -105,11 +108,13 @@ impl LitematicaMetaData {
         return Ok(result);
     }
 
+    /// Get default metadata from data version
     pub fn from_data_version(data_version: DataVersion) -> Result<LitematicaMetaData, Error> {
         return Self::from_data_version_i32(data_version as i32);
     }
 }
 
+/// Metadata of World Edit 1.12-
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct WE12MetaData {
@@ -129,6 +134,7 @@ impl WE12MetaData {
     }
 }
 
+/// Metadata of World Edit 1.13+
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct WE13MetaData {
@@ -141,7 +147,7 @@ pub struct WE13MetaData {
     pub v3_extra: Option<WE13MetaDataV3Extra>,
 }
 
-// Introduced in 1.20, version 3
+/// Extra metadata of World Edit 1.13+, introduced in 1.20, version 3.
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct WE13MetaDataV3Extra {
@@ -202,6 +208,7 @@ impl WE13MetaData {
     }
 }
 
+/// Metadata of vanilla structure
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct VanillaStructureMetaData {
@@ -228,7 +235,7 @@ impl VanillaStructureMetaData {
     }
 }
 
-
+/// Raw metadata of different formats
 #[derive(Debug)]
 pub enum RawMetaData {
     Litematica(LitematicaMetaData),
@@ -237,12 +244,16 @@ pub enum RawMetaData {
     VanillaStructure(VanillaStructureMetaData),
 }
 
+/// Intermediate representation via different metadata formats
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct MetaDataIR {
+    /// Data version of minecraft
     pub mc_data_version: i32,
 
+    /// Unix time stamp in millisecond
     pub time_created: i64,
+    /// Unix time stamp in millisecond
     pub time_modified: i64,
     pub author: String,
     pub name: String,
@@ -260,6 +271,7 @@ pub struct MetaDataIR {
     pub schem_world_edit_version: Option<String>,
     pub schem_editing_platform: Option<String>,
     pub schem_origin: Option<[i32; 3]>,
+    /// `Alpha` or `Classic`
     pub schem_material: String,
     //pub raw_metadata: Option<MetaData>,
 }
@@ -300,10 +312,12 @@ impl MetaDataIR {
     }
 }
 
+/// Schematic is part of a Minecraft world, like `.litematic` of litematica mod, `.schem` and
+/// `.schematic` of world edit, `.nbt` of vanilla structure.
 #[derive(Debug)]
 pub struct Schematic {
     pub metadata: MetaDataIR,
-
+    /// A list of regions. A schematic can have multiple regions.
     pub regions: Vec<Region>,
     //pub enclosing_size: [i64; 3],
 
@@ -344,6 +358,8 @@ impl Schematic {
     //     return &mut self.regions;
     // }
 
+    /// Get a list of block index at `g_pos`. There may be multiple blocks in one position because
+    /// there can be multiple regions.
     pub fn block_indices_at(&self, g_pos: [i32; 3]) -> Vec<u16> {
         let mut result = Vec::with_capacity(self.regions.len());
         for reg in &self.regions {
@@ -355,12 +371,14 @@ impl Schematic {
         return result;
     }
 
+    /// Get a list of blocks at `g_pos`.
     pub fn blocks_at(&self, pos: [i32; 3]) -> Vec<&Block> {
         let mut result = Vec::new();
         self.get_blocks_at(pos, &mut result);
         return result;
     }
 
+    /// Get a list of blocks at `g_pos`.
     pub fn get_blocks_at<'a>(&'a self, pos: [i32; 3], dest: &mut Vec<&'a Block>) {
         dest.clear();
         dest.reserve(self.regions.len());
@@ -372,6 +390,7 @@ impl Schematic {
         }
     }
 
+    /// Get a list of blocks entities at `g_pos`.
     pub fn block_entities_at(&self, pos: [i32; 3]) -> Vec<&BlockEntity> {
         let mut result = Vec::with_capacity(self.regions.len());
         for reg in &self.regions {
@@ -383,6 +402,7 @@ impl Schematic {
         return result;
     }
 
+    /// Get the index of first region that contain this `pos`
     pub fn first_region_index_at(&self, pos: [i32; 3]) -> Option<usize> {
         for (idx, reg) in self.regions.iter().enumerate() {
             let r_pos = reg.global_pos_to_relative_pos(pos);
@@ -393,7 +413,7 @@ impl Schematic {
         return None;
     }
 
-
+    /// Get first block index at `pos`
     pub fn first_block_index_at(&self, pos: [i32; 3]) -> Option<u16> {
         for reg in &self.regions {
             if let Some(bid) = reg.block_index_at(reg.global_pos_to_relative_pos(pos)) {
@@ -402,6 +422,7 @@ impl Schematic {
         }
         return None;
     }
+    /// Get first block at `pos`
     pub fn first_block_at(&self, pos: [i32; 3]) -> Option<&Block> {
         for reg in &self.regions {
             if let Some(b) = reg.block_at(reg.global_pos_to_relative_pos(pos)) {
@@ -410,6 +431,7 @@ impl Schematic {
         }
         return None;
     }
+    /// Get first block entity at `pos`
     pub fn first_block_entity_at(&self, pos: [i32; 3]) -> Option<&BlockEntity> {
         for reg in &self.regions {
             if let Some(b) = reg.block_entities.get(&reg.global_pos_to_relative_pos(pos)) {
@@ -419,6 +441,7 @@ impl Schematic {
         return None;
     }
 
+    /// Get detailed info of the first block at `pos`
     pub fn first_block_info_at(&self, pos: [i32; 3]) -> Option<(u16, &Block, Option<&BlockEntity>, Option<&PendingTick>)> {
         for reg in &self.regions {
             let r_pos = reg.global_pos_to_relative_pos(pos);
@@ -432,6 +455,7 @@ impl Schematic {
         return None;
     }
 
+    /// The enclosing shape(xyz) of schematic
     pub fn shape(&self) -> [i32; 3] {
         let mut result = [0, 0, 0];
         for reg in &self.regions {
@@ -442,6 +466,7 @@ impl Schematic {
         return result;
     }
 
+    /// The volume of whole schematic
     pub fn volume(&self) -> u64 {
         let mut result: u64 = 1;
         for sz in self.shape() {
@@ -450,6 +475,7 @@ impl Schematic {
         return result;
     }
 
+    /// Count of blocks
     pub fn total_blocks(&self, include_air: bool) -> u64 {
         let mut counter = 0;
         for reg in &self.regions {
@@ -459,7 +485,8 @@ impl Schematic {
     }
 
 
-    // (Vec<(block, hash)>, Vec<LUT-cur-block-index-to-global-block-index>)
+    /// Returns `(Vec<(block, hash)>, Vec<LUT-cur-block-index-to-global-block-index>)`, this will
+    /// be useful when merging multiple regions
     pub fn full_palette(&self) -> (Vec<(&Block, u64)>, Vec<Vec<usize>>) {
         let possible_max_palette_size;
         {
@@ -502,7 +529,7 @@ impl Schematic {
         return (palette, lut_lut);
     }
 
-
+    /// Load schematic from file.
     pub fn from_file(filename: &str) -> Result<(Schematic, RawMetaData), Error> {
         if filename.ends_with(".litematic") {
             let (schem, raw) = Self::from_litematica_file(filename, &LitematicaLoadOption::default())?;
@@ -528,6 +555,7 @@ impl Schematic {
         return Err(Error::UnrecognisedExtension { extension: extension.to_string() });
     }
 
+    /// Save schematic to file.
     pub fn save_to_file(&self, filename: &str) -> Result<(), Error> {
         if filename.ends_with(".litematic") {
             return self.save_litematica_file(filename, &LitematicaSaveOption::default());
@@ -546,6 +574,7 @@ impl Schematic {
         return Err(Error::UnrecognisedExtension { extension: extension.to_string() });
     }
 
+    /// Count duplicated blocks.
     pub fn duplicated_blocks(&self) -> HashMap<[i32; 3], Vec<&Block>> {
         let mut result = HashMap::new();
         let mut temp = Vec::new();
@@ -578,6 +607,7 @@ impl Schematic {
         return result;
     }
 
+    /// Merge all regions without changing original schematic
     pub fn to_single_region(&self, background_block: &Block) -> Region {
         let mut region = Region::new();
         region.reshape(&self.shape());
@@ -651,12 +681,14 @@ impl Schematic {
         return region;
     }
 
+    /// Merge all regions in place
     pub fn merge_regions(&mut self, background_block: &Block) {
         let new_reg = self.to_single_region(background_block);
         self.regions = vec![new_reg];
     }
 }
 
+/// Convert nbt tag type to number id
 pub fn id_of_nbt_tag(tag: &fastnbt::Value) -> u8 {
     return match tag {
         fastnbt::Value::Byte(_) => 1,
@@ -674,8 +706,10 @@ pub fn id_of_nbt_tag(tag: &fastnbt::Value) -> u8 {
     }
 }
 
+/// Options to load vanilla structure
 #[derive(Debug)]
 pub struct VanillaStructureLoadOption {
+    /// Background block of the schematic. vanilla structure will not store structure void.
     pub background_block: CommonBlock,
 }
 
@@ -687,9 +721,12 @@ impl VanillaStructureLoadOption {
     }
 }
 
+/// Options to save vanilla structure
 #[derive(Debug)]
 pub struct VanillaStructureSaveOption {
+    /// Level of gzip compression, 0<= level <=9.
     pub compress_level: Compression,
+    /// Whether to store air. If false, air will be not be treated, just like structure void.
     pub keep_air: bool,
 }
 
@@ -703,6 +740,7 @@ impl Default for VanillaStructureSaveOption {
 }
 
 //#[derive(Debug)]
+/// Options to load litematica
 pub struct LitematicaLoadOption {
 }
 
@@ -713,10 +751,13 @@ impl LitematicaLoadOption {
     }
 }
 
-
+/// Options to save litematica
 #[derive(Debug)]
 pub struct LitematicaSaveOption {
+    /// Level of gzip compression, 0<= level <=9.
     pub compress_level: Compression,
+    /// Whether to rename a region if multiple regions have same name. If `false`, returns error when
+    /// name conflicts happen.
     pub rename_duplicated_regions: bool,
 }
 
@@ -730,6 +771,7 @@ impl Default for LitematicaSaveOption {
 }
 
 
+/// Options to load litematica
 #[derive(Debug)]
 pub struct WorldEdit13LoadOption {}
 
@@ -740,9 +782,14 @@ impl WorldEdit13LoadOption {
     }
 }
 
+/// Options to save world edit 1.13+
 #[derive(Debug)]
 pub struct WorldEdit13SaveOption {
+    /// Level of gzip compression, 0<= level <=9.
     pub compress_level: Compression,
+    /// If the schematic contains multiple regions, some positions may not be covered by any region,
+    /// but `.schem` can have only one region, so we must define a block for these positions.
+    /// Air by default.
     pub background_block: CommonBlock,
 }
 
@@ -756,8 +803,10 @@ impl Default for WorldEdit13SaveOption {
     }
 }
 
+/// Options to load litematica
 #[derive(Debug)]
 pub struct WorldEdit12LoadOption {
+    /// Data version of this schematic. Data version is not stored in `.schematic`, so we should assign it.
     pub data_version: DataVersion,
     pub fix_string_id_with_block_entity_data: bool,
     pub discard_number_id_array: bool,

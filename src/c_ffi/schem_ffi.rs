@@ -1,3 +1,21 @@
+/*
+mc_schem is a rust library to generate, load, manipulate and save minecraft schematic files.
+Copyright (C) 2024  joseph
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
 use std::ptr::{drop_in_place, null, slice_from_raw_parts};
 use crate::c_ffi::{CLitematicaLoadOption, CLitematicaSaveOption, CMetadata, COption, CPosInt, CReader, CSchemLoadResult, CStringView, CVanillaStructureLoadOption, CVanillaStructureSaveOption, CWE12LoadOption, CWE13LoadOption, CWE13SaveOption, CWriter, write_to_c_buffer};
 use crate::error::Error;

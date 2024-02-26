@@ -23,11 +23,8 @@ use fastnbt::Value;
 use flate2::{Compression, GzBuilder};
 use flate2::read::GzDecoder;
 use rand::Rng;
-use crate::schem;
-use crate::schem::{DataVersion, LitematicaLoadOption, LitematicaSaveOption, MetaDataIR, Schematic, WorldEdit12LoadOption, WorldEdit13LoadOption, WorldEdit13SaveOption};
-use crate::old_block;
-use crate::region::{BlockEntity, Region};
-use crate::block::{Block, CommonBlock};
+use mc_schem::block::CommonBlock;
+use mc_schem::{Schematic, WorldEdit12LoadOption, LitematicaLoadOption, LitematicaSaveOption, Block, schem, old_block, DataVersion, WorldEdit13SaveOption, Region, BlockEntity, MetaDataIR, WorldEdit13LoadOption};
 
 #[test]
 fn block_id_parse() {

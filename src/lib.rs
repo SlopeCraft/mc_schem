@@ -25,8 +25,6 @@ pub mod region;
 pub mod old_block;
 
 mod c_ffi;
-#[cfg(test)]
-mod tests;
 
 pub type Block = block::Block;
 pub type Entity = region::Entity;
@@ -39,6 +37,10 @@ pub type LitematicaLoadOption = schem::LitematicaLoadOption;
 pub type LitematicaSaveOption = schem::LitematicaSaveOption;
 pub type VanillaStructureLoadOption = schem::VanillaStructureLoadOption;
 pub type VanillaStructureSaveOption = schem::VanillaStructureSaveOption;
+pub type WorldEdit13LoadOption = schem::WorldEdit13LoadOption;
+pub type WorldEdit13SaveOption = schem::WorldEdit13SaveOption;
+pub type WorldEdit12LoadOption = schem::WorldEdit12LoadOption;
+pub type DataVersion = schem::DataVersion;
 
 #[repr(u8)]
 #[derive(Debug, Display, Clone, PartialEq)]

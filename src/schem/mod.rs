@@ -808,16 +808,12 @@ impl Default for WorldEdit13SaveOption {
 pub struct WorldEdit12LoadOption {
     /// Data version of this schematic. Data version is not stored in `.schematic`, so we should assign it.
     pub data_version: DataVersion,
-    pub fix_string_id_with_block_entity_data: bool,
-    pub discard_number_id_array: bool,
 }
 
 impl Default for WorldEdit12LoadOption {
     fn default() -> Self {
         return WorldEdit12LoadOption {
             data_version: DataVersion::Java_1_12_2,
-            fix_string_id_with_block_entity_data: true,
-            discard_number_id_array: false,
         }
     }
 }

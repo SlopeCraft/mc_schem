@@ -584,8 +584,6 @@ MC_SCHEM_schem_load_world_edit_13_bytes(const uint8_t *bytes, size_t length,
 
 typedef struct {
   alignas(512) int32_t data_version;
-  bool fix_string_id_with_block_entity_data;
-  bool discard_number_id_array;
 } MC_SCHEM_load_option_world_edit_12;
 static_assert(sizeof(MC_SCHEM_load_option_world_edit_12) == 512,
               "sizeof(MC_SCHEM_load_option_world_edit_12)==512 should be 512");

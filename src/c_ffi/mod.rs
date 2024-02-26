@@ -519,25 +519,19 @@ impl CWE13LoadOption {
 
 #[repr(C, align(512))]
 struct CWE12LoadOption {
-    pub data_version: DataVersion,
-    pub fix_string_id_with_block_entity_data: bool,
-    pub discard_number_id_array: bool,
+    pub data_version: DataVersion
 }
 sa::const_assert!(size_of::<CWE12LoadOption>()==512);
 
 impl CWE12LoadOption {
     pub fn to_option(&self) -> WorldEdit12LoadOption {
         return WorldEdit12LoadOption {
-            data_version: self.data_version,
-            fix_string_id_with_block_entity_data: self.fix_string_id_with_block_entity_data,
-            discard_number_id_array: self.discard_number_id_array,
+            data_version: self.data_version
         };
     }
     pub fn from_option(src: &WorldEdit12LoadOption) -> Self {
         return Self {
-            data_version: src.data_version,
-            fix_string_id_with_block_entity_data: src.fix_string_id_with_block_entity_data,
-            discard_number_id_array: src.discard_number_id_array,
+            data_version: src.data_version
         }
     }
 }

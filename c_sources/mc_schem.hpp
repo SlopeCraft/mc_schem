@@ -1548,25 +1548,20 @@ namespace mc_schem {
 
   struct world_edit_12_load_option {
     int32_t data_version;
-    bool fix_string_id_with_block_entity_data;
-    bool discard_number_id_array;
+    //    bool fix_string_id_with_block_entity_data;
+    //    bool discard_number_id_array;
 
     using c_type = MC_SCHEM_load_option_world_edit_12;
 
     explicit world_edit_12_load_option(const c_type &src)
-      : data_version{src.data_version},
-        fix_string_id_with_block_entity_data{
-          src.fix_string_id_with_block_entity_data},
-        discard_number_id_array{src.discard_number_id_array} {}
+      : data_version{src.data_version} {}
 
     world_edit_12_load_option()
       : world_edit_12_load_option{
           MC_SCHEM_load_option_world_edit_12_default()} {}
 
     [[nodiscard]] c_type to_c_type() const noexcept {
-      c_type result{this->data_version,
-                    this->fix_string_id_with_block_entity_data,
-                    this->discard_number_id_array};
+      c_type result{this->data_version};
       return result;
     }
   };

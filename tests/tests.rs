@@ -22,6 +22,7 @@ use std::fs::{create_dir_all, File};
 use fastnbt::Value;
 use flate2::{Compression, GzBuilder};
 use flate2::read::GzDecoder;
+use ndarray::Array3;
 use rand::Rng;
 use mc_schem::block::CommonBlock;
 use mc_schem::{Schematic, WorldEdit12LoadOption, LitematicaLoadOption, LitematicaSaveOption, Block, schem, old_block, DataVersion, WorldEdit13SaveOption, Region, BlockEntity, MetaDataIR, WorldEdit13LoadOption};
@@ -290,16 +291,16 @@ fn parse_full_blocks_mc12() {
         &LitematicaLoadOption::default()).unwrap().0;
     let lite_region = &litematic.regions[0];
     for dim in 0..3 {
-        assert_eq!(num_id_array.shape()[dim], lite_region.shape()[dim] as usize);
+        assert_eq!(num_id_array.shape()[dim], lite_region.shape_yzx()[dim] as usize);
     }
 
     let mut hash: HashMap<(u8, u8), String> = HashMap::new();
     hash.reserve(256 * 16);
 
-    for x in 0..num_id_array.shape()[0] {
-        for y in 0..num_id_array.shape()[1] {
-            for z in 0..num_id_array.shape()[2] {
-                let (id, damage) = num_id_array[[x, y, z]];
+    for y in 0..num_id_array.shape()[0] {
+        for z in 0..num_id_array.shape()[1] {
+            for x in 0..num_id_array.shape()[2] {
+                let (id, damage) = num_id_array[[y, z, x]];
                 if hash.contains_key(&(id, damage)) {
                     continue;
                 }
@@ -378,16 +379,17 @@ fn make_mc12_numeric_lut() {
         &LitematicaLoadOption::default()).unwrap().0;
 
     for dim in 0..3 {
-        assert_eq!(num_id_array.shape()[dim], schem.shape()[dim] as usize);
+        let nia_shape_xyz = Region::pos_yzx_to_xyz(&[num_id_array.shape()[0], num_id_array.shape()[1], num_id_array.shape()[2]]);
+        assert_eq!(nia_shape_xyz[dim], schem.shape()[dim] as usize);
         assert_eq!(schem.shape()[dim], lite.shape()[dim]);
     }
     let shape = lite.shape();
     let mut hash: HashMap<String, HashMap<String, HashMap<String, Value>>> = HashMap::new();
     hash.reserve(256);
-    for x in 0..shape[0] as usize {
-        for y in 0..shape[1] as usize {
-            for z in 0..shape[2] as usize {
-                let (id, damage) = num_id_array[[x, y, z]];
+    for y in 0..shape[1] as usize {
+        for z in 0..shape[2] as usize {
+            for x in 0..shape[0] as usize {
+                let (id, damage) = num_id_array[[y, z, x]];
                 let pos = [x as i32, y as i32, z as i32];
                 let full_id = lite.first_block_at(pos).unwrap().full_id();
                 let be_tags = match schem.first_block_entity_at(pos) {
@@ -682,4 +684,25 @@ fn test_merge_regions() {
     create_dir_all("./target/test/test_merge_regions").unwrap();
     let out_file = "./target/test/test_merge_regions/multi-region01-out.litematic";
     schem.save_litematica_file(out_file, &LitematicaSaveOption::default()).unwrap()
+}
+
+#[test]
+fn test_3d_array_order() {
+    let mut arr: ndarray::Array3<u16> = Array3::zeros([2, 3, 4]);
+
+    {
+        let mut i = 0;
+        for y in 0..arr.shape()[0] {
+            for z in 0..arr.shape()[1] {
+                for x in 0..arr.shape()[2] {
+                    arr[[y, z, x]] = i;
+                    i += 1;
+                }
+            }
+        }
+    }
+
+    for i in arr {
+        print!("{}, ", i);
+    }
 }

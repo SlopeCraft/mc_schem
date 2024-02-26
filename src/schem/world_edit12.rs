@@ -43,7 +43,7 @@ impl Schematic {
         let x_size = *unwrap_opt_tag!(nbt.get("Width"),Short,0,"/Width".to_string()) as usize;
         let y_size = *unwrap_opt_tag!(nbt.get("Height"),Short,0,"/Height".to_string()) as usize;
         let z_size = *unwrap_opt_tag!(nbt.get("Length"),Short,0,"/Length".to_string()) as usize;
-        let mut array = Array3::default([x_size, y_size, z_size]);
+        let mut array = Array3::default([y_size, z_size, x_size]);
 
         let blocks = unwrap_opt_tag!(nbt.get("Blocks"),ByteArray,fastnbt::ByteArray::new(vec![]),"/Blocks".to_string());
         let data = unwrap_opt_tag!(nbt.get("Data"),ByteArray,fastnbt::ByteArray::new(vec![]),"/Data".to_string());
@@ -72,7 +72,7 @@ impl Schematic {
                     let id = i8_to_u8(blocks[counter]);
                     let damage = i8_to_u8(data[counter]);
                     counter += 1;
-                    array[[x, y, z]] = (id, damage);
+                    array[[y, z, x]] = (id, damage);
                 }
             }
         }
@@ -198,17 +198,18 @@ impl Region {
         }
 
         let shape_usize = id_damage_array.shape();
-        let shape: [i32; 3] = [shape_usize[0] as i32, shape_usize[1] as i32, shape_usize[2] as i32];
-        region.reshape(&shape);
+        let shape_yzx: [i32; 3] = [shape_usize[0] as i32, shape_usize[1] as i32, shape_usize[2] as i32];
+        let shape_xyz = Region::pos_yzx_to_xyz(&shape_yzx);
+        region.reshape(&shape_xyz);
 
-        for x in 0..shape[0] {
-            for y in 0..shape[1] {
-                for z in 0..shape[2] {
-                    let pos = [x as usize, y as usize, z as usize];
+        for y in 0..shape_yzx[0] {
+            for z in 0..shape_yzx[1] {
+                for x in 0..shape_yzx[2] {
+                    let pos = [y as usize, z as usize, x as usize];
                     let (id, damage) = id_damage_array[pos];
                     let stat = &id_damage_counter[id as usize][damage as usize];
                     debug_assert!((stat.id as usize) < region.palette.len());
-                    region.array[pos] = stat.id;
+                    region.array_yzx[pos] = stat.id;
                 }
             }
         }
@@ -219,14 +220,14 @@ impl Region {
         for (idx, te) in tile_entities.iter_mut().enumerate() {
             let tag_path = format!("/TileEntities[{idx}]");
             let te = unwrap_tag!(te,Compound,HashMap::new(),&tag_path);
-            let pos = common::parse_size_compound(te, &tag_path, false)?;
+            let pos_xyz = common::parse_size_compound(te, &tag_path, false)?;
             //check pos
             for dim in 0..3 {
-                if pos[dim] < 0 || pos[dim] >= shape[dim] {
+                if pos_xyz[dim] < 0 || pos_xyz[dim] >= shape_xyz[dim] {
                     return Err(Error::BlockPosOutOfRange {
                         tag_path,
-                        pos,
-                        range: shape,
+                        pos: pos_xyz,
+                        range: shape_xyz,
                     });
                 }
             }
@@ -237,7 +238,7 @@ impl Region {
                     block_entity.tags.remove(key);
                 }
             }
-            region.block_entities.insert(pos, block_entity);
+            region.block_entities.insert(pos_xyz, block_entity);
         }
 
         if option.fix_string_id_with_block_entity_data {
@@ -248,11 +249,12 @@ impl Region {
             }
 
             for (pos, be) in &region.block_entities {
-                let pos_usize = [pos[0] as usize, pos[1] as usize, pos[2] as usize];
+                let pos_xyz = [pos[0] as usize, pos[1] as usize, pos[2] as usize];
+                let pos_yzx = Region::pos_xyz_to_yzx(&pos_xyz);
                 let original_blk = region.block_at(*pos);
                 debug_assert!(original_blk.is_some());
                 let original_blk = original_blk.unwrap();
-                let (id, damage) = id_damage_array[pos_usize];
+                let (id, damage) = id_damage_array[pos_yzx];
                 let fixed_block = match original_blk.fix_block_property_with_block_entity(id, damage, be) {
                     Ok(b) => b,
                     Err(e) => return Err(Error::InvalidBlockNumberId {
@@ -270,8 +272,8 @@ impl Region {
                         fixed_id = block_to_index.len() as u16;
                         block_to_index.insert(fixed_block, fixed_id);
                     }
-                    debug_assert!(region.array[pos_usize] != fixed_id);
-                    region.array[pos_usize] = fixed_id;
+                    debug_assert!(region.array_yzx[pos_yzx] != fixed_id);
+                    region.array_yzx[pos_yzx] = fixed_id;
                 }
             }
             let original_pal_len = region.palette.len();

@@ -274,7 +274,7 @@ unsafe extern "C" fn MC_SCHEM_region_get_entities(region: *const Region, len: *m
 #[no_mangle]
 unsafe extern "C" fn MC_SCHEM_region_get_block_index_array(region: *const Region) -> *mut u16 {
     let region = &mut *(region as *mut Region);
-    return region.array.as_mut_ptr();
+    return region.array_yzx.as_mut_ptr();
 }
 
 #[no_mangle]

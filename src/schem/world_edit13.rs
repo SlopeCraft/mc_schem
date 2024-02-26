@@ -229,7 +229,7 @@ impl Region {
     }
 
     fn parse_3d_array_v2(block_data: &[i8], tag_path: &str, _option: &WorldEdit13LoadOption, size: [i32; 3], palette: &[Block]) -> Result<Array3<u16>, Error> {
-        let mut array: Array3<u16> = Array3::default([size[0] as usize, size[1] as usize, size[2] as usize]);
+        let mut array: Array3<u16> = Array3::default([size[1] as usize, size[2] as usize, size[0] as usize]);
 
         let total_blocks = size[1] as usize * size[2] as usize * size[0] as usize;
         let mut decoded_blocks = 0;
@@ -274,7 +274,7 @@ impl Region {
                         });
                     }
                     decoded_blocks += 1;
-                    array[[x, y, z]] = decoded_block_index as u16;
+                    array[[y, z, x]] = decoded_block_index as u16;
                 }
             }
         }
@@ -316,7 +316,7 @@ impl Region {
         {
             let block_data_tag_path = format!("{tag_path}/BlockData");
             let block_data = unwrap_opt_tag!(root.get("BlockData"),ByteArray,fastnbt::ByteArray::new(vec![]),block_data_tag_path);
-            region.array = Self::parse_3d_array_v2(block_data.as_ref(), &block_data_tag_path, option, size, &region.palette)?;
+            region.array_yzx = Self::parse_3d_array_v2(block_data.as_ref(), &block_data_tag_path, option, size, &region.palette)?;
         }
 
 
@@ -347,7 +347,7 @@ impl Region {
         {
             let tag_data_path = "/Schematic/Blocks/Data";
             let tag_data = unwrap_opt_tag!(tag_blocks.get("Data"),ByteArray,fastnbt::ByteArray::new(vec![]),tag_data_path);
-            region.array = Self::parse_3d_array_v2(&tag_data, tag_data_path, option, size, &region.palette)?;
+            region.array_yzx = Self::parse_3d_array_v2(&tag_data, tag_data_path, option, size, &region.palette)?;
         }
         //block entities
         {

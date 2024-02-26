@@ -18,10 +18,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::collections::HashMap;
 use std::fs::File;
-use crate::schem::{common, id_of_nbt_tag, MetaDataIR, schem, VanillaStructureLoadOption, VanillaStructureSaveOption};
+use crate::schem::{common, id_of_nbt_tag, MetaDataIR, VanillaStructureLoadOption, VanillaStructureSaveOption};
 //use compress::zlib;
 use crate::schem::schem::{BlockEntity, Schematic, VanillaStructureMetaData};
-use crate::region::{Entity};
+use crate::region::{Entity, Region};
 use fastnbt;
 use fastnbt::{Value};
 use flate2::{GzBuilder};
@@ -199,7 +199,7 @@ impl Schematic {
             schem.metadata = MetaDataIR::from_vanilla_structure(&md);
         }
 
-        let mut region = schem::Region::new();
+        let mut region = Region::new();
         //setup basic info for region
         {
             region.offset = [0, 0, 0];
@@ -252,7 +252,7 @@ impl Schematic {
         }
 
         // fill region with structure void
-        region.array.fill(default_blk_idx);
+        region.array_yzx.fill(default_blk_idx);
 
         // fill in blocks
         {
@@ -272,7 +272,7 @@ impl Schematic {
                 }
 
                 let pos_ndarr = [pos[0] as usize, pos[1] as usize, pos[2] as usize];
-                region.array[pos_ndarr] = state as u16;
+                region.array_yzx[Region::pos_xyz_to_yzx(&pos_ndarr)] = state as u16;
 
                 if let Some(block_entity) = block_entity_opt {
                     region.block_entities.insert([pos[0], pos[1], pos[2]], block_entity);

@@ -226,7 +226,7 @@ impl Region {
                             })
                         }
                         idx += 1;
-                        region.array[[x as usize, y as usize, z as usize]] = blk_id as u16;
+                        region.array_yzx[[y as usize, z as usize, x as usize, ]] = blk_id as u16;
                     }
                 }
             }
@@ -807,7 +807,7 @@ impl Region {
             for y in 0..self.shape()[1] as usize {
                 for z in 0..self.shape()[2] as usize {
                     for x in 0..self.shape()[0] as usize {
-                        let res = mbs.set(idx, self.array[[x, y, z]] as u64);
+                        let res = mbs.set(idx, self.array_yzx[[y, z, x]] as u64);
                         assert!(res.is_ok());
                         idx += 1;
                     }

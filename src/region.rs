@@ -54,7 +54,7 @@ pub struct PendingTick {
 pub struct Region {
     pub name: String,
     //XYZ
-    pub array: Array3<u16>,
+    pub array_yzx: Array3<u16>,
     pub palette: Vec<Block>,
     pub block_entities: HashMap<[i32; 3], BlockEntity>,
     pub pending_ticks: HashMap<[i32; 3], PendingTick>,
@@ -100,10 +100,20 @@ impl PendingTickInfo {
 
 #[allow(dead_code)]
 impl Region {
+    pub fn pos_xyz_to_yzx<T>(pos: &[T; 3]) -> [T; 3]
+        where T: Copy {
+        return [pos[1], pos[2], pos[0]];
+    }
+
+    pub fn pos_yzx_to_xyz<T>(yzx: &[T; 3]) -> [T; 3]
+        where T: Copy {
+        return [yzx[2], yzx[0], yzx[1]];
+    }
+
     pub fn new() -> Region {
         let mut result = Region {
             name: String::from("NewRegion"),
-            array: Array3::zeros([1, 1, 1]),
+            array_yzx: Array3::zeros([1, 1, 1]),
             palette: Vec::new(),
             block_entities: HashMap::new(),
             pending_ticks: HashMap::new(),
@@ -164,7 +174,7 @@ impl Region {
         let blkid = blkid as u16;
 
         let pos_usize = Self::i32_to_usize(&r_pos);
-        self.array[pos_usize] = blkid;
+        self.array_yzx[Self::pos_xyz_to_yzx(&pos_usize)] = blkid;
 
         return Ok(());
     }
@@ -177,23 +187,33 @@ impl Region {
             return Err(());
         }
         let pos_usize = Self::i32_to_usize(&r_pos);
-        self.array[pos_usize] = block_id;
+        self.array_yzx[Self::pos_xyz_to_yzx(&pos_usize)] = block_id;
         return Ok(());
     }
 
-    pub fn reshape(&mut self, size: &[i32; 3]) {
+    pub fn reshape(&mut self, size_xyz: &[i32; 3]) {
         let mut usz: [usize; 3] = [0, 0, 0];
         for idx in 0..3 {
-            let sz = size[idx];
+            let sz = size_xyz[idx];
             if sz < 0 {
-                panic!("Try resizing with negative size [{},{},{}]", size[0], size[1], size[2]);
+                panic!("Try resizing with negative size [{},{},{}]", size_xyz[0], size_xyz[1], size_xyz[2]);
             }
             usz[idx] = sz as usize;
         }
-        self.array = Array3::zeros(usz);
+        let shape_yzx = Self::pos_xyz_to_yzx(&usz);
+        self.array_yzx = Array3::zeros(shape_yzx);
     }
+    /// Shape in [x,y,z]
     pub fn shape(&self) -> [i32; 3] {
-        let shape = self.array.shape();
+        let shape = self.array_yzx.shape();
+        if shape.len() != 3 {
+            panic!("Invalid array dimensions: should be 3 but now it is {}", shape.len());
+        }
+        return Self::pos_yzx_to_xyz(&[shape[0] as i32, shape[1] as i32, shape[2] as i32]);
+    }
+
+    pub fn shape_yzx(&self) -> [i32; 3] {
+        let shape = self.array_yzx.shape();
         if shape.len() != 3 {
             panic!("Invalid array dimensions: should be 3 but now it is {}", shape.len());
         }
@@ -201,7 +221,7 @@ impl Region {
     }
 
     pub fn volume(&self) -> u64 {
-        return self.array.shape()[0] as u64 * self.array.shape()[1] as u64 * self.array.shape()[2] as u64;
+        return self.array_yzx.shape()[0] as u64 * self.array_yzx.shape()[1] as u64 * self.array_yzx.shape()[2] as u64;
     }
 
     pub fn block_index_of_air(&self) -> Option<u16> {
@@ -225,7 +245,7 @@ impl Region {
     pub fn total_blocks(&self, include_air: bool) -> u64 {
         let mut counter = 0;
 
-        for blk_id in &self.array {
+        for blk_id in &self.array_yzx {
             if let Some(air_idx) = self.block_index_of_air() {
                 if *blk_id == air_idx {
                     if include_air {
@@ -272,7 +292,7 @@ impl Region {
         let y = r_pos[1] as usize;
         let z = r_pos[2] as usize;
 
-        let pid = self.array[[x, y, z]] as usize;
+        let pid = self.array_yzx[[y, z, x]] as usize;
         return Some(pid as u16);
     }
 
@@ -309,7 +329,7 @@ impl Region {
         for x in 0..self.shape()[0] {
             for y in 0..self.shape()[1] {
                 for z in 0..self.shape()[2] {
-                    let idx = self.array[[x as usize, y as usize, z as usize]];
+                    let idx = self.array_yzx[[y as usize, z as usize, x as usize]];
                     if idx as usize >= self.palette.len() {
                         return Err(Error::BlockIndexOfOfRange {
                             r_pos: [x, y, z],
@@ -339,7 +359,7 @@ impl Region {
                 }
             }
         }
-        for blkid in &mut self.array {
+        for blkid in &mut self.array_yzx {
             let new_id = id_map[*blkid as usize];
             assert!((new_id as usize) < self.palette.len());
             *blkid = new_id;
@@ -372,7 +392,7 @@ impl Region {
 
     pub fn fill_with(&mut self, block: &Block) {
         let blk_id = self.find_or_append_to_palette(block);
-        self.array.fill(blk_id);
+        self.array_yzx.fill(blk_id);
     }
 
     pub fn block_entity_at(&self, r_pos: [i32; 3]) -> Option<&BlockEntity> {

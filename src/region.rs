@@ -47,6 +47,7 @@ pub enum PendingTickInfo {
     Block { id: String },
 }
 
+/// A tick waiting to be processed
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct PendingTick {

@@ -28,19 +28,32 @@ mod c_ffi;
 
 /// `Block` is a type of block with namespace and properties(aka attributes) in MC.
 pub type Block = block::Block;
+/// An entity in MC, like zombie, minecart, etc.
 pub type Entity = region::Entity;
+/// Block entity(also known as tile entity) in MC, like chest, furnace, etc.
 pub type BlockEntity = region::BlockEntity;
+/// A tick waiting to be processed
 pub type PendingTick = region::PendingTick;
 /// Region is a 3d area in Minecraft, containing blocks and entities.
 pub type Region = region::Region;
+/// Schematic is part of a Minecraft world, like `.litematic` of litematica mod, `.schem` and
+/// `.schematic` of world edit, `.nbt` of vanilla structure.
 pub type Schematic = schem::Schematic;
+/// Intermediate representation via different metadata formats
 pub type MetaDataIR = schem::MetaDataIR;
+/// Options to load litematica
 pub type LitematicaLoadOption = schem::LitematicaLoadOption;
+/// Options to save litematica
 pub type LitematicaSaveOption = schem::LitematicaSaveOption;
+/// Options to load vanilla structure
 pub type VanillaStructureLoadOption = schem::VanillaStructureLoadOption;
+/// Options to save vanilla structure
 pub type VanillaStructureSaveOption = schem::VanillaStructureSaveOption;
+/// Options to load litematica
 pub type WorldEdit13LoadOption = schem::WorldEdit13LoadOption;
+/// Options to save world edit 1.13+
 pub type WorldEdit13SaveOption = schem::WorldEdit13SaveOption;
+/// Options to load litematica
 pub type WorldEdit12LoadOption = schem::WorldEdit12LoadOption;
 pub type DataVersion = schem::DataVersion;
 /// Errors when loading and saving schematic

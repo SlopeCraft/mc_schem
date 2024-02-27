@@ -16,13 +16,41 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! A rust library to generate, load, manipulate and save minecraft schematic files.
+//! ## Supported formats:
+//! - Litematica(`.litematica`)
+//! - Vanilla structure(`.nbt`)
+//! - WorldEdit schem (1.13+)(`.schem`)
+//! - WorldEdit schem (1.12-)(`.schematic`)
+//!
+//! ## Contents
+//! 1. `mc_schem` (rlib)
+//!
+//!    The main rust lib
+//! 2. `mc_schem` (cdylib)
+//!
+//!    C ffi for mc_schem
+//! 3. mc_schem C++ wrapper
+//!
+//!    A header-only c++ wrapper based on C ffi of mc_schem
+//! 4. `schemtool` (executable)
+//!
+//!    An executable to do various manipulations on schematics
+//!
+
+
 use strum::Display;
 
+/// Implement minecraft block and string id parsing
 pub mod block;
-pub mod schem;
-pub mod error;
-pub mod region;
+/// Number id parsing
 pub mod old_block;
+/// Errors in loading, saving and manipulating
+pub mod error;
+/// Implement region, entity, block entity and pending ticks
+pub mod region;
+/// Implement metadata, schematics and loading/saving
+pub mod schem;
 
 mod c_ffi;
 
@@ -55,6 +83,7 @@ pub type WorldEdit13LoadOption = schem::WorldEdit13LoadOption;
 pub type WorldEdit13SaveOption = schem::WorldEdit13SaveOption;
 /// Options to load litematica
 pub type WorldEdit12LoadOption = schem::WorldEdit12LoadOption;
+/// Minecraft data versions.
 pub type DataVersion = schem::DataVersion;
 /// Errors when loading and saving schematic
 pub type Error = error::Error;

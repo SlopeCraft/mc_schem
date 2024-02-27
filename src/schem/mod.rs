@@ -37,7 +37,7 @@ use crate::error::{Error};
 use crate::{PendingTick, schem};
 use crate::region::{BlockEntity, Region};
 
-
+/// Minecraft data versions.
 pub type DataVersion = mc_version::DataVersion;
 
 /// Metadata of litematica

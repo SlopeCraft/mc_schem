@@ -534,7 +534,7 @@ typedef struct {
 typedef struct {
   alignas(512) uint8_t reserved[512];
 } MC_SCHEM_load_option_litematica;
-static_assert(sizeof(MC_SCHEM_load_option_litematica)==512);
+static_assert(sizeof(MC_SCHEM_load_option_litematica) == 512, "sizeof(MC_SCHEM_load_option_litematica) should be 512");
 MC_SCHEM_EXPORT MC_SCHEM_load_option_litematica MC_SCHEM_load_option_litematica_default();
 
 MC_SCHEM_EXPORT MC_SCHEM_schem_load_result

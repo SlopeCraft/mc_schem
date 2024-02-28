@@ -146,6 +146,10 @@ fn parse_metadata(nbt: &HashMap<String, Value>, tag_path: &str, _option: &WorldE
                 we13.we_offset[dim] = *unwrap_opt_tag!(tag_md.get(keys[dim]),Int,0,format!("{tag_path}/Metadata/{}",keys[dim]));
             }
         }
+        let shape = Region::parse_size_v2(&nbt, "/", _option)?;
+        we13.width = shape[0] as i16;
+        we13.height = shape[1] as i16;
+        we13.length = shape[2] as i16;
         return Ok(we13);
     }
     if schem_version == 3 {
@@ -165,6 +169,10 @@ fn parse_metadata(nbt: &HashMap<String, Value>, tag_path: &str, _option: &WorldE
         } else {
             we13.v3_extra = None;
         }
+        let shape = Region::parse_size_v2(&nbt, "/Schematic", _option)?;
+        we13.width = shape[0] as i16;
+        we13.height = shape[1] as i16;
+        we13.length = shape[2] as i16;
 
         return Ok(we13);
     }
@@ -457,6 +465,9 @@ impl Schematic {
         result.data_version = self.metadata.mc_data_version;
         result.offset = [0, 0, 0];
         result.date = Some(self.metadata.time_modified);
+        result.width = self.shape()[0] as i16;//x
+        result.height = self.shape()[1] as i16;//y
+        result.length = self.shape()[2] as i16;//z
 
         return Ok(result);
     }
@@ -471,6 +482,7 @@ impl Schematic {
         dest.insert("Offset".to_string(), Value::IntArray(fastnbt::IntArray::new(Vec::from(&md.offset))));
         dest.insert("DataVersion".to_string(), Value::Int(md.data_version));
         dest.insert("Version".to_string(), Value::Int(md.version));
+        //dest.insert("Width".to_string(),Value::Short(md.width));
     }
 
     fn write_metadata_v3(dest: &mut HashMap<String, Value>, md: &WE13MetaData) {

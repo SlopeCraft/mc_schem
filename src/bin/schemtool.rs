@@ -144,6 +144,10 @@ fn main() {
                         println!("\tAuthor: {}", raw.author);
                         println!("\tName: {}", raw.name);
                         println!("\tDescription: {}", raw.description);
+                        println!("\tRegionCount: {}", raw.region_count);
+                        println!("\tTotalBlocks: {}", raw.total_blocks);
+                        println!("\tTotalVolume: {}", raw.total_volume);
+                        println!("\tEnclosingSize: {}", schem::common::format_size(&raw.enclosing_size));
                     },
                     RawMetaData::VanillaStructure(raw) => {
                         println!("\tDataVersion: {}", raw.data_version);
@@ -151,6 +155,9 @@ fn main() {
                     RawMetaData::WE13(raw) => {
                         println!("\tDataVersion: {}", raw.data_version);
                         println!("\tVersion: {}", raw.version);
+                        println!("\tWidth: {}", raw.width);
+                        println!("\tHeight: {}", raw.height);
+                        println!("\tLength: {}", raw.length);
                         for dim in 0..3 {
                             println!("\tWEOffset{}: {}", dim_letters[dim], raw.we_offset[dim]);
                         }
@@ -166,6 +173,9 @@ fn main() {
                     },
                     RawMetaData::WE12(raw) => {
                         println!("\tMaterials: {}", raw.materials);
+                        println!("\tWidth: {}", raw.width);
+                        println!("\tHeight: {}", raw.height);
+                        println!("\tLength: {}", raw.length);
                         for dim in 0..3 {
                             println!("\tWEOffset{}: {}", dim_letters[dim], raw.we_offset[dim]);
                         }

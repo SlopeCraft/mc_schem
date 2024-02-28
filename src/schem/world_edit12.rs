@@ -38,12 +38,26 @@ fn i8_to_u8(a: i8) -> u8 {
     }
 }
 
+fn parse_shape(nbt: &HashMap<String, Value>) -> Result<[i16; 3], Error> {
+    let x_size = *unwrap_opt_tag!(nbt.get("Width"),Short,0,"/Width".to_string());
+    let y_size = *unwrap_opt_tag!(nbt.get("Height"),Short,0,"/Height".to_string());
+    let z_size = *unwrap_opt_tag!(nbt.get("Length"),Short,0,"/Length".to_string());
+    return Ok([x_size, y_size, z_size]);
+}
+
 impl Schematic {
     /// Parse number id
     pub fn parse_number_id_from_we12(nbt: &HashMap<String, Value>) -> Result<Array3<(u8, u8)>, Error> {
-        let x_size = *unwrap_opt_tag!(nbt.get("Width"),Short,0,"/Width".to_string()) as usize;
-        let y_size = *unwrap_opt_tag!(nbt.get("Height"),Short,0,"/Height".to_string()) as usize;
-        let z_size = *unwrap_opt_tag!(nbt.get("Length"),Short,0,"/Length".to_string()) as usize;
+        let x_size;
+        let y_size;
+        let z_size;
+        {
+            let shape = parse_shape(nbt)?;
+            x_size = shape[0] as usize;
+            y_size = shape[1] as usize;
+            z_size = shape[2] as usize;
+        }
+
         let mut array = Array3::default([y_size, z_size, x_size]);
 
         let blocks = unwrap_opt_tag!(nbt.get("Blocks"),ByteArray,fastnbt::ByteArray::new(vec![]),"/Blocks".to_string());
@@ -93,6 +107,10 @@ impl Schematic {
             raw.we_offset[dim] = *unwrap_opt_tag!(nbt.get(&key_offset),Int,0,format!("/{key_offset}"));
             raw.we_origin[dim] = *unwrap_opt_tag!(nbt.get(&key_origin),Int,0,format!("/{key_origin}"));
         }
+
+        let shape = parse_shape(nbt)?;
+        [raw.width, raw.height, raw.width] = shape;
+
 
         let mut md = MetaDataIR::default();
         md.mc_data_version = option.data_version as i32;

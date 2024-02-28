@@ -30,7 +30,7 @@ use crate::schem::common;
 use crate::region::{Entity, PendingTick, PendingTickInfo};
 
 impl MetaDataIR {
-    pub fn from_litematica(src: &LitematicaMetaData) -> MetaDataIR {
+    pub fn from_litematica(src: &LitematicaMetaData) -> Self {
         let mut result = MetaDataIR::default();
 
         result.mc_data_version = src.data_version;
@@ -140,6 +140,13 @@ fn parse_metadata(root: &HashMap<String, Value>) -> Result<LitematicaMetaData, E
     //result.total_volume = *unwrap_opt_tag!(md.get("TotalVolume"),Int,0,"/Metadata/TotalVolume".to_string()) as i64;
     result.author = unwrap_opt_tag!(md.get("Author"),String,"".to_string(),"/Metadata/Author".to_string()).clone();
     result.name = unwrap_opt_tag!(md.get("Name"),String,"".to_string(),"/Metadata/Name".to_string()).clone();
+
+    result.total_volume = *unwrap_opt_tag!(md.get("TotalVolume"),Int,0,"/Metadata/TotalVolume".to_string());
+    result.region_count = *unwrap_opt_tag!(md.get("RegionCount"),Int,0,"/Metadata/RegionCount".to_string());
+    result.total_blocks = *unwrap_opt_tag!(md.get("TotalBlocks"),Int,0,"/Metadata/TotalBlocks".to_string());
+    result.enclosing_size = common::parse_size_compound(
+        unwrap_opt_tag!(md.get("EnclosingSize"),Compound,HashMap::new(),"/Metadata/EnclosingSize".to_string()),
+        "/Metadata/EnclosingSize", false)?;
 
     if let Some(value) = root.get("SubVersion") {
         result.sub_version = Some(*unwrap_tag!(value,Int,0,"/SubVersion"));
@@ -661,6 +668,10 @@ impl Schematic {
         md.description = self.metadata.description.clone();
         md.version = self.metadata.litematica_version;
         md.sub_version = self.metadata.litematica_subversion;
+        md.total_volume = self.volume() as i32;
+        md.region_count = self.regions.len() as i32;
+        md.total_blocks = self.total_blocks(false) as i32;
+        md.enclosing_size = self.shape();
 
         return Ok(md);
     }

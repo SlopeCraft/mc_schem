@@ -371,8 +371,8 @@ fn parse_full_blocks_mc12() {
 fn make_mc12_numeric_lut() {
     let schem_file = "./test_files/schematic/full-blocks-1.12.2.schematic";
 
-    let mut schem_option = WorldEdit12LoadOption::default();
-    schem_option.fix_string_id_with_block_entity_data = false;
+    let schem_option = WorldEdit12LoadOption::default();
+
     let (schem, _, num_id_array) = Schematic::from_world_edit_12_file(schem_file, &schem_option).unwrap();
     let lite = Schematic::from_litematica_file(
         "./test_files/litematica/full-blocks-1.12.2.litematic",

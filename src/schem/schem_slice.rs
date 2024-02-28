@@ -2,6 +2,7 @@ use crate::block::Block;
 use crate::region::{BlockEntity, PendingTick, WorldSlice};
 use crate::schem::{common, Schematic};
 
+/// A 3d slice of schematic
 pub struct SchemSlice<'a> {
     source: &'a Schematic,
     offset: [i32; 3],

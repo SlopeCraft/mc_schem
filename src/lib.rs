@@ -56,6 +56,8 @@ mod c_ffi;
 
 /// `Block` is a type of block with namespace and properties(aka attributes) in MC.
 pub type Block = block::Block;
+/// Enumerate common blocks
+pub type CommonBlock = block::CommonBlock;
 /// An entity in MC, like zombie, minecart, etc.
 pub type Entity = region::Entity;
 /// Block entity(also known as tile entity) in MC, like chest, furnace, etc.
@@ -63,10 +65,13 @@ pub type BlockEntity = region::BlockEntity;
 /// A tick waiting to be processed
 pub type PendingTick = region::PendingTick;
 /// Region is a 3d area in Minecraft, containing blocks and entities.
+//pub trait WorldSlice = region::WorldSlice;
 pub type Region = region::Region;
 /// Schematic is part of a Minecraft world, like `.litematic` of litematica mod, `.schem` and
 /// `.schematic` of world edit, `.nbt` of vanilla structure.
 pub type Schematic = schem::Schematic;
+/// A 3d slice of schematic
+pub type SchemSlice<'a> = schem::schem_slice::SchemSlice<'a>;
 /// Intermediate representation via different metadata formats
 pub type MetaDataIR = schem::MetaDataIR;
 /// Options to load litematica

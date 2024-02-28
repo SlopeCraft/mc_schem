@@ -83,9 +83,6 @@ pub trait WorldSlice {
     /// Returns detailed block infos at `r_pos`, including block index, block, block entity and pending tick.
     /// Returns `None` if the block is outside the region
     fn block_info_at(&self, r_pos: [i32; 3]) -> Option<(u16, &Block, Option<&BlockEntity>, Option<&PendingTick>)>;
-    /// Returns detailed block infos at `r_pos`, including block index, block, block entity(mutable) and pending tick(mutable).
-    /// Returns `None` if the block is outside the region
-    fn block_info_at_mut(&mut self, r_pos: [i32; 3]) -> Option<(u16, &Block, Option<&mut BlockEntity>, Option<&mut PendingTick>)>;
     /// Get block index at `r_pos`, returns `None` if the block is outside the region
     fn block_index_at(&self, r_pos: [i32; 3]) -> Option<u16> {
         return Some(self.block_info_at(r_pos)?.0);
@@ -102,14 +99,17 @@ pub trait WorldSlice {
     fn pending_tick_at(&self, r_pos: [i32; 3]) -> Option<&PendingTick> {
         return self.block_info_at(r_pos)?.3;
     }
-    /// Get mutable block entity at `r_pos`
-    fn block_entity_at_mut(&mut self, r_pos: [i32; 3]) -> Option<&mut BlockEntity> {
-        return self.block_info_at_mut(r_pos)?.2;
-    }
-    /// Get mutable pending tick at `r_pos`
-    fn pending_tick_at_mut(&mut self, r_pos: [i32; 3]) -> Option<&mut PendingTick> {
-        return self.block_info_at_mut(r_pos)?.3;
-    }
+    // /// Returns detailed block infos at `r_pos`, including block index, block, block entity(mutable) and pending tick(mutable).
+    // /// Returns `None` if the block is outside the region
+    // fn block_info_at_mut(&mut self, r_pos: [i32; 3]) -> Option<(u16, &Block, Option<&mut BlockEntity>, Option<&mut PendingTick>)>;
+    // /// Get mutable block entity at `r_pos`
+    // fn block_entity_at_mut(&mut self, r_pos: [i32; 3]) -> Option<&mut BlockEntity> {
+    //     return self.block_info_at_mut(r_pos)?.2;
+    // }
+    // /// Get mutable pending tick at `r_pos`
+    // fn pending_tick_at_mut(&mut self, r_pos: [i32; 3]) -> Option<&mut PendingTick> {
+    //     return self.block_info_at_mut(r_pos)?.3;
+    // }
 }
 
 /// Region is a 3d area in Minecraft, containing blocks and entities. \
@@ -222,17 +222,6 @@ impl WorldSlice for Region {
             None
         };
     }
-    /// Returns detailed block infos at `r_pos`, including block index, block, block entity(mutable) and pending tick(mutable).
-    /// Returns `None` if the block is outside the region
-    fn block_info_at_mut(&mut self, r_pos: [i32; 3]) -> Option<(u16, &Block, Option<&mut BlockEntity>, Option<&mut PendingTick>)> {
-        return if let Some(pid) = self.block_index_at(r_pos) {
-            Some((pid, &self.palette[pid as usize],
-                  self.block_entities.get_mut(&r_pos),
-                  self.pending_ticks.get_mut(&r_pos)))
-        } else {
-            None
-        };
-    }
     /// Get block index at `r_pos`, returns `None` if the block is outside the region
     fn block_index_at(&self, r_pos: [i32; 3]) -> Option<u16> {
         if !self.contains_coord(r_pos) {
@@ -262,15 +251,6 @@ impl WorldSlice for Region {
     /// Get pending tick at `r_pos`
     fn pending_tick_at(&self, r_pos: [i32; 3]) -> Option<&PendingTick> {
         return self.pending_ticks.get(&r_pos);
-    }
-    /// Get mutable block entity at `r_pos`
-    fn block_entity_at_mut(&mut self, r_pos: [i32; 3]) -> Option<&mut BlockEntity> {
-        return self.block_entities.get_mut(&r_pos);
-    }
-
-    /// Get mutable pending tick at `r_pos`
-    fn pending_tick_at_mut(&mut self, r_pos: [i32; 3]) -> Option<&mut PendingTick> {
-        return self.pending_ticks.get_mut(&r_pos);
     }
 }
 
@@ -516,5 +496,26 @@ impl Region {
     /// Set pending tick at `r_pos`
     pub fn set_pending_tick_at(&mut self, r_pos: [i32; 3], value: PendingTick) -> Option<PendingTick> {
         return self.pending_ticks.insert(r_pos, value);
+    }
+
+    /// Returns detailed block infos at `r_pos`, including block index, block, block entity(mutable) and pending tick(mutable).
+    /// Returns `None` if the block is outside the region
+    pub fn block_info_at_mut(&mut self, r_pos: [i32; 3]) -> Option<(u16, &Block, Option<&mut BlockEntity>, Option<&mut PendingTick>)> {
+        return if let Some(pid) = self.block_index_at(r_pos) {
+            Some((pid, &self.palette[pid as usize],
+                  self.block_entities.get_mut(&r_pos),
+                  self.pending_ticks.get_mut(&r_pos)))
+        } else {
+            None
+        };
+    }
+    /// Get mutable block entity at `r_pos`
+    pub fn block_entity_at_mut(&mut self, r_pos: [i32; 3]) -> Option<&mut BlockEntity> {
+        return self.block_entities.get_mut(&r_pos);
+    }
+
+    /// Get mutable pending tick at `r_pos`
+    pub fn pending_tick_at_mut(&mut self, r_pos: [i32; 3]) -> Option<&mut PendingTick> {
+        return self.pending_ticks.get_mut(&r_pos);
     }
 }

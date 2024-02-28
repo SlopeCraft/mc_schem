@@ -23,6 +23,7 @@ pub mod litematica;
 pub mod vanilla_structure;
 pub mod mc_version;
 pub mod common;
+mod schem_slice;
 
 
 use std::cmp::max;

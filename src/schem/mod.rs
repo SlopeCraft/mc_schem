@@ -35,7 +35,7 @@ use flate2::Compression;
 use crate::error::{Error};
 //use schem::mc_version;
 use crate::{PendingTick, schem};
-use crate::region::{BlockEntity, Region};
+use crate::region::{BlockEntity, Region, WorldSlice};
 
 /// Minecraft data versions.
 pub type DataVersion = mc_version::DataVersion;

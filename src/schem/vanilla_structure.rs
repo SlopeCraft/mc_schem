@@ -21,7 +21,7 @@ use std::fs::File;
 use crate::schem::{common, id_of_nbt_tag, MetaDataIR, VanillaStructureLoadOption, VanillaStructureSaveOption};
 //use compress::zlib;
 use crate::schem::schem::{BlockEntity, Schematic, VanillaStructureMetaData};
-use crate::region::{Entity, Region};
+use crate::region::{Entity, Region, WorldSlice};
 use fastnbt;
 use fastnbt::{Value};
 use flate2::{GzBuilder};

@@ -22,7 +22,7 @@ use std::ptr::{drop_in_place, null, null_mut};
 use fastnbt::Value;
 use crate::Block;
 use crate::c_ffi::{CMapRef, CPendingTickType, CPosDouble, CPosInt, CRegionBlockInfo, CStringView, error_to_box};
-use crate::region::{BlockEntity, Entity, PendingTick, PendingTickInfo, Region};
+use crate::region::{BlockEntity, Entity, PendingTick, PendingTickInfo, Region, WorldSlice};
 use crate::error::Error;
 
 #[no_mangle]

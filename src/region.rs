@@ -57,6 +57,61 @@ pub struct PendingTick {
     pub info: PendingTickInfo,
 }
 
+/// Part of a Minecraft world
+pub trait WorldSlice {
+    /// Offset of this region
+    fn offset(&self) -> [i32; 3];
+    /// Shape in x, y, z
+    fn shape(&self) -> [i32; 3];
+    /// If `r_pos` is inside the region
+    fn contains_coord(&self, r_pos: [i32; 3]) -> bool {
+        for dim in 0..3 {
+            if r_pos[dim] >= 0 && r_pos[dim] < self.shape()[dim] {
+                continue;
+            }
+            return false;
+        }
+        return true;
+    }
+    /// Returns the volume
+    fn volume(&self) -> u64 {
+        return self.shape()[0] as u64 * self.shape()[1] as u64 * self.shape()[2] as u64;
+    }
+    ///Returns the count of blocks in region. Air will be counted if `include_air` is true, structure
+    /// void is never counted.
+    fn total_blocks(&self, include_air: bool) -> u64;
+    /// Returns detailed block infos at `r_pos`, including block index, block, block entity and pending tick.
+    /// Returns `None` if the block is outside the region
+    fn block_info_at(&self, r_pos: [i32; 3]) -> Option<(u16, &Block, Option<&BlockEntity>, Option<&PendingTick>)>;
+    /// Returns detailed block infos at `r_pos`, including block index, block, block entity(mutable) and pending tick(mutable).
+    /// Returns `None` if the block is outside the region
+    fn block_info_at_mut(&mut self, r_pos: [i32; 3]) -> Option<(u16, &Block, Option<&mut BlockEntity>, Option<&mut PendingTick>)>;
+    /// Get block index at `r_pos`, returns `None` if the block is outside the region
+    fn block_index_at(&self, r_pos: [i32; 3]) -> Option<u16> {
+        return Some(self.block_info_at(r_pos)?.0);
+    }
+    /// Get block at `r_pos`, returns `None` if the block is outside the region
+    fn block_at(&self, r_pos: [i32; 3]) -> Option<&Block> {
+        return Some(self.block_info_at(r_pos)?.1);
+    }
+    /// Get block entity at `r_pos`
+    fn block_entity_at(&self, r_pos: [i32; 3]) -> Option<&BlockEntity> {
+        return self.block_info_at(r_pos)?.2;
+    }
+    /// Get pending tick at `r_pos`
+    fn pending_tick_at(&self, r_pos: [i32; 3]) -> Option<&PendingTick> {
+        return self.block_info_at(r_pos)?.3;
+    }
+    /// Get mutable block entity at `r_pos`
+    fn block_entity_at_mut(&mut self, r_pos: [i32; 3]) -> Option<&mut BlockEntity> {
+        return self.block_info_at_mut(r_pos)?.2;
+    }
+    /// Get mutable pending tick at `r_pos`
+    fn pending_tick_at_mut(&mut self, r_pos: [i32; 3]) -> Option<&mut PendingTick> {
+        return self.block_info_at_mut(r_pos)?.3;
+    }
+}
+
 /// Region is a 3d area in Minecraft, containing blocks and entities. \
 /// Litematica files can have multiple regions, but vanilla structure, world edit schematics can have only one. \
 /// Blocks in a region are stored as continuous 3d index array. A palette(Vec of blocks) records all
@@ -113,6 +168,109 @@ impl BlockEntity {
 impl PendingTickInfo {
     pub fn default() -> PendingTickInfo {
         return PendingTickInfo::Block { id: "".to_string() };
+    }
+}
+
+impl WorldSlice for Region {
+    fn offset(&self) -> [i32; 3] {
+        return self.offset;
+    }
+
+    /// Shape in x, y, z
+    fn shape(&self) -> [i32; 3] {
+        let shape = self.array_yzx.shape();
+        if shape.len() != 3 {
+            panic!("Invalid array dimensions: should be 3 but now it is {}", shape.len());
+        }
+        return Self::pos_yzx_to_xyz(&[shape[0] as i32, shape[1] as i32, shape[2] as i32]);
+    }
+    ///Returns the count of blocks in region. Air will be counted if `include_air` is true, structure
+    /// void is never counted.
+    fn total_blocks(&self, include_air: bool) -> u64 {
+        let mut counter = 0;
+
+        for blk_id in &self.array_yzx {
+            if let Some(air_idx) = self.block_index_of_air() {
+                if *blk_id == air_idx {
+                    if include_air {
+                        counter += 1;
+                    }
+                    continue;
+                }
+            }
+
+            if let Some(sv_idx) = self.block_index_of_structure_void() {
+                if *blk_id == sv_idx {
+                    counter += 1;
+                    continue;
+                }
+            }
+
+            counter += 1;
+        }
+        return counter;
+    }
+
+    /// Returns detailed block infos at `r_pos`, including block index, block, block entity and pending tick.
+    /// Returns `None` if the block is outside the region
+    fn block_info_at(&self, r_pos: [i32; 3]) -> Option<(u16, &Block, Option<&BlockEntity>, Option<&PendingTick>)> {
+        return if let Some(pid) = self.block_index_at(r_pos) {
+            Some((pid, &self.palette[pid as usize],
+                  self.block_entities.get(&r_pos),
+                  self.pending_ticks.get(&r_pos)))
+        } else {
+            None
+        };
+    }
+    /// Returns detailed block infos at `r_pos`, including block index, block, block entity(mutable) and pending tick(mutable).
+    /// Returns `None` if the block is outside the region
+    fn block_info_at_mut(&mut self, r_pos: [i32; 3]) -> Option<(u16, &Block, Option<&mut BlockEntity>, Option<&mut PendingTick>)> {
+        return if let Some(pid) = self.block_index_at(r_pos) {
+            Some((pid, &self.palette[pid as usize],
+                  self.block_entities.get_mut(&r_pos),
+                  self.pending_ticks.get_mut(&r_pos)))
+        } else {
+            None
+        };
+    }
+    /// Get block index at `r_pos`, returns `None` if the block is outside the region
+    fn block_index_at(&self, r_pos: [i32; 3]) -> Option<u16> {
+        if !self.contains_coord(r_pos) {
+            return None;
+        }
+
+        let x = r_pos[0] as usize;
+        let y = r_pos[1] as usize;
+        let z = r_pos[2] as usize;
+
+        let pid = self.array_yzx[[y, z, x]] as usize;
+        return Some(pid as u16);
+    }
+    /// Get block at `r_pos`, returns `None` if the block is outside the region
+    fn block_at(&self, r_pos: [i32; 3]) -> Option<&Block> {
+        return if let Some(pid) = self.block_index_at(r_pos) {
+            Some(&self.palette[pid as usize])
+        } else {
+            None
+        };
+    }
+    /// Get block entity at `r_pos`
+    fn block_entity_at(&self, r_pos: [i32; 3]) -> Option<&BlockEntity> {
+        return self.block_entities.get(&r_pos);
+    }
+
+    /// Get pending tick at `r_pos`
+    fn pending_tick_at(&self, r_pos: [i32; 3]) -> Option<&PendingTick> {
+        return self.pending_ticks.get(&r_pos);
+    }
+    /// Get mutable block entity at `r_pos`
+    fn block_entity_at_mut(&mut self, r_pos: [i32; 3]) -> Option<&mut BlockEntity> {
+        return self.block_entities.get_mut(&r_pos);
+    }
+
+    /// Get mutable pending tick at `r_pos`
+    fn pending_tick_at_mut(&mut self, r_pos: [i32; 3]) -> Option<&mut PendingTick> {
+        return self.pending_ticks.get_mut(&r_pos);
     }
 }
 
@@ -231,14 +389,6 @@ impl Region {
         let shape_yzx = Self::pos_xyz_to_yzx(&usz);
         self.array_yzx = Array3::zeros(shape_yzx);
     }
-    /// Shape in x, y, z
-    pub fn shape(&self) -> [i32; 3] {
-        let shape = self.array_yzx.shape();
-        if shape.len() != 3 {
-            panic!("Invalid array dimensions: should be 3 but now it is {}", shape.len());
-        }
-        return Self::pos_yzx_to_xyz(&[shape[0] as i32, shape[1] as i32, shape[2] as i32]);
-    }
 
     /// Shape in y, z, x
     pub fn shape_yzx(&self) -> [i32; 3] {
@@ -248,10 +398,7 @@ impl Region {
         }
         return [shape[0] as i32, shape[1] as i32, shape[2] as i32];
     }
-    /// Returns the volume
-    pub fn volume(&self) -> u64 {
-        return self.array_yzx.shape()[0] as u64 * self.array_yzx.shape()[1] as u64 * self.array_yzx.shape()[2] as u64;
-    }
+
     /// Returns the block index of air in this region
     pub fn block_index_of_air(&self) -> Option<u16> {
         for (idx, blk) in self.palette.iter().enumerate() {
@@ -270,74 +417,6 @@ impl Region {
             }
         }
         return None;
-    }
-    ///Returns the count of blocks in region. Air will be counted if `include_air` is true, structure
-    /// void is never counted.
-    pub fn total_blocks(&self, include_air: bool) -> u64 {
-        let mut counter = 0;
-
-        for blk_id in &self.array_yzx {
-            if let Some(air_idx) = self.block_index_of_air() {
-                if *blk_id == air_idx {
-                    if include_air {
-                        counter += 1;
-                    }
-                    continue;
-                }
-            }
-
-            if let Some(sv_idx) = self.block_index_of_structure_void() {
-                if *blk_id == sv_idx {
-                    counter += 1;
-                    continue;
-                }
-            }
-
-            counter += 1;
-        }
-        return counter;
-    }
-    /// If `r_pos` is inside the region
-    pub fn contains_coord(&self, r_pos: [i32; 3]) -> bool {
-        for dim in 0..3 {
-            if r_pos[dim] >= 0 && r_pos[dim] < self.shape()[dim] {
-                continue;
-            }
-            return false;
-        }
-        return true;
-    }
-    /// Get block at `r_pos`, returns `None` if the block is outside the region
-    pub fn block_at(&self, r_pos: [i32; 3]) -> Option<&Block> {
-        return if let Some(pid) = self.block_index_at(r_pos) {
-            Some(&self.palette[pid as usize])
-        } else {
-            None
-        };
-    }
-    /// Get block index at `r_pos`, returns `None` if the block is outside the region
-    pub fn block_index_at(&self, r_pos: [i32; 3]) -> Option<u16> {
-        if !self.contains_coord(r_pos) {
-            return None;
-        }
-
-        let x = r_pos[0] as usize;
-        let y = r_pos[1] as usize;
-        let z = r_pos[2] as usize;
-
-        let pid = self.array_yzx[[y, z, x]] as usize;
-        return Some(pid as u16);
-    }
-    /// Returns detailed block infos at `r_pos`, including block index, block, block entity and pending tick.
-    /// Returns `None` if the block is outside the region
-    pub fn block_info_at(&self, r_pos: [i32; 3]) -> Option<(u16, &Block, Option<&BlockEntity>, Option<&PendingTick>)> {
-        return if let Some(pid) = self.block_index_at(r_pos) {
-            Some((pid, &self.palette[pid as usize],
-                  self.block_entities.get(&r_pos),
-                  self.pending_ticks.get(&r_pos)))
-        } else {
-            None
-        };
     }
     /// Convert global position to relative position. `r_pos` = `g_pos` - `self.offset`
     pub fn global_pos_to_relative_pos(&self, g_pos: [i32; 3]) -> [i32; 3] {
@@ -430,26 +509,9 @@ impl Region {
         self.array_yzx.fill(blk_id);
     }
 
-    /// Get block entity at `r_pos`
-    pub fn block_entity_at(&self, r_pos: [i32; 3]) -> Option<&BlockEntity> {
-        return self.block_entities.get(&r_pos);
-    }
-    /// Get mutable block entity at `r_pos`
-    pub fn block_entity_at_mut(&mut self, r_pos: [i32; 3]) -> Option<&mut BlockEntity> {
-        return self.block_entities.get_mut(&r_pos);
-    }
     /// Set block entity at `r_pos`
     pub fn set_block_entity_at(&mut self, r_pos: [i32; 3], be: BlockEntity) -> Option<BlockEntity> {
         return self.block_entities.insert(r_pos, be);
-    }
-
-    /// Get pending tick at `r_pos`
-    pub fn pending_tick_at(&self, r_pos: [i32; 3]) -> Option<&PendingTick> {
-        return self.pending_ticks.get(&r_pos);
-    }
-    /// Get mutable pending tick at `r_pos`
-    pub fn pending_tick_at_mut(&mut self, r_pos: [i32; 3]) -> Option<&mut PendingTick> {
-        return self.pending_ticks.get_mut(&r_pos);
     }
     /// Set pending tick at `r_pos`
     pub fn set_pending_tick_at(&mut self, r_pos: [i32; 3], value: PendingTick) -> Option<PendingTick> {

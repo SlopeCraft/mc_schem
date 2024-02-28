@@ -27,7 +27,7 @@ use crate::schem::{LitematicaMetaData, Schematic, id_of_nbt_tag, MetaDataIR, Reg
 use crate::error::{Error};
 use crate::{unwrap_opt_tag, unwrap_tag};
 use crate::schem::common;
-use crate::region::{Entity, PendingTick, PendingTickInfo};
+use crate::region::{Entity, PendingTick, PendingTickInfo, WorldSlice};
 
 impl MetaDataIR {
     pub fn from_litematica(src: &LitematicaMetaData) -> Self {

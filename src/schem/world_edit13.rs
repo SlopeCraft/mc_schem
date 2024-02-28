@@ -24,7 +24,7 @@ use flate2::read::GzDecoder;
 use ndarray::Array3;
 use crate::block::Block;
 use crate::error::{Error};
-use crate::region::{BlockEntity, Region};
+use crate::region::{BlockEntity, Region, WorldSlice};
 use crate::schem::{common, MetaDataIR, Schematic, WE13MetaData, WE13MetaDataV3Extra, WorldEdit13LoadOption, WorldEdit13SaveOption};
 use crate::{unwrap_opt_tag, unwrap_tag};
 use crate::schem::id_of_nbt_tag;

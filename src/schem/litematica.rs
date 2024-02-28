@@ -62,17 +62,20 @@ impl Schematic {
         return Self::from_litematica_reader(&mut decoder, option);
     }
     /// Load litematica from a reader
-    pub fn from_litematica_reader(src: &mut dyn std::io::Read, _option: &LitematicaLoadOption) -> Result<(Schematic, LitematicaMetaData), Error> {
+    pub fn from_litematica_reader(src: &mut dyn std::io::Read, option: &LitematicaLoadOption) -> Result<(Schematic, LitematicaMetaData), Error> {
         let parse_res: Result<HashMap<String, Value>, fastnbt::error::Error> = fastnbt::from_reader(src);
         let parsed;
         match parse_res {
             Ok(nbt) => parsed = nbt,
             Err(e) => return Err(Error::NBTReadError(e)),
         }
+        return Self::from_litematica_nbt(parsed, option);
+    }
 
+    pub fn from_litematica_nbt(mut nbt: HashMap<String, Value>, _option: &LitematicaLoadOption) -> Result<(Schematic, LitematicaMetaData), Error> {
         let mut schem = Schematic::new();
         let raw_metadata;
-        match parse_metadata(&parsed) {
+        match parse_metadata(&nbt) {
             Ok(md) => {
                 schem.metadata = MetaDataIR::from_litematica(&md);
                 raw_metadata = md;
@@ -80,7 +83,7 @@ impl Schematic {
             Err(e) => return Err(e)
         }
 
-        let regions = unwrap_opt_tag!(parsed.get("Regions"),Compound,HashMap::new(),"/Regions".to_string());
+        let regions = unwrap_opt_tag!(nbt.get_mut("Regions"),Compound,HashMap::new(),"/Regions".to_string());
         schem.regions.reserve(regions.len());
         for (key, val) in regions {
             let reg = unwrap_tag!(val,Compound,HashMap::new(),format!("/Regions/{}",key));
@@ -167,7 +170,7 @@ pub fn block_required_bits(palette_size: usize) -> usize {
 
 impl Region {
     /// Load a region from nbt
-    pub fn from_nbt_litematica(nbt: &HashMap<String, Value>, tag_path: &str) -> Result<Region, Error> {
+    pub fn from_nbt_litematica(nbt: &mut HashMap<String, Value>, tag_path: &str) -> Result<Region, Error> {
         let mut region = Region::new();
 
         // parse position(offset)
@@ -245,12 +248,14 @@ impl Region {
         //parse entities
         {
             let cur_tag_path = format!("{}/Entities", tag_path);
-            let entities_list = unwrap_opt_tag!(nbt.get("Entities"),List,vec![],cur_tag_path);
-            for (idx, entity_comp) in entities_list.iter().enumerate() {
+            let mut entities_list = unwrap_opt_tag!(nbt.remove("Entities"),List,vec![],cur_tag_path);
+            for (idx, entity_comp) in entities_list.iter_mut().enumerate() {
                 let cur_tag_path = format!("{}/[{}]", cur_tag_path, idx);
                 let entity_comp =
                     unwrap_tag!(entity_comp,Compound,HashMap::new(),cur_tag_path);
-                let parse_res = parse_entity(entity_comp, &cur_tag_path);
+                let mut temp = HashMap::new();
+                std::mem::swap(&mut temp, entity_comp);
+                let parse_res = parse_entity(temp, &cur_tag_path);
                 match parse_res {
                     Ok(entity) => region.entities.push(entity),
                     Err(e) => return Err(e),
@@ -261,12 +266,13 @@ impl Region {
         //parse tile entities
         {
             let cur_tag_path = format!("{}/TileEntities", tag_path);
-            let te_list = unwrap_opt_tag!(nbt.get("TileEntities"),List,vec![],cur_tag_path);
-            for (idx, te_comp) in te_list.iter().enumerate() {
+            let te_list = unwrap_opt_tag!(nbt.get_mut("TileEntities"),List,vec![],cur_tag_path);
+            for (idx, te_comp) in te_list.iter_mut().enumerate() {
                 let cur_tag_path = format!("{}[{}]", tag_path, idx);
                 let te_comp = unwrap_tag!(te_comp,Compound,HashMap::new(),cur_tag_path);
-
-                let te_res = parse_tile_entity(te_comp, tag_path, &region_size);
+                let mut temp = HashMap::new();
+                std::mem::swap(&mut temp, te_comp);
+                let te_res = parse_tile_entity(temp, tag_path, &region_size);
 
                 let pos;
                 let te;
@@ -559,37 +565,39 @@ impl MultiBitSet {
     }
 }
 
-fn parse_entity(nbt: &HashMap<String, Value>, tag_path: &str) -> Result<Entity, Error> {
+fn parse_entity(nbt: HashMap<String, Value>, tag_path: &str) -> Result<Entity, Error> {
     let mut entity = Entity::new();
-    entity.tags = nbt.clone();
+    {
+        let tag_pos_path = format!("{}/Pos", tag_path);
+        let pos = unwrap_opt_tag!(nbt.get("Pos"),List,vec![],tag_pos_path);
+        if pos.len() != 3 {
+            return Err(Error::InvalidValue {
+                tag_path: tag_pos_path,
+                error: format!("Pos filed for an entity should contain 3 doubles, but found {}", pos.len()),
+            });
+        }
 
-    let tag_pos_path = format!("{}/Pos", tag_path);
-    let pos = unwrap_opt_tag!(nbt.get("Pos"),List,vec![],tag_pos_path);
-    if pos.len() != 3 {
-        return Err(Error::InvalidValue {
-            tag_path: tag_pos_path,
-            error: format!("Pos filed for an entity should contain 3 doubles, but found {}", pos.len()),
-        });
+
+        let mut pos_d = [0.0, 0.0, 0.0];
+        for dim in 0..3 {
+            let cur_tag_path = format!("{}/Pos[{}]", tag_path, dim);
+            pos_d[dim] = unwrap_tag!(pos[dim],Double,0.0,cur_tag_path);
+            entity.block_pos[dim] = pos_d[dim] as i32;
+        }
+
+        entity.position = pos_d;
     }
 
-    let mut pos_d = [0.0, 0.0, 0.0];
-    for dim in 0..3 {
-        let cur_tag_path = format!("{}/Pos[{}]", tag_path, dim);
-        pos_d[dim] = unwrap_tag!(pos[dim],Double,0.0,cur_tag_path);
-        entity.block_pos[dim] = pos_d[dim] as i32;
-    }
-
-    entity.position = pos_d;
-
+    entity.tags = nbt;
     return Ok(entity);
 }
 
-fn parse_tile_entity(nbt: &HashMap<String, Value>, tag_path: &str, region_size: &[i32; 3])
+fn parse_tile_entity(mut nbt: HashMap<String, Value>, tag_path: &str, region_size: &[i32; 3])
     -> Result<([i32; 3], BlockEntity), Error> {
     let mut be = BlockEntity::new();
 
     let pos: [i32; 3];
-    let pos_res = common::parse_size_compound(nbt, tag_path, false);
+    let pos_res = common::parse_size_compound(&nbt, tag_path, false);
     match pos_res {
         Ok(pos_) => pos = pos_,
         Err(e) => return Err(e),
@@ -606,12 +614,10 @@ fn parse_tile_entity(nbt: &HashMap<String, Value>, tag_path: &str, region_size: 
         }
     }
 
-    for (key, val) in nbt {
-        if key == "x" || key == "y" || key == "z" {
-            continue;
-        }
-        be.tags.insert(key.clone(), val.clone());
-    }
+    nbt.remove("x");
+    nbt.remove("y");
+    nbt.remove("z");
+    be.tags = nbt;
 
     return Ok((pos, be));
 }

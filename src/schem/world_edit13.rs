@@ -45,27 +45,27 @@ impl Schematic {
                 Ok(nbt_) => nbt_,
                 Err(e) => return Err(Error::NBTReadError(e)),
             };
-        return Self::from_world_edit_13_nbt(&nbt, option);
+        return Self::from_world_edit_13_nbt(nbt, option);
     }
 
-    fn parse_v2(root: &HashMap<String, Value>, option: &WorldEdit13LoadOption) -> Result<(Schematic, WE13MetaData), Error> {
+    fn parse_v2(root: HashMap<String, Value>, option: &WorldEdit13LoadOption) -> Result<(Schematic, WE13MetaData), Error> {
         let mut schem = Schematic::new();
         // metadata
         let we13 = parse_metadata(&root, "", option)?;
         schem.metadata = MetaDataIR::from_world_edit13(&we13);
-        match Region::from_world_edit_13_v2(&root, option) {
+        match Region::from_world_edit_13_v2(root, option) {
             Ok(reg) => schem.regions.push(reg),
             Err(e) => return Err(e),
         }
         return Ok((schem, we13));
     }
 
-    fn parse_v3(root: &HashMap<String, Value>, option: &WorldEdit13LoadOption) -> Result<(Schematic, WE13MetaData), Error> {
-        let tag_schem = unwrap_opt_tag!(root.get("Schematic"),Compound,HashMap::new(),"/Schematic");
+    fn parse_v3(mut root: HashMap<String, Value>, option: &WorldEdit13LoadOption) -> Result<(Schematic, WE13MetaData), Error> {
+        let tag_schem = unwrap_opt_tag!(root.remove("Schematic"),Compound,HashMap::new(),"/Schematic");
         let mut schem = Schematic::new();
         // metadata
 
-        let we13 = parse_metadata(tag_schem, "/Schematic", option)?;
+        let we13 = parse_metadata(&tag_schem, "/Schematic", option)?;
         schem.metadata = MetaDataIR::from_world_edit13(&we13);
 
         let region = Region::from_world_edit_13_v3(tag_schem, option)?;
@@ -74,7 +74,7 @@ impl Schematic {
         return Ok((schem, we13));
     }
     /// Load `.schem` from nbt
-    pub fn from_world_edit_13_nbt(root: &HashMap<String, Value>, option: &WorldEdit13LoadOption) -> Result<(Schematic, WE13MetaData), Error> {
+    pub fn from_world_edit_13_nbt(root: HashMap<String, Value>, option: &WorldEdit13LoadOption) -> Result<(Schematic, WE13MetaData), Error> {
         return if root.contains_key("Schematic") {//v3
             Self::parse_v3(root, option)
         } else {
@@ -88,7 +88,7 @@ impl Schematic {
             Ok(nbt_) => nbt_,
             Err(e) => return Err(Error::NBTReadError(e)),
         };
-        return Self::from_world_edit_13_nbt(&root, option);
+        return Self::from_world_edit_13_nbt(root, option);
     }
 }
 
@@ -292,13 +292,15 @@ impl Region {
         return Ok(array);
     }
 
-    fn parse_block_entities_v2(block_entities: &[Value], tag_path: &str, _option: &WorldEdit13LoadOption, size: [i32; 3])
+    fn parse_block_entities_v2(block_entities: &mut [Value], tag_path: &str, _option: &WorldEdit13LoadOption, size: [i32; 3])
         -> Result<HashMap<[i32; 3], BlockEntity>, Error> {
         let mut result = HashMap::with_capacity(block_entities.len());
-        for (idx, nbt) in block_entities.iter().enumerate() {
+        for (idx, nbt) in block_entities.iter_mut().enumerate() {
             let cur_tag_path = format!("{tag_path}[{}]", idx);
             let nbt = unwrap_tag!(nbt,Compound,HashMap::new(),cur_tag_path);
-            let (be, pos) = parse_block_entity(nbt, &cur_tag_path, &size)?;
+            let mut nbt_temp = HashMap::new();
+            std::mem::swap(&mut nbt_temp, nbt);
+            let (be, pos) = parse_block_entity(nbt_temp, &cur_tag_path, &size)?;
 
             if result.contains_key(&pos) {
                 return Err(Error::MultipleBlockEntityInOnePos {
@@ -312,16 +314,16 @@ impl Region {
     }
 
     /// Load region from nbt, for `.schem` v2
-    pub fn from_world_edit_13_v2(root: &HashMap<String, Value>, option: &WorldEdit13LoadOption) -> Result<Region, Error> {
+    pub fn from_world_edit_13_v2(mut root: HashMap<String, Value>, option: &WorldEdit13LoadOption) -> Result<Region, Error> {
         let mut region = Region::new();
         let tag_path = "";
         // palette
-        region.palette = Self::parse_palette_v2(root, tag_path, option)?;
+        region.palette = Self::parse_palette_v2(&root, tag_path, option)?;
 
         // offset
         region.offset = [0, 0, 0];
 
-        let size: [i32; 3] = Self::parse_size_v2(root, tag_path, option)?;
+        let size: [i32; 3] = Self::parse_size_v2(&root, tag_path, option)?;
 
         // parse 3d array
         {
@@ -334,21 +336,21 @@ impl Region {
         // parse block entities
         {
             let be_tag_path = format!("{tag_path}/BlockEntities");
-            let block_entities = unwrap_opt_tag!(root.get("BlockEntities"),List,vec![],be_tag_path);
-            region.block_entities = Self::parse_block_entities_v2(&block_entities, &be_tag_path, option, size)?;
+            let block_entities = unwrap_opt_tag!(root.get_mut("BlockEntities"),List,vec![],be_tag_path);
+            region.block_entities = Self::parse_block_entities_v2(block_entities, &be_tag_path, option, size)?;
         }
         return Ok(region);
     }
 
     /// Load region from nbt, for `.schem` v3
-    pub fn from_world_edit_13_v3(tag_schem: &HashMap<String, Value>, option: &WorldEdit13LoadOption) -> Result<Region, Error> {
+    pub fn from_world_edit_13_v3(mut tag_schem: HashMap<String, Value>, option: &WorldEdit13LoadOption) -> Result<Region, Error> {
         let tag_schem_path = "/Schematic";
         let mut region = Region::new();
         //size
-        let size = Self::parse_size_v2(tag_schem, tag_schem_path, option)?;
+        let size = Self::parse_size_v2(&tag_schem, tag_schem_path, option)?;
 
         let tag_blocks_path = "/Schematic/Blocks";
-        let tag_blocks = unwrap_opt_tag!(tag_schem.get("Blocks"),Compound,HashMap::new(),tag_blocks_path);
+        let tag_blocks = unwrap_opt_tag!(tag_schem.get_mut("Blocks"),Compound,HashMap::new(),tag_blocks_path);
         //palette
         {
             let tag_palette_path = "/Schematic/Blocks/Palette";
@@ -364,8 +366,8 @@ impl Region {
         //block entities
         {
             let tag_be_path = "/Schematic/Blocks/BlockEntities";
-            let tag_be = unwrap_opt_tag!(tag_blocks.get("BlockEntities"),List,vec![],tag_be_path);
-            region.block_entities = Self::parse_block_entities_v2(&tag_be, tag_be_path, option, size)?;
+            let tag_be = unwrap_opt_tag!(tag_blocks.get_mut("BlockEntities"),List,vec![],tag_be_path);
+            region.block_entities = Self::parse_block_entities_v2(tag_be, tag_be_path, option, size)?;
         }
 
 
@@ -414,7 +416,7 @@ fn parse_palette(pal: &HashMap<String, Value>, tag_path: &str) -> Result<Vec<Blo
     return Ok(result);
 }
 
-fn parse_block_entity(nbt: &HashMap<String, Value>, tag_path: &str, region_size: &[i32; 3])
+fn parse_block_entity(mut nbt: HashMap<String, Value>, tag_path: &str, region_size: &[i32; 3])
     -> Result<(BlockEntity, [i32; 3]), Error> {
     let pos;
     let pos_tag_path = format!("{}/Pos", tag_path);
@@ -437,13 +439,8 @@ fn parse_block_entity(nbt: &HashMap<String, Value>, tag_path: &str, region_size:
     }
 
     let mut be = BlockEntity::new();
-    be.tags.reserve(nbt.len() - 1);
-    for (key, val) in nbt {
-        if key == "Pos" {
-            continue;
-        }
-        be.tags.insert(key.clone(), val.clone());
-    }
+    nbt.remove("Pos");
+    be.tags = nbt;
 
     return Ok((be, pos));
 }

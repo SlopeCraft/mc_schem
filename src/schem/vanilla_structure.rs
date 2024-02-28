@@ -122,7 +122,7 @@ fn parse_array_item(item: &Value, tag_path: &str, palette_size: i32, region_size
     return Ok((state, pos, Some(block_entity)));
 }
 
-fn parse_entity(tag: &Value, tag_path: &str) -> Result<Entity, Error> {
+fn parse_entity(tag: &mut Value, tag_path: &str) -> Result<Entity, Error> {
     let compound = unwrap_tag!(tag,Compound,HashMap::new(),tag_path);
 
     let mut entity = Entity::new();
@@ -162,9 +162,9 @@ fn parse_entity(tag: &Value, tag_path: &str) -> Result<Entity, Error> {
 
     // parse nbt
     {
-        let nbt = unwrap_opt_tag!(compound.get("nbt"),
+        let nbt = unwrap_opt_tag!(compound.remove("nbt"),
             Compound,HashMap::new(),&*format!("{}/nbt",tag_path));
-        entity.tags = nbt.clone();
+        entity.tags = nbt;
     }
     return Ok(entity);
 }
@@ -192,7 +192,11 @@ impl Schematic {
             Ok(loaded_nbt) => nbt = loaded_nbt,
             Err(err) => return Err(Error::NBTReadError(err)),
         }
+        return Self::from_vanilla_structure_nbt(nbt, option);
+    }
 
+    /// Load vanilla structure from nbt.
+    pub fn from_vanilla_structure_nbt(mut nbt: HashMap<String, Value>, option: &VanillaStructureLoadOption) -> Result<(Schematic, VanillaStructureMetaData), Error> {
         let mut schem = Schematic::new();
 
         let mut md = VanillaStructureMetaData::default();
@@ -285,8 +289,8 @@ impl Schematic {
         // fill in entities
         {
             // unwrap the list
-            let entity_list = unwrap_opt_tag!(nbt.get("entities"),List,vec![],"/entities");
-            for (idx, entity_tag) in entity_list.iter().enumerate() {
+            let mut entity_list = unwrap_opt_tag!(nbt.remove("entities"),List,vec![],"/entities");
+            for (idx, entity_tag) in entity_list.iter_mut().enumerate() {
                 let tag_path = format!("/entities[{}]", idx);
                 let parsed_entity = parse_entity(entity_tag, &tag_path);
                 match parsed_entity {

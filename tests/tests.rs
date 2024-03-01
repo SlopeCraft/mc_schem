@@ -19,9 +19,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 use std::collections::HashMap;
 use std::env;
 use std::fs::{create_dir_all, File};
+use std::io::Read;
+use std::ptr::slice_from_raw_parts;
 use fastnbt::Value;
 use flate2::{Compression, GzBuilder};
-use flate2::read::GzDecoder;
+use flate2::read::{GzDecoder, ZlibDecoder};
 use ndarray::Array3;
 use rand::Rng;
 use mc_schem::block::CommonBlock;
@@ -706,3 +708,60 @@ fn test_3d_array_order() {
         print!("{}, ", i);
     }
 }
+
+// #[test]
+// fn check_mca() {
+//     let filename = "F:\\Users\\Joseph\\Documents\\Games\\Minecraft\\PCL2\\.minecraft\\versions\\1.20.2-Fabric 0.15.6\\saves\\New World\\region\\r.0.0.mca";
+//
+//     let file_len = std::fs::metadata(filename).unwrap().len();
+//     let mut src = File::open(filename).unwrap();
+//
+//     let mut segments: Vec<[u8; 4096]> = vec![];
+//     segments.reserve((file_len / 4096) as usize);
+//
+//     loop {
+//         let mut seg = [0u8; 4096];
+//         let len = src.read(&mut seg).unwrap();
+//         if len == 0 {
+//             break;
+//         }
+//         if len != 4096 {
+//             panic!("Incomplete segment, expected 4096 bytes, but only {len} bytes");
+//         }
+//         segments.push(seg);
+//     }
+//
+//     fn parse_segment(segments: &[[u8; 4096]]) -> Result<HashMap<String, Value>, fastnbt::error::Error> {
+//         let mut bytes: &[u8];
+//         unsafe {
+//             bytes = &*slice_from_raw_parts(segments.as_ptr() as *const u8, segments.len() * 4096);
+//         }
+//
+//         let data_bytes;
+//         {
+//             let mut len_be: [u8; 4] = [0; 4];
+//             let temp = bytes.read(&mut len_be).unwrap();
+//             debug_assert!(temp == 4);
+//             data_bytes = u32::from_be_bytes(len_be);
+//         }
+//         let compress_byte: u8;
+//         {
+//             let mut b: [u8; 1] = [0];
+//             let temp = bytes.read(&mut b).unwrap();
+//             debug_assert!(temp == 1);
+//             compress_byte = b[0];
+//             assert!(compress_byte >= 1);
+//             assert!(compress_byte <= 3);
+//         }
+//         {
+//             assert_eq!(compress_byte, 2);//zlib
+//             let decoder = ZlibDecoder::new(bytes);
+//             fastnbt::from_reader(decoder)
+//         }
+//     }
+//
+//     let nbt = parse_segment(&segments[2..3]).unwrap();
+//     for (key, _) in &nbt {
+//         println!("\t{key}");
+//     }
+// }

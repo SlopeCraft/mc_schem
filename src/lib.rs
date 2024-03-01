@@ -52,6 +52,8 @@ pub mod region;
 /// Implement metadata, schematics and loading/saving
 pub mod schem;
 
+pub mod world;
+
 mod c_ffi;
 
 /// `Block` is a type of block with namespace and properties(aka attributes) in MC.

@@ -95,6 +95,25 @@ pub enum Error {
         version: i32,
         supported_versions: Vec<i32>,
     },
+    IncompleteSegmentInMCA {
+        bytes: usize,
+    },
+    InvalidSegmentRangeInMCA {
+        chunk_local_x: i32,
+        chunk_local_z: i32,
+        offset_by_segment: u32,
+        num_segments: u32,
+        total_segments: usize,
+    },
+    InvalidMCACompressType {
+        compress_label: u8,
+    },
+    IOReadError(std::io::Error),
+    SevenZipDecompressError(sevenz_rust::Error),
+    NoSuchFile {
+        filename: String,
+        expected_to_exist_in: String,
+    }
 }
 
 impl Display for Error {
@@ -146,7 +165,20 @@ impl Display for Error {
             => write!(f, "Data version {data_version_i32} is not supported."),
             Error::UnsupportedWorldEdit13Version { version, supported_versions }
             => write!(f, "World edit format version(not minecraft version) {version} is not supported, supported versions: {supported_versions:?}"),
-
+            Error::IncompleteSegmentInMCA { bytes }
+            => write!(f, "Incomplete chunks in MCA file, the file has {bytes} bytes, but it should be multiples of 4096."),
+            Error::InvalidSegmentRangeInMCA { chunk_local_x, chunk_local_z, offset_by_segment, num_segments, total_segments }
+            => write!(f, "Chunk ({chunk_local_x}, {chunk_local_z}) is stored in [{offset_by_segment}\
+            , {}) segments, the file has {total_segments} segments, the range is invalid",
+                      offset_by_segment + num_segments),
+            Error::InvalidMCACompressType { compress_label }
+            => write!(f, "Invalid compress type {compress_label}, valid values: [1, 2, 3, 128, 129, 130]"),
+            Error::IOReadError(e)
+            => write!(f, "IOReadError, detail: {e}"),
+            Error::SevenZipDecompressError(e7z)
+            => write!(f, "7z decompress failed, detail: {e7z}"),
+            Error::NoSuchFile { filename, expected_to_exist_in }
+            => write!(f, "File \"{filename}\" doesn't exist in \"{expected_to_exist_in}\"")
         }
     }
 }

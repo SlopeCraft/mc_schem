@@ -46,5 +46,21 @@ fn test_load_dimension() {
     println!("Decompression takes {} ms, parsing takes {} ms",
              decompressed.duration_since(begin).unwrap().as_millis(),
              parsed.duration_since(decompressed).unwrap().as_millis());
-    //stdin().read_line(&mut String::new()).unwrap();
+}
+
+#[test]
+fn test_large_overworld() {
+    let begin = time::SystemTime::now();
+    let files = FilesInMemory::from_7z_file("test_files/world/01_large-world-1.20.2.7z", "").unwrap();
+    let decompressed = time::SystemTime::now();
+
+    let mut dim = Dimension::from_files(&files.sub_directory("region"), false).unwrap();
+    dim.parse_all().unwrap();
+
+    let parsed = time::SystemTime::now();
+
+    println!("{} chunks parsed in {} ms.", dim.chunks.len(), parsed.duration_since(begin).unwrap().as_millis());
+    println!("Decompression takes {} ms, parsing takes {} ms",
+             decompressed.duration_since(begin).unwrap().as_millis(),
+             parsed.duration_since(decompressed).unwrap().as_millis());
 }

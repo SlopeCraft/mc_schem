@@ -18,6 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::collections::HashMap;
 use ndarray::Array3;
+use crate::biome::Biome;
 use crate::block::Block;
 use crate::error::Error;
 
@@ -141,6 +142,9 @@ pub struct Region {
 
     /// Skylight
     pub sky_block_light: Array3<Light>,
+
+    /// Biomes
+    pub biome: Array3<Biome>
 
     //pub array_number_id_damage: Option<Array3<(u8, u8)>>
 }
@@ -300,7 +304,7 @@ impl Region {
     }
 
     pub fn with_shape(shape: [i32; 3]) -> Region {
-        let shape = [shape[0] as usize, shape[1] as usize, shape[2] as usize];
+        let shape = [shape[1] as usize, shape[2] as usize, shape[0] as usize];
         let mut result = Region {
             name: String::from("NewRegion"),
             array_yzx: Array3::zeros(shape),
@@ -309,7 +313,8 @@ impl Region {
             pending_ticks: HashMap::new(),
             entities: Vec::new(),
             offset: [0, 0, 0],
-            sky_block_light: Array3::default(shape)
+            sky_block_light: Array3::default(shape),
+            biome: Array3::default(shape),
         };
         result.find_or_append_to_palette(&Block::air());
         result.sky_block_light.fill(Light::new(15, 15));
@@ -404,6 +409,7 @@ impl Region {
         self.array_yzx = Array3::zeros(shape_yzx);
         self.sky_block_light = Array3::default(shape_yzx);
         self.sky_block_light.fill(Light::default());
+        self.biome = Array3::default(shape_yzx);
     }
 
     /// Shape in y, z, x

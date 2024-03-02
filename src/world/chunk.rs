@@ -7,14 +7,74 @@ use crate::error::Error;
 use crate::region::{Light, Region};
 use crate::schem::common::ceil_up_to;
 use crate::{unwrap_opt_tag, unwrap_tag};
+use crate::biome::Biome;
 use crate::schem::common;
 use crate::schem::id_of_nbt_tag;
 use crate::world::{Chunk, ChunkStatus};
+
+
+impl Display for ChunkStatus {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        return write!(f, "minecraft:{}", self.name_without_namespace());
+    }
+}
+
+impl ChunkStatus {
+    pub fn name_without_namespace(&self) -> &'static str {
+        return match self {
+            ChunkStatus::Empty => "empty",
+            ChunkStatus::StructureStarts => "structure_starts",
+            ChunkStatus::StructureReferences => "structure_references",
+            ChunkStatus::Biomes => "biomes",
+            ChunkStatus::Noise => "noise",
+            ChunkStatus::Surface => "surface",
+            ChunkStatus::Carvers => "carvers",
+            ChunkStatus::Features => "features",
+            ChunkStatus::InitializeLight => "initialize_light",
+            ChunkStatus::Light => "light",
+            ChunkStatus::Spawn => "spawn",
+            ChunkStatus::Full => "full",
+        };
+    }
+
+    fn all() -> &'static [ChunkStatus] {
+        return &[
+            ChunkStatus::Empty,
+            ChunkStatus::StructureStarts,
+            ChunkStatus::StructureReferences,
+            ChunkStatus::Biomes,
+            ChunkStatus::Noise,
+            ChunkStatus::Surface,
+            ChunkStatus::Carvers,
+            ChunkStatus::Features,
+            ChunkStatus::InitializeLight,
+            ChunkStatus::Light,
+            ChunkStatus::Spawn,
+            ChunkStatus::Full, ];
+    }
+
+    pub fn from_str(str: &str) -> Option<ChunkStatus> {
+        if str.starts_with("minecraft:") {
+            return Self::from_str(&str[10..str.len()]);
+        }
+
+        for cs in Self::all() {
+            if str == cs.name_without_namespace() {
+                return Some(*cs);
+            }
+        }
+        return None;
+    }
+}
 
 impl Chunk {
     pub fn new() -> Chunk {
         return Chunk {
             time_stamp: time::SystemTime::now().duration_since(time::UNIX_EPOCH).unwrap().as_secs() as u32,
+            status: ChunkStatus::Empty,
+            last_update: 0,
+            inhabited_time: 0,
+            is_light_on: true,
             sub_chunks: [Region::new(), Region::new(), Region::new(), Region::new(), Region::new(),
                 Region::new(), Region::new(), Region::new(), Region::new(), Region::new(),
                 Region::new(), Region::new(), Region::new(), Region::new(), Region::new(),
@@ -22,19 +82,36 @@ impl Chunk {
                 Region::new(), Region::new(), Region::new(), Region::new(), Region::new(), ],
         };
     }
-    pub fn from_nbt(mut nbt: HashMap<String, Value>, path_in_saves: String) -> Result<Chunk, Error> {
+    pub fn from_nbt(nbt: HashMap<String, Value>, path_in_saves: String) -> Result<Chunk, Error> {
         let mut result = Chunk::new();
+        // chunk status
+        {
+            let status: ChunkStatus;
+            let str = unwrap_opt_tag!(nbt.get("Status"),String,"".to_string(),format!("{path_in_saves}/Status"));
+            match ChunkStatus::from_str(str) {
+                Some(s) => status = s,
+                None => {
+                    return Err(Error::InvalidChunkStatus {
+                        tag_path: format!("{path_in_saves}/Status"),
+                        chunk_status: str.to_string(),
+                    });
+                }
+            };
+            result.status = status;
+        }
+        result.last_update = *unwrap_opt_tag!(nbt.get("LastUpdate"),Long,0,format!("{path_in_saves}/LastUpdate"));
+        result.inhabited_time = *unwrap_opt_tag!(nbt.get("InhabitedTime"),Long,0,format!("{path_in_saves}/InhabitedTime"));
+        if let Some(tag) = nbt.get("isLightOn") {
+            result.is_light_on = *unwrap_tag!(tag,Byte,1,format!("{path_in_saves}/isLightOn")) != 0;
+        }
 
-
-        !todo!()
+        return Ok(result);
     }
 }
 
-fn parse_section(sect: &HashMap<String, Value>, path: &str) -> Result<Region, Error> {
-    let mut reg = Region::with_shape([16, 16, 16]);
+fn parse_3d(reg: &mut Region, sect: &HashMap<String, Value>, path: &str) -> Result<(), Error> {
     let block_states = unwrap_opt_tag!(sect.get("block_states"),Compound,HashMap::new(),format!("{path}/block_states"));
 
-    // palette
     {
         let palette = unwrap_opt_tag!(block_states.get("palette"),List,vec![],format!("{path}/block_states/palette"));
         let mut pal = Vec::with_capacity(palette.len());
@@ -59,8 +136,8 @@ fn parse_section(sect: &HashMap<String, Value>, path: &str) -> Result<Region, Er
         let path = format!("{path}/block_states/data");
         let array_i64 = unwrap_opt_tag!(block_states.get("data"),LongArray,fastnbt::LongArray::new(vec![]),path);
 
-        let block_id_max = reg.palette.len();
-        let bits_per_block = ceil((block_id_max as f64).log2(), 0) as u8;
+        let block_id_max = reg.palette.len() - 1;
+        let bits_per_block = (ceil((block_id_max as f64).log2(), 0) as u8).max(4);
         let mut mbs = MultiBitSet::new(4096, bits_per_block);
 
         if array_i64.len() != mbs.num_u64() {
@@ -90,6 +167,78 @@ fn parse_section(sect: &HashMap<String, Value>, path: &str) -> Result<Region, Er
             }
         }
     }
+    return Ok(());
+}
+
+fn parse_biomes(reg: &mut Region, sect: &HashMap<String, Value>, path: &str) -> Result<(), Error> {
+    let biomes = unwrap_opt_tag!(sect.get("biomes"),Compound,HashMap::new(),format!("{path}/biomes"));
+    // parse biome palette
+    let mut biome_pal = Vec::new();
+    {
+        let tag_pal = unwrap_opt_tag!(biomes.get("palette"),List,vec![],format!("{path}/biomes/palette"));
+        biome_pal.reserve(tag_pal.len());
+        for (idx, biome_str) in tag_pal.iter().enumerate() {
+            let tag_path = format!("{path}/biomes/palette[{idx}]");
+            let biome_str = unwrap_tag!(biome_str,String,"".to_string(),tag_path);
+            if let Some(b) = Biome::from_str(biome_str) {
+                biome_pal.push(b);
+            } else {
+                return Err(Error::InvalidBiome { tag_path, biome: biome_str.to_string() });
+            }
+        }
+    }
+
+    if biome_pal.is_empty() {
+        return Err(Error::PaletteIsEmpty { tag_path: format!("{path}/biomes/palette") });
+    }
+    if biome_pal.len() == 1 {
+        reg.biome.fill(biome_pal[0]);
+        return Ok(());
+    }
+    //parse 3d
+    {
+        let path = format!("{path}/biomes/data");
+        let array_i64 = unwrap_opt_tag!(biomes.get("data"),LongArray,fastnbt::LongArray::new(vec![]),path);
+
+        let block_id_max = biome_pal.len() - 1;
+        let bits_per_block = (ceil((block_id_max as f64).log2(), 0) as u8).max(4);
+        let mut mbs = MultiBitSet::new(4096, bits_per_block);
+
+        if array_i64.len() != mbs.num_u64() {
+            return Err(Error::InvalidValue {
+                tag_path: path,
+                error: format!("This subchunk has 4096 blocks of {} types, required {} i64 element to store them, but found {}",
+                               reg.palette.len(), mbs.num_u64(), array_i64.len()),
+            });
+        }
+        mbs.set_array_from_nbt(&array_i64);
+
+        let mut counter = 0;
+        for y in 0..16 {
+            for z in 0..16 {
+                for x in 0..16 {
+                    let biome_idx = mbs.get(counter) as usize;
+                    if biome_idx > block_id_max {
+                        return Err(Error::BlockIndexOutOfRange {
+                            tag_path: path,
+                            index: biome_idx as i32,
+                            range: [0, block_id_max as i32],
+                        });
+                    }
+                    reg.biome[[x, y, z]] = biome_pal[biome_idx];
+                    counter += 1;
+                }
+            }
+        }
+    }
+    return Ok(());
+}
+
+fn parse_section(sect: &HashMap<String, Value>, path: &str) -> Result<Region, Error> {
+    let mut reg = Region::with_shape([16, 16, 16]);
+    // palette
+    parse_3d(&mut reg, sect, path)?;
+
     // skylight and block light
     {
         let sky_light = if let Some(s) = sect.get("SkyLight") {
@@ -141,67 +290,11 @@ fn parse_section(sect: &HashMap<String, Value>, path: &str) -> Result<Region, Er
     }
 
     //biomes
-    !todo!();
+    parse_biomes(&mut reg, sect, path)?;
 
     return Ok(reg);
 }
 
-impl Display for ChunkStatus {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        return write!(f, "minecraft:{}", self.name_without_namespace());
-    }
-}
-
-impl ChunkStatus {
-    pub fn name_without_namespace(&self) -> &'static str {
-        return match self {
-            ChunkStatus::Empty => "empty",
-            ChunkStatus::StructureStarts => "structure_starts",
-            ChunkStatus::StructureReferences => "structure_references",
-            ChunkStatus::Biomes => "biomes",
-            ChunkStatus::Noise => "noise",
-            ChunkStatus::Surface => "surface",
-            ChunkStatus::Carvers => "carvers",
-            ChunkStatus::Features => "features",
-            ChunkStatus::InitializeLight => "initialize_light",
-            ChunkStatus::Light => "light",
-            ChunkStatus::Spawn => "spawn",
-            ChunkStatus::Full => "full",
-        };
-    }
-
-    fn all() -> &'static [ChunkStatus] {
-        return &[
-            ChunkStatus::Empty,
-            ChunkStatus::StructureStarts,
-            ChunkStatus::StructureReferences,
-            ChunkStatus::Biomes,
-            ChunkStatus::Noise,
-            ChunkStatus::Surface,
-            ChunkStatus::Carvers,
-            ChunkStatus::Features,
-            ChunkStatus::InitializeLight,
-            ChunkStatus::Light,
-            ChunkStatus::Spawn,
-            ChunkStatus::Full, ];
-    }
-
-    pub fn from_str(str: &str) -> Option<ChunkStatus> {
-        let without_namespace: &str;
-        if str.starts_with("minecraft:") {
-            without_namespace = &str[10..str.len()];
-        } else {
-            without_namespace = str;
-        }
-
-        for cs in Self::all() {
-            if str == cs.name_without_namespace() {
-                return Some(*cs);
-            }
-        }
-        return None;
-    }
-}
 
 struct MultiBitSet {
     array: Vec<u64>,
@@ -245,7 +338,7 @@ impl MultiBitSet {
 
     pub fn mask(element_bits: u8, bit_index_beg: u8) -> u64 {
         assert!(element_bits < 64);
-        let mut mask = (1u64 << element_bits) - 1;
+        let mask = (1u64 << element_bits) - 1;
         return mask << bit_index_beg;
     }
 
@@ -296,3 +389,4 @@ fn test_multi_bit_set() {
         assert_eq!(vec.get(i), expected);
     }
 }
+

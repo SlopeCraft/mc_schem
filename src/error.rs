@@ -116,7 +116,15 @@ pub enum Error {
     NoSuchFile {
         filename: String,
         expected_to_exist_in: String,
-    }
+    },
+    InvalidBiome {
+        tag_path: String,
+        biome: String,
+    },
+    InvalidChunkStatus {
+        tag_path: String,
+        chunk_status: String,
+    },
 }
 
 impl Display for Error {
@@ -183,7 +191,11 @@ impl Display for Error {
             Error::SevenZipDecompressError(e7z)
             => write!(f, "7z decompress failed, detail: {e7z}"),
             Error::NoSuchFile { filename, expected_to_exist_in }
-            => write!(f, "File \"{filename}\" doesn't exist in \"{expected_to_exist_in}\"")
+            => write!(f, "File \"{filename}\" doesn't exist in \"{expected_to_exist_in}\""),
+            Error::InvalidBiome { tag_path, biome }
+            => write!(f, "Invalid biome \"{biome}\" at {tag_path}"),
+            Error::InvalidChunkStatus { tag_path, chunk_status }
+            => write!(f, "Invalid chunk status \"{chunk_status}\" at {tag_path}"),
         }
     }
 }

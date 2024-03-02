@@ -1,12 +1,9 @@
 use std::collections::HashMap;
-use std::fmt::{Display, format, Formatter};
-use std::io::Read;
+use std::fmt::{Display, Formatter};
 use fastnbt::Value;
 use flate2::read::{GzDecoder, ZlibDecoder};
-use math::round::{floor};
 use regex::Regex;
 use crate::error::Error;
-use crate::schem::common::ceil_up_to;
 use crate::world::{FilesInMemory, ChunkPos, ChunkVariant, FilesRead, XZCoordinate, Chunk, UnparsedChunkData};
 
 
@@ -18,7 +15,7 @@ impl Display for XZCoordinate {
     }
 }
 
-struct ChunkRawData<'a> {
+struct ChunkRawDataRef<'a> {
     data: &'a [u8],
     unix_timestamp: u32,
 }
@@ -27,7 +24,7 @@ pub fn offset_in_mca_file(local_coord: &XZCoordinate<u32>) -> u32 {
     return 4 * ((local_coord.x & 31) + (local_coord.z & 31) * 32);
 }
 
-fn parse_mca_single_chunk<'a>(coord: &XZCoordinate<u32>, file_bytes: &'a [u8]) -> Result<Option<ChunkRawData<'a>>, Error> {
+fn parse_mca_single_chunk<'a>(coord: &XZCoordinate<u32>, file_bytes: &'a [u8]) -> Result<Option<ChunkRawDataRef<'a>>, Error> {
     let header: [u8; 4];
     {
         let offset_by_byte = offset_in_mca_file(coord) as usize;
@@ -68,13 +65,13 @@ fn parse_mca_single_chunk<'a>(coord: &XZCoordinate<u32>, file_bytes: &'a [u8]) -
     let data_beg_idx = offset_by_segment as usize * SEGMENT_BYTES;
     let data_end_idx = (offset_by_segment + num_segments) as usize * SEGMENT_BYTES;
 
-    return Ok(Some(ChunkRawData {
+    return Ok(Some(ChunkRawDataRef {
         data: &file_bytes[data_beg_idx..data_end_idx],
         unix_timestamp: timestamp,
     }));
 }
 
-fn parse_mca_from_bytes(bytes: &[u8]) -> Result<HashMap<XZCoordinate<u32>, ChunkRawData>, Error> {
+fn parse_mca_from_bytes(bytes: &[u8]) -> Result<HashMap<XZCoordinate<u32>, ChunkRawDataRef>, Error> {
     if bytes.is_empty() {
         return Ok(HashMap::new());
     }
@@ -98,7 +95,7 @@ fn parse_mca_from_bytes(bytes: &[u8]) -> Result<HashMap<XZCoordinate<u32>, Chunk
 }
 
 
-impl ChunkRawData<'_> {
+impl ChunkRawDataRef<'_> {
     pub fn to_nbt(&self) -> Result<HashMap<String, Value>, Error> {
         let data_bytes: usize;
         {
@@ -186,6 +183,23 @@ fn parse_multiple_regions(region_dir: &dyn FilesRead, parse_directly: bool) -> R
     return Ok(result);
 }
 
+
+impl ChunkVariant {
+    pub fn parse(&mut self, filename: &str, chunk_pos: &ChunkPos) -> Result<(), Error> {
+        if let ChunkVariant::Unparsed(raw) = self {
+            let raw = ChunkRawDataRef { data: &raw.region_data, unix_timestamp: raw.time_stamp };
+            let nbt = raw.to_nbt()?;
+
+            let local_coord = chunk_pos.local_coordinate();
+            let path = format!("{}/Chunk[{},{}]", filename, local_coord.x, local_coord.z);
+
+            let chunk = Chunk::from_nbt(nbt, path)?;
+            *self = ChunkVariant::Parsed(chunk);
+        }
+
+        return Ok(());
+    }
+}
 
 impl ChunkPos {
     pub fn from_global_pos(global_chunk_pos: &XZCoordinate) -> Self {
@@ -290,4 +304,14 @@ fn load_mca() {
     for (_coord, raw) in &mut chunks {
         raw.to_nbt().unwrap();
     }
+}
+
+
+#[test]
+fn test_load_chunks() {
+    let files = FilesInMemory::from_7z_file("test_files/world/00_1.20.2.7z", "").unwrap();
+
+    let chunks = parse_multiple_regions(&files.sub_directory("region"), true).unwrap();
+
+    println!("{} chunks parsed.", chunks.len());
 }

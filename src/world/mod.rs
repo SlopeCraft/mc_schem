@@ -17,9 +17,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 use std::collections::HashMap;
-use std::fmt::Display;
 use std::io::{Read};
-use strum::Display;
 use crate::error::Error;
 use crate::Region;
 
@@ -36,7 +34,16 @@ pub struct XZCoordinate<T = i32> {
 
 pub struct Chunk {
     pub time_stamp: u32,
+    /// Status of chunk
+    pub status: ChunkStatus,
+    /// Last update in game time
+    pub last_update: i64,
+    /// Sum of time(in game tick) that player stay in this chunk, used to compute difficulty
+    pub inhabited_time: i64,
+    /// If light compute is finished
+    pub is_light_on: bool,
     sub_chunks: [Region; 25],
+
 }
 
 pub struct UnparsedChunkData {

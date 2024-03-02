@@ -131,7 +131,7 @@ impl FilesRead for FilesInMemory {
     fn read_file(&self, filename: &str, dest: &mut Vec<u8>) -> Result<(), Error> {
         return match self.files.get(filename) {
             Some(bytes) => {
-                dest.clear();
+                dest.resize(bytes.len(), 0);
                 dest.clone_from_slice(&bytes);
                 Ok(())
             }
@@ -161,7 +161,7 @@ impl FilesRead for FilesInMemory {
 
 impl FilesRead for SubDirectory<'_> {
     fn files(&self) -> Vec<FileInfo> {
-        let mut src = self.root.files();
+        let src = self.root.files();
         let mut result = Vec::with_capacity(src.len());
 
         for mut info in src {
@@ -177,12 +177,12 @@ impl FilesRead for SubDirectory<'_> {
     fn open_file(&self, filename: &str) -> Result<Box<dyn Read + '_>, Error> {
         let mut new_filename = self.dirname_with_slash.clone();
         new_filename.push_str(filename);
-        return self.open_file(&new_filename);
+        return self.root.open_file(&new_filename);
     }
 
     fn read_file(&self, filename: &str, dest: &mut Vec<u8>) -> Result<(), Error> {
         let mut new_filename = self.dirname_with_slash.clone();
         new_filename.push_str(filename);
-        return self.read_file(&new_filename, dest);
+        return self.root.read_file(&new_filename, dest);
     }
 }

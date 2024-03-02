@@ -19,7 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::io::{Read};
-use std::iter::Map;
+use strum::Display;
 use crate::error::Error;
 use crate::Region;
 
@@ -36,7 +36,7 @@ pub struct XZCoordinate<T = i32> {
 
 pub struct Chunk {
     pub time_stamp: u32,
-    sub_chunks: Map<i32, Region>,
+    sub_chunks: [Region; 25],
 }
 
 pub struct UnparsedChunkData {
@@ -119,82 +119,20 @@ pub struct ChunkPos {
     // pub coordinate_in_file: XZCoordinate,
 }
 
-impl ChunkPos {
-    pub fn from_global_pos(global_chunk_pos: &XZCoordinate) -> Self {
-        // let local_coord = XZCoordinate {
-        //     x: global_chunk_pos.x % 32,
-        //     z: global_chunk_pos.z % 32,
-        // };
-        // debug_assert!((global_chunk_pos.x - local_coord.x) % 32 == 0);
-        // debug_assert!((global_chunk_pos.z - local_coord.z) % 32 == 0);
-        // return Self {
-        //     file_coordinate: XZCoordinate {
-        //         x: (global_chunk_pos.x - local_coord.x) / 32,
-        //         z: (global_chunk_pos.z - local_coord.z) / 32,
-        //     },
-        //     coordinate_in_file: local_coord,
-        // };
-
-        return Self {
-            global_x: global_chunk_pos.x,
-            global_z: global_chunk_pos.z,
-        };
-    }
-
-    pub fn to_global_pos(&self) -> XZCoordinate {
-        return XZCoordinate {
-            x: self.global_x,
-            z: self.global_z,
-        };
-        // debug_assert!(self.coordinate_in_file.x >= 0 && self.coordinate_in_file.x < 32);
-        // debug_assert!(self.coordinate_in_file.z >= 0 && self.coordinate_in_file.z < 32);
-        //
-        // return XZCoordinate {
-        //     x: self.coordinate_in_file.x + self.file_coordinate.x * 32,
-        //     z: self.coordinate_in_file.z + self.file_coordinate.z * 32,
-        // };
-    }
-
-    pub fn from_local_pos(file_pos: &XZCoordinate, local_pos_in_file: &XZCoordinate<u32>) -> Self {
-        assert!(local_pos_in_file.x < 32);
-        assert!(local_pos_in_file.z < 32);
-
-        return Self {
-            global_x: file_pos.x * 32 + local_pos_in_file.x as i32,
-            global_z: file_pos.z * 32 + local_pos_in_file.z as i32,
-        };
-    }
-
-    pub fn local_coordinate(&self) -> XZCoordinate<u32> {
-        return XZCoordinate {
-            x: (self.global_x & 32) as u32,
-            z: (self.global_x & 32) as u32,
-        };
-    }
-    pub fn file_coordinate(&self) -> XZCoordinate {
-        let local = self.local_coordinate();
-        return XZCoordinate {
-            x: (self.global_x - local.x as i32) / 32,
-            z: (self.global_z - local.z as i32) / 32,
-        };
-    }
-
-    pub fn filename(&self, suffix: &str) -> String {
-        return format!("r.{}.{}.{}",
-                       self.file_coordinate().x,
-                       self.file_coordinate().z,
-                       suffix);
-    }
-
-    pub fn filename_mca(&self) -> String {
-        return self.filename("mca");
-    }
-    pub fn filename_mcr(&self) -> String {
-        return self.filename("mcr");
-    }
-    pub fn filename_mcc(&self) -> String {
-        return format!("c.{}.{}.mcc",
-                       self.file_coordinate().x,
-                       self.file_coordinate().z);
-    }
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[repr(u8)]
+pub enum ChunkStatus {
+    Empty,
+    StructureStarts,
+    StructureReferences,
+    Biomes,
+    Noise,
+    Surface,
+    Carvers,
+    Features,
+    InitializeLight,
+    Light,
+    Spawn,
+    Full,
 }
+

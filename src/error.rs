@@ -46,6 +46,9 @@ pub enum Error {
         tag_path: String,
         error: String,
     },
+    PaletteIsEmpty {
+        tag_path: String
+    },
     PaletteTooLong(usize),
     BlockIndexOutOfRange {
         tag_path: String,
@@ -86,7 +89,7 @@ pub enum Error {
     //write error
     NBTWriteError(fastnbt::error::Error),
     NegativeSize { size: [i32; 3], region_name: String },
-    BlockIndexOfOfRange { r_pos: [i32; 3], block_index: u16, max_index: u16 },
+    BlockIndexOutOfRangeWriting { r_pos: [i32; 3], block_index: u16, max_index: u16 },
     FileCreateError(std::io::Error),
     DuplicatedRegionName { name: String },
     SizeTooLarge { size: [u64; 3], max_size: [u64; 3] },
@@ -129,6 +132,8 @@ impl Display for Error {
             Error::InvalidBlockId { id, reason } => write!(f, "Invalid block id: \"{}\", detail: {}", id, reason),
             Error::InvalidBlockProperty { tag_path, error }
             => write!(f, "Invalid block property: tag_path = {}, detail: {}", tag_path, error),
+            Error::PaletteIsEmpty { tag_path }
+            => write!(f, "Palette stored in tag {tag_path} is empty, the region can not have any blocks"),
             Error::PaletteTooLong(l) => write!(f, "Palette too long: {}", l),
             Error::BlockIndexOutOfRange { tag_path, index, range }
             => write!(f, "Block index out of range, tag: {}, index = {}, index should be in range [{}, {}]", tag_path, index, range[0], range[1]),
@@ -152,7 +157,7 @@ impl Display for Error {
             Error::NBTWriteError(err) => write!(f, "Failed to write nbt, detail: {}", err),
             Error::NegativeSize { size, region_name }
             => write!(f, "region \"{}\" has negative size: {}", region_name, format_size(size)),
-            Error::BlockIndexOfOfRange { r_pos, block_index, max_index }
+            Error::BlockIndexOutOfRangeWriting { r_pos, block_index, max_index }
             => write!(f, "Block index out of range: relative pos: {}, found block index {} but expected [0,{}]",
                       format_size(r_pos), block_index, max_index),
             Error::FileCreateError(err)

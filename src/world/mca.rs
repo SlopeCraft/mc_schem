@@ -1,10 +1,12 @@
 use std::collections::HashMap;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Display, format, Formatter};
 use std::io::Read;
 use fastnbt::Value;
 use flate2::read::{GzDecoder, ZlibDecoder};
+use math::round::{floor};
 use regex::Regex;
 use crate::error::Error;
+use crate::schem::common::ceil_up_to;
 use crate::world::{FilesInMemory, ChunkPos, ChunkVariant, FilesRead, XZCoordinate, Chunk, UnparsedChunkData};
 
 
@@ -171,7 +173,9 @@ fn parse_multiple_regions(region_dir: &dyn FilesRead, parse_directly: bool) -> R
             let chunk_pos = ChunkPos::from_local_pos(file_coord, local_coord);
             let variant: ChunkVariant;
             if parse_directly {
-                variant = ChunkVariant::Parsed(Chunk::from_nbt(raw.to_nbt()?)?);
+                variant = ChunkVariant::Parsed(Chunk::from_nbt(raw.to_nbt()?,
+                                                               format!("{}/Chunk[{},{}]", info.name, local_coord.x, local_coord.z),
+                )?);
             } else {
                 variant = ChunkVariant::Unparsed(UnparsedChunkData { time_stamp: raw.unix_timestamp, region_data: raw.data.to_vec() });
             }
@@ -181,6 +185,88 @@ fn parse_multiple_regions(region_dir: &dyn FilesRead, parse_directly: bool) -> R
     }
     return Ok(result);
 }
+
+
+impl ChunkPos {
+    pub fn from_global_pos(global_chunk_pos: &XZCoordinate) -> Self {
+        // let local_coord = XZCoordinate {
+        //     x: global_chunk_pos.x % 32,
+        //     z: global_chunk_pos.z % 32,
+        // };
+        // debug_assert!((global_chunk_pos.x - local_coord.x) % 32 == 0);
+        // debug_assert!((global_chunk_pos.z - local_coord.z) % 32 == 0);
+        // return Self {
+        //     file_coordinate: XZCoordinate {
+        //         x: (global_chunk_pos.x - local_coord.x) / 32,
+        //         z: (global_chunk_pos.z - local_coord.z) / 32,
+        //     },
+        //     coordinate_in_file: local_coord,
+        // };
+
+        return Self {
+            global_x: global_chunk_pos.x,
+            global_z: global_chunk_pos.z,
+        };
+    }
+
+    pub fn to_global_pos(&self) -> XZCoordinate {
+        return XZCoordinate {
+            x: self.global_x,
+            z: self.global_z,
+        };
+        // debug_assert!(self.coordinate_in_file.x >= 0 && self.coordinate_in_file.x < 32);
+        // debug_assert!(self.coordinate_in_file.z >= 0 && self.coordinate_in_file.z < 32);
+        //
+        // return XZCoordinate {
+        //     x: self.coordinate_in_file.x + self.file_coordinate.x * 32,
+        //     z: self.coordinate_in_file.z + self.file_coordinate.z * 32,
+        // };
+    }
+
+    pub fn from_local_pos(file_pos: &XZCoordinate, local_pos_in_file: &XZCoordinate<u32>) -> Self {
+        assert!(local_pos_in_file.x < 32);
+        assert!(local_pos_in_file.z < 32);
+
+        return Self {
+            global_x: file_pos.x * 32 + local_pos_in_file.x as i32,
+            global_z: file_pos.z * 32 + local_pos_in_file.z as i32,
+        };
+    }
+
+    pub fn local_coordinate(&self) -> XZCoordinate<u32> {
+        return XZCoordinate {
+            x: (self.global_x & 32) as u32,
+            z: (self.global_x & 32) as u32,
+        };
+    }
+    pub fn file_coordinate(&self) -> XZCoordinate {
+        let local = self.local_coordinate();
+        return XZCoordinate {
+            x: (self.global_x - local.x as i32) / 32,
+            z: (self.global_z - local.z as i32) / 32,
+        };
+    }
+
+    pub fn filename(&self, suffix: &str) -> String {
+        return format!("r.{}.{}.{}",
+                       self.file_coordinate().x,
+                       self.file_coordinate().z,
+                       suffix);
+    }
+
+    pub fn filename_mca(&self) -> String {
+        return self.filename("mca");
+    }
+    pub fn filename_mcr(&self) -> String {
+        return self.filename("mcr");
+    }
+    pub fn filename_mcc(&self) -> String {
+        return format!("c.{}.{}.mcc",
+                       self.file_coordinate().x,
+                       self.file_coordinate().z);
+    }
+}
+
 
 #[test]
 fn test_parse_mca_filename() {

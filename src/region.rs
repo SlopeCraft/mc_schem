@@ -21,6 +21,10 @@ use ndarray::Array3;
 use crate::block::Block;
 use crate::error::Error;
 
+/// Sky light and block light
+#[derive(Debug, Copy, Clone)]
+pub struct Light(u8);
+
 /// An entity in MC, like zombie, minecart, etc.
 #[derive(Debug, Clone)]
 pub struct Entity {
@@ -135,7 +139,29 @@ pub struct Region {
     /// Offset of this region
     pub offset: [i32; 3],
 
+    /// Skylight
+    pub sky_block_light: Array3<Light>,
+
     //pub array_number_id_damage: Option<Array3<(u8, u8)>>
+}
+
+impl Default for Light {
+    fn default() -> Self {
+        return Self(0xFF);
+    }
+}
+
+impl Light {
+    pub fn new(sky_light: u8, block_light: u8) -> Self {
+        return Self(sky_light << 4 | block_light);
+    }
+
+    pub fn sky_light(&self) -> u8 {
+        return (self.0 & 0xF0) >> 4;
+    }
+    pub fn block_light(&self) -> u8 {
+        return self.0 & 0x0F;
+    }
 }
 
 impl Entity {
@@ -270,18 +296,26 @@ impl Region {
 
     /// Create a new region with size \[1,1,1\], filled with air
     pub fn new() -> Region {
+        return Self::with_shape([1, 1, 1]);
+    }
+
+    pub fn with_shape(shape: [i32; 3]) -> Region {
+        let shape = [shape[0] as usize, shape[1] as usize, shape[2] as usize];
         let mut result = Region {
             name: String::from("NewRegion"),
-            array_yzx: Array3::zeros([1, 1, 1]),
+            array_yzx: Array3::zeros(shape),
             palette: Vec::new(),
             block_entities: HashMap::new(),
             pending_ticks: HashMap::new(),
             entities: Vec::new(),
             offset: [0, 0, 0],
+            sky_block_light: Array3::default(shape)
         };
         result.find_or_append_to_palette(&Block::air());
+        result.sky_block_light.fill(Light::new(15, 15));
         return result;
     }
+
     // pub fn array(&self) -> &Array3<u16> {
     //     return &self.array;
     // }
@@ -368,6 +402,8 @@ impl Region {
         }
         let shape_yzx = Self::pos_xyz_to_yzx(&usz);
         self.array_yzx = Array3::zeros(shape_yzx);
+        self.sky_block_light = Array3::default(shape_yzx);
+        self.sky_block_light.fill(Light::default());
     }
 
     /// Shape in y, z, x
@@ -426,7 +462,7 @@ impl Region {
                 for z in 0..self.shape()[2] {
                     let idx = self.array_yzx[[y as usize, z as usize, x as usize]];
                     if idx as usize >= self.palette.len() {
-                        return Err(Error::BlockIndexOfOfRange {
+                        return Err(Error::BlockIndexOutOfRangeWriting {
                             r_pos: [x, y, z],
                             block_index: idx,
                             max_index: self.palette.len() as u16 - 1,

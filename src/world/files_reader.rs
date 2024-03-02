@@ -34,6 +34,7 @@ impl FilesRead for FolderOnDisk {
                     }
                     let tmp = FileInfo {
                         name: filename.to_string(),
+                        full_name: filename.to_string(),
                         size: metadata.len(),
                     };
                     result.push(tmp);
@@ -109,7 +110,11 @@ impl FilesRead for FilesInMemory {
     fn files(&self) -> Vec<FileInfo> {
         let mut vec = Vec::with_capacity(self.files.len());
         for (name, bytes) in &self.files {
-            vec.push(FileInfo { name: name.clone(), size: bytes.len() as u64 });
+            vec.push(FileInfo {
+                name: name.clone(),
+                full_name: name.clone(),
+                size: bytes.len() as u64,
+            });
         }
         return vec;
     }

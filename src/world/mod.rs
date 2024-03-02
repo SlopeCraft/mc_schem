@@ -24,6 +24,7 @@ use crate::Region;
 pub mod mca;
 mod files_reader;
 mod chunk;
+mod dimension;
 
 
 #[derive(Debug, Eq, Hash, PartialEq)]
@@ -42,13 +43,15 @@ pub struct Chunk {
     pub inhabited_time: i64,
     /// If light compute is finished
     pub is_light_on: bool,
-    sub_chunks: [Region; 25],
+    sub_chunks: [Region; 24],
+    pub source_file: String,
 
 }
 
 pub struct UnparsedChunkData {
     pub time_stamp: u32,
     region_data: Vec<u8>,//uncompressed
+    source_file: String,
 }
 
 pub enum ChunkVariant {
@@ -57,11 +60,12 @@ pub enum ChunkVariant {
 }
 
 pub struct Dimension {
-    chunks: HashMap<XZCoordinate, ChunkVariant>,
+    pub chunks: HashMap<ChunkPos, ChunkVariant>,
 }
 
 pub struct FileInfo {
     pub name: String,
+    pub full_name: String,
     pub size: u64,
 }
 

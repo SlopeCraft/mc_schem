@@ -10,7 +10,7 @@ use crate::{unwrap_opt_tag, unwrap_tag};
 use crate::biome::Biome;
 use crate::schem::common;
 use crate::schem::id_of_nbt_tag;
-use crate::world::{Chunk, ChunkStatus};
+use crate::world::{Chunk, ChunkPos, ChunkStatus};
 
 
 impl Display for ChunkStatus {
@@ -75,14 +75,18 @@ impl Chunk {
             last_update: 0,
             inhabited_time: 0,
             is_light_on: true,
-            sub_chunks: [Region::new(), Region::new(), Region::new(), Region::new(), Region::new(),
+            sub_chunks: [Region::new(), Region::new(), Region::new(), Region::new(),
                 Region::new(), Region::new(), Region::new(), Region::new(), Region::new(),
                 Region::new(), Region::new(), Region::new(), Region::new(), Region::new(),
                 Region::new(), Region::new(), Region::new(), Region::new(), Region::new(),
                 Region::new(), Region::new(), Region::new(), Region::new(), Region::new(), ],
+            source_file: "Unnamed".to_string(),
         };
     }
-    pub fn from_nbt(nbt: HashMap<String, Value>, path_in_saves: String) -> Result<Chunk, Error> {
+    pub fn from_nbt(mut nbt: HashMap<String, Value>, chunk_pos: &ChunkPos, source_filename: &str) -> Result<Chunk, Error> {
+        let path_in_saves = format!("{source_filename}/[{},{}]",
+                                    chunk_pos.local_coordinate().x,
+                                    chunk_pos.local_coordinate().z);
         let mut result = Chunk::new();
         // chunk status
         {
@@ -105,8 +109,41 @@ impl Chunk {
             result.is_light_on = *unwrap_tag!(tag,Byte,1,format!("{path_in_saves}/isLightOn")) != 0;
         }
 
+        let y_offset: i32;
+        let sections = unwrap_opt_tag!(nbt.get_mut("sections"),List,vec![],format!("{path_in_saves}/sections"));
+        let actual_sections: &mut [Value];
+        match sections.len() {
+            24 => {
+                actual_sections = sections.as_mut_slice();
+                y_offset = 1;
+            }
+            25 => {
+                actual_sections = &mut sections[1..25];
+                y_offset = 0;
+            }
+            _ => {
+                return Err(Error::InvalidValue {
+                    tag_path: format!("{path_in_saves}/sections"),
+                    error: format!("Should have 24 or 25 sections, but found {}", sections.len()),
+                });
+            }
+        }
+
+        for y in 0..24 {
+            let offset = [chunk_pos.global_x * 16, (y - 4) * 16, chunk_pos.global_z * 16];
+            let path = format!("{path_in_saves}/sections[{}]", y + y_offset);
+            let sect_nbt = unwrap_tag!(&mut actual_sections[y as usize],Compound,HashMap::new(),path);
+            let mut sub_chunk = parse_section(sect_nbt, &path)?;
+            sub_chunk.offset = offset;
+            result.sub_chunks[y as usize] = sub_chunk;
+        }
+
         return Ok(result);
     }
+}
+
+pub fn bits_per_block(block_types: usize) -> u8 {
+    return (ceil((block_types as f64).log2(), 0) as u8).max(4);
 }
 
 fn parse_3d(reg: &mut Region, sect: &HashMap<String, Value>, path: &str) -> Result<(), Error> {
@@ -137,7 +174,7 @@ fn parse_3d(reg: &mut Region, sect: &HashMap<String, Value>, path: &str) -> Resu
         let array_i64 = unwrap_opt_tag!(block_states.get("data"),LongArray,fastnbt::LongArray::new(vec![]),path);
 
         let block_id_max = reg.palette.len() - 1;
-        let bits_per_block = (ceil((block_id_max as f64).log2(), 0) as u8).max(4);
+        let bits_per_block = bits_per_block(reg.palette.len());
         let mut mbs = MultiBitSet::new(4096, bits_per_block);
 
         if array_i64.len() != mbs.num_u64() {
@@ -201,7 +238,7 @@ fn parse_biomes(reg: &mut Region, sect: &HashMap<String, Value>, path: &str) -> 
         let array_i64 = unwrap_opt_tag!(biomes.get("data"),LongArray,fastnbt::LongArray::new(vec![]),path);
 
         let block_id_max = biome_pal.len() - 1;
-        let bits_per_block = (ceil((block_id_max as f64).log2(), 0) as u8).max(4);
+        let bits_per_block = bits_per_block(reg.palette.len());
         let mut mbs = MultiBitSet::new(4096, bits_per_block);
 
         if array_i64.len() != mbs.num_u64() {
@@ -270,14 +307,14 @@ fn parse_section(sect: &HashMap<String, Value>, path: &str) -> Result<Region, Er
                         15
                     } else {
                         let b = u8::from_ne_bytes(sky_light[counter / 2].to_ne_bytes());
-                        b >> (4 * (counter % 2))
+                        (b >> (4 * (counter % 2))) & 0xF
                     };
                     debug_assert!(sl <= 15);
                     let bl: u8 = if block_light.is_empty() {
                         15
                     } else {
                         let b = u8::from_ne_bytes(block_light[counter / 2].to_ne_bytes());
-                        b >> (4 * (counter % 2))
+                        (b >> (4 * (counter % 2))) & 0xF
                     };
                     debug_assert!(bl <= 15);
 
@@ -369,7 +406,7 @@ impl MultiBitSet {
         self.array.reserve(i64_ne.len());
 
         for val in i64_ne {
-            let val = u64::from_be_bytes(val.to_ne_bytes());
+            let val = u64::from_be_bytes(val.to_be_bytes());
             self.array.push(val);
         }
     }

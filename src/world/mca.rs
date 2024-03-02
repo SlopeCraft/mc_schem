@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
+use std::time;
 use fastnbt::Value;
 use flate2::read::{GzDecoder, ZlibDecoder};
 use regex::Regex;
 use crate::error::Error;
-use crate::world::{FilesInMemory, ChunkPos, ChunkVariant, FilesRead, XZCoordinate, Chunk, UnparsedChunkData};
+use crate::world::{FilesInMemory, ChunkPos, ChunkVariant, FilesRead, XZCoordinate, Chunk, UnparsedChunkData, Dimension};
 
 
 pub const SEGMENT_BYTES: usize = 4096;
@@ -145,7 +146,7 @@ pub fn parse_mca_filename(filename: &str) -> Option<XZCoordinate> {
     return Some(XZCoordinate { x, z });
 }
 
-fn parse_multiple_regions(region_dir: &dyn FilesRead, parse_directly: bool) -> Result<HashMap<ChunkPos, ChunkVariant>, Error> {
+pub fn parse_multiple_regions(region_dir: &dyn FilesRead, parse_directly: bool) -> Result<HashMap<ChunkPos, ChunkVariant>, Error> {
     let files = region_dir.files();
     let mut region_files = Vec::with_capacity(files.len());
     {
@@ -171,10 +172,14 @@ fn parse_multiple_regions(region_dir: &dyn FilesRead, parse_directly: bool) -> R
             let variant: ChunkVariant;
             if parse_directly {
                 variant = ChunkVariant::Parsed(Chunk::from_nbt(raw.to_nbt()?,
-                                                               format!("{}/Chunk[{},{}]", info.name, local_coord.x, local_coord.z),
-                )?);
+                                                               &chunk_pos,
+                                                               &info.full_name)?);
             } else {
-                variant = ChunkVariant::Unparsed(UnparsedChunkData { time_stamp: raw.unix_timestamp, region_data: raw.data.to_vec() });
+                variant = ChunkVariant::Unparsed(UnparsedChunkData {
+                    time_stamp: raw.unix_timestamp,
+                    region_data: raw.data.to_vec(),
+                    source_file: info.full_name.clone(),
+                });
             }
 
             result.insert(chunk_pos, variant);
@@ -185,15 +190,12 @@ fn parse_multiple_regions(region_dir: &dyn FilesRead, parse_directly: bool) -> R
 
 
 impl ChunkVariant {
-    pub fn parse(&mut self, filename: &str, chunk_pos: &ChunkPos) -> Result<(), Error> {
+    pub fn parse(&mut self, chunk_pos: &ChunkPos) -> Result<(), Error> {
         if let ChunkVariant::Unparsed(raw) = self {
-            let raw = ChunkRawDataRef { data: &raw.region_data, unix_timestamp: raw.time_stamp };
-            let nbt = raw.to_nbt()?;
+            let raw_ref = ChunkRawDataRef { data: &raw.region_data, unix_timestamp: raw.time_stamp };
+            let nbt = raw_ref.to_nbt()?;
 
-            let local_coord = chunk_pos.local_coordinate();
-            let path = format!("{}/Chunk[{},{}]", filename, local_coord.x, local_coord.z);
-
-            let chunk = Chunk::from_nbt(nbt, path)?;
+            let chunk = Chunk::from_nbt(nbt, &chunk_pos, &raw.source_file)?;
             *self = ChunkVariant::Parsed(chunk);
         }
 
@@ -203,19 +205,6 @@ impl ChunkVariant {
 
 impl ChunkPos {
     pub fn from_global_pos(global_chunk_pos: &XZCoordinate) -> Self {
-        // let local_coord = XZCoordinate {
-        //     x: global_chunk_pos.x % 32,
-        //     z: global_chunk_pos.z % 32,
-        // };
-        // debug_assert!((global_chunk_pos.x - local_coord.x) % 32 == 0);
-        // debug_assert!((global_chunk_pos.z - local_coord.z) % 32 == 0);
-        // return Self {
-        //     file_coordinate: XZCoordinate {
-        //         x: (global_chunk_pos.x - local_coord.x) / 32,
-        //         z: (global_chunk_pos.z - local_coord.z) / 32,
-        //     },
-        //     coordinate_in_file: local_coord,
-        // };
 
         return Self {
             global_x: global_chunk_pos.x,
@@ -228,13 +217,6 @@ impl ChunkPos {
             x: self.global_x,
             z: self.global_z,
         };
-        // debug_assert!(self.coordinate_in_file.x >= 0 && self.coordinate_in_file.x < 32);
-        // debug_assert!(self.coordinate_in_file.z >= 0 && self.coordinate_in_file.z < 32);
-        //
-        // return XZCoordinate {
-        //     x: self.coordinate_in_file.x + self.file_coordinate.x * 32,
-        //     z: self.coordinate_in_file.z + self.file_coordinate.z * 32,
-        // };
     }
 
     pub fn from_local_pos(file_pos: &XZCoordinate, local_pos_in_file: &XZCoordinate<u32>) -> Self {
@@ -306,12 +288,3 @@ fn load_mca() {
     }
 }
 
-
-#[test]
-fn test_load_chunks() {
-    let files = FilesInMemory::from_7z_file("test_files/world/00_1.20.2.7z", "").unwrap();
-
-    let chunks = parse_multiple_regions(&files.sub_directory("region"), true).unwrap();
-
-    println!("{} chunks parsed.", chunks.len());
-}

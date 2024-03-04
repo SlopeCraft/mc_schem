@@ -17,8 +17,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 use std::collections::HashMap;
-use ndarray::Array3;
-use crate::biome::Biome;
+use ndarray::{Array3};
 use crate::block::Block;
 use crate::error::Error;
 
@@ -140,11 +139,6 @@ pub struct Region {
     /// Offset of this region
     pub offset: [i32; 3],
 
-    /// Skylight
-    pub sky_block_light: Array3<Light>,
-
-    /// Biomes
-    pub biome: Array3<Biome>
 
     //pub array_number_id_damage: Option<Array3<(u8, u8)>>
 }
@@ -303,21 +297,19 @@ impl Region {
         return Self::with_shape([1, 1, 1]);
     }
 
-    pub fn with_shape(shape: [i32; 3]) -> Region {
-        let shape = [shape[1] as usize, shape[2] as usize, shape[0] as usize];
+    pub fn with_shape(shape_xyz: [i32; 3]) -> Region {
+        let shape_yzx = [shape_xyz[1] as usize, shape_xyz[2] as usize, shape_xyz[0] as usize];
+        //let shape_zx = [shape_xyz[2], shape_xyz[1]];
         let mut result = Region {
             name: String::from("NewRegion"),
-            array_yzx: Array3::zeros(shape),
+            array_yzx: Array3::zeros(shape_yzx),
             palette: Vec::new(),
             block_entities: HashMap::new(),
             pending_ticks: HashMap::new(),
             entities: Vec::new(),
             offset: [0, 0, 0],
-            sky_block_light: Array3::default(shape),
-            biome: Array3::default(shape),
         };
         result.find_or_append_to_palette(&Block::air());
-        result.sky_block_light.fill(Light::new(15, 15));
         return result;
     }
 
@@ -396,20 +388,21 @@ impl Region {
     }
 
     /// Reshape the region and fill `array_yzx` with 0
-    pub fn reshape(&mut self, size_xyz: &[i32; 3]) {
+    pub fn reshape(&mut self, shape_xyz: &[i32; 3]) {
         let mut usz: [usize; 3] = [0, 0, 0];
         for idx in 0..3 {
-            let sz = size_xyz[idx];
+            let sz = shape_xyz[idx];
             if sz < 0 {
-                panic!("Try resizing with negative size [{},{},{}]", size_xyz[0], size_xyz[1], size_xyz[2]);
+                panic!("Try resizing with negative size [{},{},{}]", shape_xyz[0], shape_xyz[1], shape_xyz[2]);
             }
             usz[idx] = sz as usize;
         }
         let shape_yzx = Self::pos_xyz_to_yzx(&usz);
         self.array_yzx = Array3::zeros(shape_yzx);
-        self.sky_block_light = Array3::default(shape_yzx);
-        self.sky_block_light.fill(Light::default());
-        self.biome = Array3::default(shape_yzx);
+        //let shape_zx = [shape_xyz[2], shape_xyz[1]];
+        // self.sky_block_light = Array3::default(shape_yzx);
+        // self.sky_block_light.fill(Light::default());
+        // self.biome = Array2::default(shape_zx);
     }
 
     /// Shape in y, z, x

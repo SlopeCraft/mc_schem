@@ -1,16 +1,17 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Display, Formatter};
 use std::time;
 use fastnbt::Value;
 use math::round::{ceil, floor};
 use crate::error::Error;
-use crate::region::{Light, Region};
+use crate::region::{Light, Region, WorldSlice};
 use crate::schem::common::ceil_up_to;
 use crate::{unwrap_opt_tag, unwrap_tag};
 use crate::biome::Biome;
+use crate::block::Block;
 use crate::schem::common;
 use crate::schem::id_of_nbt_tag;
-use crate::world::{Chunk, ChunkPos, ChunkStatus};
+use crate::world::{Chunk, ChunkPos, ChunkStatus, SubChunk};
 
 
 impl Display for ChunkStatus {
@@ -75,11 +76,7 @@ impl Chunk {
             last_update: 0,
             inhabited_time: 0,
             is_light_on: true,
-            sub_chunks: [Region::new(), Region::new(), Region::new(), Region::new(),
-                Region::new(), Region::new(), Region::new(), Region::new(), Region::new(),
-                Region::new(), Region::new(), Region::new(), Region::new(), Region::new(),
-                Region::new(), Region::new(), Region::new(), Region::new(), Region::new(),
-                Region::new(), Region::new(), Region::new(), Region::new(), Region::new(), ],
+            sub_chunks: BTreeMap::new(),
             source_file: "Unnamed".to_string(),
         };
     }
@@ -109,45 +106,38 @@ impl Chunk {
             result.is_light_on = *unwrap_tag!(tag,Byte,1,format!("{path_in_saves}/isLightOn")) != 0;
         }
 
-        let y_offset: i32;
         let sections = unwrap_opt_tag!(nbt.get_mut("sections"),List,vec![],format!("{path_in_saves}/sections"));
-        let actual_sections: &mut [Value];
-        match sections.len() {
-            24 => {
-                actual_sections = sections.as_mut_slice();
-                y_offset = 1;
-            }
-            25 => {
-                actual_sections = &mut sections[1..25];
-                y_offset = 0;
-            }
-            _ => {
-                return Err(Error::InvalidValue {
-                    tag_path: format!("{path_in_saves}/sections"),
-                    error: format!("Should have 24 or 25 sections, but found {}", sections.len()),
-                });
-            }
-        }
 
-        for y in 0..24 {
-            let offset = [chunk_pos.global_x * 16, (y - 4) * 16, chunk_pos.global_z * 16];
-            let path = format!("{path_in_saves}/sections[{}]", y + y_offset);
-            let sect_nbt = unwrap_tag!(&mut actual_sections[y as usize],Compound,HashMap::new(),path);
-            let mut sub_chunk = parse_section(sect_nbt, &path)?;
-            sub_chunk.offset = offset;
-            result.sub_chunks[y as usize] = sub_chunk;
+        for (idx, nbt) in sections.iter_mut().enumerate() {
+            let path = format!("{path_in_saves}/sections[{idx}]");
+            let sect_nbt = unwrap_tag!(nbt,Compound,HashMap::new(),path);
+            let opt = parse_section(sect_nbt, &path)?;
+            if let Some((sub_chunk, y)) = opt {
+                result.sub_chunks.insert(y, sub_chunk);
+            }
         }
 
         return Ok(result);
     }
 }
 
-pub fn bits_per_block(block_types: usize) -> u8 {
-    return (ceil((block_types as f64).log2(), 0) as u8).max(4);
+pub fn bits_per_block(block_types: usize, min_value: u8) -> u8 {
+    return (ceil((block_types as f64).log2(), 0) as u8).max(min_value);
 }
 
-fn parse_3d(reg: &mut Region, sect: &HashMap<String, Value>, path: &str) -> Result<(), Error> {
-    let block_states = unwrap_opt_tag!(sect.get("block_states"),Compound,HashMap::new(),format!("{path}/block_states"));
+fn parse_blocks(reg: &mut Region, sect: &HashMap<String, Value>, path: &str) -> Result<(), Error> {
+    let tag_bs = if let Some(r) = sect.get("block_states") {
+        r
+    } else {
+        // if block_states doesn't exist, set it to empty
+        if reg.shape() != [16, 16, 16] {
+            reg.reshape(&[16, 16, 16]);
+        }
+        reg.palette = vec![Block::air()];
+        reg.array_yzx.fill(0);
+        return Ok(());
+    };
+    let block_states = unwrap_tag!(tag_bs,Compound,HashMap::new(),format!("{path}/block_states"));
 
     {
         let palette = unwrap_opt_tag!(block_states.get("palette"),List,vec![],format!("{path}/block_states/palette"));
@@ -174,7 +164,7 @@ fn parse_3d(reg: &mut Region, sect: &HashMap<String, Value>, path: &str) -> Resu
         let array_i64 = unwrap_opt_tag!(block_states.get("data"),LongArray,fastnbt::LongArray::new(vec![]),path);
 
         let block_id_max = reg.palette.len() - 1;
-        let bits_per_block = bits_per_block(reg.palette.len());
+        let bits_per_block = bits_per_block(reg.palette.len(), 4);
         let mut mbs = MultiBitSet::new(4096, bits_per_block);
 
         if array_i64.len() != mbs.num_u64() {
@@ -207,7 +197,7 @@ fn parse_3d(reg: &mut Region, sect: &HashMap<String, Value>, path: &str) -> Resu
     return Ok(());
 }
 
-fn parse_biomes(reg: &mut Region, sect: &HashMap<String, Value>, path: &str) -> Result<(), Error> {
+fn parse_biomes(reg: &mut SubChunk, sect: &HashMap<String, Value>, path: &str) -> Result<(), Error> {
     let biomes = unwrap_opt_tag!(sect.get("biomes"),Compound,HashMap::new(),format!("{path}/biomes"));
     // parse biome palette
     let mut biome_pal = Vec::new();
@@ -229,7 +219,7 @@ fn parse_biomes(reg: &mut Region, sect: &HashMap<String, Value>, path: &str) -> 
         return Err(Error::PaletteIsEmpty { tag_path: format!("{path}/biomes/palette") });
     }
     if biome_pal.len() == 1 {
-        reg.biome.fill(biome_pal[0]);
+        reg.biome_array.fill(biome_pal[0]);
         return Ok(());
     }
     //parse 3d
@@ -238,43 +228,52 @@ fn parse_biomes(reg: &mut Region, sect: &HashMap<String, Value>, path: &str) -> 
         let array_i64 = unwrap_opt_tag!(biomes.get("data"),LongArray,fastnbt::LongArray::new(vec![]),path);
 
         let block_id_max = biome_pal.len() - 1;
-        let bits_per_block = bits_per_block(reg.palette.len());
-        let mut mbs = MultiBitSet::new(4096, bits_per_block);
+        let bits_per_block = bits_per_block(biome_pal.len(), 1);
+        let mut mbs = MultiBitSet::new(64, bits_per_block);
 
         if array_i64.len() != mbs.num_u64() {
+            // // If the biome is not initialized, this error can be processed
+            // if chunk_status <= ChunkStatus::Biomes {
+            //     reg.biome.fill(Biome::the_void);
+            //     return Ok(());
+            // }
+
             return Err(Error::InvalidValue {
                 tag_path: path,
-                error: format!("This subchunk has 4096 blocks of {} types, required {} i64 element to store them, but found {}",
-                               reg.palette.len(), mbs.num_u64(), array_i64.len()),
+                error: format!("This subchunk has {} types of biome, required {} i64 element to store them, but found {}",
+                               biome_pal.len(), mbs.num_u64(), array_i64.len()),
             });
         }
         mbs.set_array_from_nbt(&array_i64);
 
-        let mut counter = 0;
-        for y in 0..16 {
-            for z in 0..16 {
-                for x in 0..16 {
-                    let biome_idx = mbs.get(counter) as usize;
-                    if biome_idx > block_id_max {
-                        return Err(Error::BlockIndexOutOfRange {
-                            tag_path: path,
-                            index: biome_idx as i32,
-                            range: [0, block_id_max as i32],
-                        });
-                    }
-                    reg.biome[[x, y, z]] = biome_pal[biome_idx];
-                    counter += 1;
-                }
+        for counter in 0..64 {
+            let biome_idx = mbs.get(counter) as usize;
+            if biome_idx > block_id_max {
+                return Err(Error::BlockIndexOutOfRange {
+                    tag_path: path,
+                    index: biome_idx as i32,
+                    range: [0, block_id_max as i32],
+                });
             }
+            reg.biome_array[counter] = biome_pal[biome_idx];
         }
     }
     return Ok(());
 }
 
-fn parse_section(sect: &HashMap<String, Value>, path: &str) -> Result<Region, Error> {
-    let mut reg = Region::with_shape([16, 16, 16]);
+fn parse_section(sect: &HashMap<String, Value>, path: &str) -> Result<Option<(SubChunk, i8)>, Error> {
+    let mut subchunk = SubChunk::new();
+    let reg = &mut subchunk.region;
+
+    // y
+    let y_pos = *unwrap_opt_tag!(sect.get("Y"),Byte,0,format!("{path}/Y"));
+
+    if y_pos >= 20 || y_pos <= -5 {
+        return Ok(None);
+    }
+
     // palette
-    parse_3d(&mut reg, sect, path)?;
+    parse_blocks(reg, sect, path)?;
 
     // skylight and block light
     {
@@ -299,40 +298,41 @@ fn parse_section(sect: &HashMap<String, Value>, path: &str) -> Result<Region, Er
             &[]
         };
 
-        let mut counter = 0;
-        for y in 0..16 {
-            for z in 0..16 {
-                for x in 0..16 {
-                    let sl: u8 = if sky_light.is_empty() {
-                        15
-                    } else {
-                        let b = u8::from_ne_bytes(sky_light[counter / 2].to_ne_bytes());
-                        (b >> (4 * (counter % 2))) & 0xF
-                    };
-                    debug_assert!(sl <= 15);
-                    let bl: u8 = if block_light.is_empty() {
-                        15
-                    } else {
-                        let b = u8::from_ne_bytes(block_light[counter / 2].to_ne_bytes());
-                        (b >> (4 * (counter % 2))) & 0xF
-                    };
-                    debug_assert!(bl <= 15);
+        for counter in 0..4096 {
+            let sl: u8 = if sky_light.is_empty() {
+                15
+            } else {
+                let b = u8::from_ne_bytes(sky_light[counter / 2].to_ne_bytes());
+                (b >> (4 * (counter % 2))) & 0xF
+            };
+            debug_assert!(sl <= 15);
+            let bl: u8 = if block_light.is_empty() {
+                15
+            } else {
+                let b = u8::from_ne_bytes(block_light[counter / 2].to_ne_bytes());
+                (b >> (4 * (counter % 2))) & 0xF
+            };
+            debug_assert!(bl <= 15);
 
-                    let light = Light::new(sl, bl);
-                    reg.sky_block_light[[y, z, x]] = light;
-                    counter += 1;
-                }
-            }
+            let light = Light::new(sl, bl);
+            subchunk.sky_block_light_array[counter] = light;
         }
+        // for y in 0..16 {
+        //     for z in 0..16 {
+        //         for x in 0..16 {
+        //         }
+        //     }
+        // }
     }
 
     //biomes
-    parse_biomes(&mut reg, sect, path)?;
+    parse_biomes(&mut subchunk, sect, path)?;
 
-    return Ok(reg);
+    return Ok(Some((subchunk, y_pos)));
 }
 
-
+// MultiBitSet in chunk.rs and litematic.rs is different. MC doesn't allow to separate an element
+// into 2 u64, but litematica does
 struct MultiBitSet {
     array: Vec<u64>,
     num_elements: usize,

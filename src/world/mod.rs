@@ -16,21 +16,33 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::io::{Read};
+use crate::biome::Biome;
 use crate::error::Error;
 use crate::Region;
+use crate::region::Light;
 
 pub mod mca;
 mod files_reader;
 mod chunk;
 mod dimension;
+mod sub_chunk;
 
 
 #[derive(Debug, Eq, Hash, PartialEq)]
 pub struct XZCoordinate<T = i32> {
     pub x: T,
     pub z: T,
+}
+
+pub struct SubChunk {
+    pub region: Region,
+    /// Skylight, yzx
+    pub sky_block_light_array: [Light; 4096],
+
+    /// Biomes, zx
+    pub biome_array: [Biome; 64],
 }
 
 pub struct Chunk {
@@ -43,7 +55,7 @@ pub struct Chunk {
     pub inhabited_time: i64,
     /// If light compute is finished
     pub is_light_on: bool,
-    sub_chunks: [Region; 24],
+    sub_chunks: BTreeMap<i8, SubChunk>,
     pub source_file: String,
 
 }
@@ -130,7 +142,7 @@ pub struct ChunkPos {
     // pub coordinate_in_file: XZCoordinate,
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd)]
 #[repr(u8)]
 pub enum ChunkStatus {
     Empty,

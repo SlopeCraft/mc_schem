@@ -1,11 +1,10 @@
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
-use std::time;
 use fastnbt::Value;
 use flate2::read::{GzDecoder, ZlibDecoder};
 use regex::Regex;
 use crate::error::Error;
-use crate::world::{FilesInMemory, ChunkPos, ChunkVariant, FilesRead, XZCoordinate, Chunk, UnparsedChunkData, Dimension};
+use crate::world::{FilesInMemory, ChunkPos, ChunkVariant, FilesRead, XZCoordinate, Chunk, UnparsedChunkData};
 
 
 pub const SEGMENT_BYTES: usize = 4096;
@@ -105,7 +104,7 @@ impl ChunkRawDataRef<'_> {
         }
         let compress_type: u8 = self.data[4];
 
-        let compressed_data = &self.data[5..(5 + data_bytes)];
+        let compressed_data = &self.data[5..(4 + data_bytes)];
         let parse_opt: Result<HashMap<String, Value>, fastnbt::error::Error>;
         match compress_type {
             1 | 128 => {//gzip
@@ -188,15 +187,26 @@ pub fn parse_multiple_regions(region_dir: &dyn FilesRead, parse_directly: bool) 
     return Ok(result);
 }
 
+impl UnparsedChunkData {
+    pub fn parse(&self, chunk_pos: &ChunkPos) -> Result<Chunk, Error> {
+        let raw_ref = ChunkRawDataRef { data: &self.region_data, unix_timestamp: self.time_stamp };
+        let nbt = raw_ref.to_nbt()?;
+
+        let chunk = Chunk::from_nbt(nbt, &chunk_pos, &self.source_file)?;
+        return Ok(chunk);
+    }
+}
 
 impl ChunkVariant {
-    pub fn parse(&mut self, chunk_pos: &ChunkPos) -> Result<(), Error> {
+    pub fn check(&self, chunk_pos: &ChunkPos) -> Result<(), Error> {
         if let ChunkVariant::Unparsed(raw) = self {
-            let raw_ref = ChunkRawDataRef { data: &raw.region_data, unix_timestamp: raw.time_stamp };
-            let nbt = raw_ref.to_nbt()?;
-
-            let chunk = Chunk::from_nbt(nbt, &chunk_pos, &raw.source_file)?;
-            *self = ChunkVariant::Parsed(chunk);
+            raw.parse(chunk_pos)?;
+        }
+        return Ok(());
+    }
+    pub fn parse_inplace(&mut self, chunk_pos: &ChunkPos) -> Result<(), Error> {
+        if let ChunkVariant::Unparsed(raw) = self {
+            *self = ChunkVariant::Parsed(raw.parse(chunk_pos)?);
         }
 
         return Ok(());
@@ -231,8 +241,8 @@ impl ChunkPos {
 
     pub fn local_coordinate(&self) -> XZCoordinate<u32> {
         return XZCoordinate {
-            x: (self.global_x & 32) as u32,
-            z: (self.global_x & 32) as u32,
+            x: (self.global_x & 31) as u32,
+            z: (self.global_z & 31) as u32,
         };
     }
     pub fn file_coordinate(&self) -> XZCoordinate {

@@ -1,10 +1,13 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::path::Path;
 use std::fs::File;
 use std::io::{Read, Seek};
+use std::path::Path;
+
+use sevenz_rust::SevenZReader;
+
 use crate::error::Error;
-use crate::world::{FilesRead, FilesInMemory, FileInfo, FolderOnDisk, SubDirectory};
+use crate::world::{FileInfo, FilesInMemory, FilesRead, FolderOnDisk, SubDirectory};
 
 impl FolderOnDisk {
     pub fn new(path: &str) -> Self {
@@ -71,8 +74,6 @@ impl FilesRead for FolderOnDisk {
         return Ok(());
     }
 }
-
-use sevenz_rust::SevenZReader;
 
 impl FilesInMemory {
     pub fn from_7z_reader<T: Read + Seek>(mut src: SevenZReader<T>, source: Option<String>) -> Result<FilesInMemory, Error> {
@@ -152,7 +153,7 @@ impl FilesRead for FilesInMemory {
     fn read_file_nocopy(&self, filename: &str) -> Result<Option<&[u8]>, Error> {
         return match self.files.get(filename) {
             Some(bytes) => {
-                Ok(Some(bytes))
+                Ok(Some(&bytes))
             }
             None => {
                 Err(Error::NoSuchFile {

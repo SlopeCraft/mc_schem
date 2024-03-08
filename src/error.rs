@@ -125,6 +125,10 @@ pub enum Error {
         tag_path: String,
         chunk_status: String,
     },
+    MissingSubChunk {
+        tag_path: String,
+        sub_chunk_y: Vec<i8>,
+    }
 }
 
 impl Display for Error {
@@ -196,6 +200,8 @@ impl Display for Error {
             => write!(f, "Invalid biome \"{biome}\" at {tag_path}"),
             Error::InvalidChunkStatus { tag_path, chunk_status }
             => write!(f, "Invalid chunk status \"{chunk_status}\" at {tag_path}"),
+            Error::MissingSubChunk { tag_path, sub_chunk_y }
+            => write!(f, "Chunk {tag_path} has missing sub chunk(s): {:#?}", sub_chunk_y),
         }
     }
 }

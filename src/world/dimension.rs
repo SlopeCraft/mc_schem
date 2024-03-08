@@ -3,6 +3,8 @@ use std::time;
 use crate::Error;
 use crate::world::{Dimension, FilesInMemory, FilesRead, mca};
 use rayon::prelude::*;
+use crate::block::Block;
+use crate::region::{BlockEntity, PendingTick, WorldSlice};
 
 impl Dimension {
     pub fn from_files(files: &dyn FilesRead, parse_directly: bool) -> Result<Dimension, Error> {
@@ -45,6 +47,36 @@ impl Dimension {
     }
 }
 
+impl WorldSlice for Dimension {
+    fn offset(&self) -> [i32; 3] {
+        return [0, 0, 0];
+    }
+
+    fn shape(&self) -> [i32; 3] {
+        let mut xmin = i32::MAX;
+        let mut xmax = i32::MIN;
+        let mut zmin = i32::MAX;
+        let mut zmax = i32::MIN;
+        for (pos, _) in &self.chunks {
+            let x = pos.to_global_pos().x;
+            let z = pos.to_global_pos().z;
+            xmin = xmin.min(x);
+            xmax = xmax.max(x);
+            zmin = zmin.min(z);
+            zmax = zmax.max(z);
+        }
+        let height = 384;
+        return [(xmax - xmin + 1) * 16, height, (zmax - zmin + 1) * 16];
+    }
+
+    fn total_blocks(&self, include_air: bool) -> u64 {
+        todo!()
+    }
+
+    fn block_info_at(&self, r_pos: [i32; 3]) -> Option<(u16, &Block, Option<&BlockEntity>, Option<&PendingTick>)> {
+        todo!()
+    }
+}
 
 #[test]
 fn test_load_dimension() {

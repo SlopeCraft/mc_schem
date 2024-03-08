@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
+
 use fastnbt::Value;
 use flate2::read::{GzDecoder, ZlibDecoder};
 use regex::Regex;
-use crate::error::Error;
-use crate::world::{FilesInMemory, ChunkPos, ChunkVariant, FilesRead, XZCoordinate, Chunk, UnparsedChunkData};
 
+use crate::error::Error;
+use crate::world::{Chunk, ChunkPos, ChunkVariant, FilesInMemory, FilesRead, UnparsedChunkData, XZCoordinate};
 
 pub const SEGMENT_BYTES: usize = 4096;
 
@@ -14,6 +15,11 @@ impl Display for XZCoordinate {
         write!(f, "({}, {})", self.x, self.z)
     }
 }
+
+// enum ChunkRawDataRefVariant<'a> {
+//     WithOwnership(SharedSlice),
+//     WithoutOwnership(&'a [u8]),
+// }
 
 struct ChunkRawDataRef<'a> {
     data: &'a [u8],
@@ -64,9 +70,9 @@ fn parse_mca_single_chunk<'a>(coord: &XZCoordinate<u32>, file_bytes: &'a [u8]) -
 
     let data_beg_idx = offset_by_segment as usize * SEGMENT_BYTES;
     let data_end_idx = (offset_by_segment + num_segments) as usize * SEGMENT_BYTES;
-
+    let range = data_beg_idx..data_end_idx;
     return Ok(Some(ChunkRawDataRef {
-        data: &file_bytes[data_beg_idx..data_end_idx],
+        data: &file_bytes[range],
         unix_timestamp: timestamp,
     }));
 }
@@ -159,15 +165,15 @@ pub fn parse_multiple_regions(region_dir: &dyn FilesRead, parse_directly: bool) 
     let mut buffer: Vec<u8> = Vec::new();
     for (info, file_coord) in &region_files {
         let chunk;
-        if let Some(file_content) = region_dir.read_file_nocopy(&info.name)? {
-            chunk = parse_mca_from_bytes(file_content)?;
+        if let Some(arc_slice) = region_dir.read_file_nocopy(&info.name)? {
+            chunk = parse_mca_from_bytes(arc_slice)?;
         } else {
             region_dir.read_file(&info.name, &mut buffer)?;
             chunk = parse_mca_from_bytes(&buffer)?;
         }
 
-        for (local_coord, raw) in &chunk {
-            let chunk_pos = ChunkPos::from_local_pos(file_coord, local_coord);
+        for (local_coord, raw) in chunk {
+            let chunk_pos = ChunkPos::from_local_pos(file_coord, &local_coord);
             let variant: ChunkVariant;
             if parse_directly {
                 variant = ChunkVariant::Parsed(Chunk::from_nbt(raw.to_nbt()?,

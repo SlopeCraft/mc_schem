@@ -4,11 +4,10 @@ use std::time;
 use fastnbt::Value;
 use math::round::{ceil, floor};
 use crate::error::Error;
-use crate::region::{Light, Region, WorldSlice};
+use crate::region::{Light};
 use crate::schem::common::ceil_up_to;
 use crate::{unwrap_opt_tag, unwrap_tag};
 use crate::biome::Biome;
-use crate::block::Block;
 use crate::schem::common;
 use crate::schem::id_of_nbt_tag;
 use crate::world::{Chunk, ChunkPos, ChunkStatus, SubChunk};
@@ -80,11 +79,18 @@ impl Chunk {
             source_file: "Unnamed".to_string(),
         };
     }
+
+    pub fn height(&self) -> i32 {
+        debug_assert!(self.missing_sub_chunks().is_empty());
+        return self.sub_chunks.len() as i32 * 16;
+    }
+
     pub fn from_nbt(mut nbt: HashMap<String, Value>, chunk_pos: &ChunkPos, source_filename: &str) -> Result<Chunk, Error> {
         let path_in_saves = format!("{source_filename}/[{},{}]",
                                     chunk_pos.local_coordinate().x,
                                     chunk_pos.local_coordinate().z);
         let mut result = Chunk::new();
+        result.source_file = source_filename.to_string();
         // chunk status
         {
             let status: ChunkStatus;
@@ -117,7 +123,40 @@ impl Chunk {
             }
         }
 
+        {
+            let missing = result.missing_sub_chunks();
+            if missing.len() > 0 {
+                return Err(Error::MissingSubChunk {
+                    tag_path: format!("{path_in_saves}"),
+                    sub_chunk_y: missing,
+                });
+            }
+        }
+
         return Ok(result);
+    }
+
+    fn missing_sub_chunks(&self) -> Vec<i8> {
+        let mut max = i8::MIN;
+        let mut min = i8::MAX;
+        for (y, _) in &self.sub_chunks {
+            max = max.max(*y);
+            min = min.min(*y);
+        }
+
+        if max <= min { // zero or 1 elements
+            return vec![];
+        }
+        if (max - min + 1) as usize == self.sub_chunks.len() {
+            return vec![];
+        }
+        let mut missing = Vec::with_capacity((max - min + 1) as usize);
+        for y in min..(max + 1) {
+            if !self.sub_chunks.contains_key(&y) {
+                missing.push(y);
+            }
+        }
+        return missing;
     }
 }
 
@@ -125,19 +164,8 @@ pub fn bits_per_block(block_types: usize, min_value: u8) -> u8 {
     return (ceil((block_types as f64).log2(), 0) as u8).max(min_value);
 }
 
-fn parse_blocks(reg: &mut Region, sect: &HashMap<String, Value>, path: &str) -> Result<(), Error> {
-    let tag_bs = if let Some(r) = sect.get("block_states") {
-        r
-    } else {
-        // if block_states doesn't exist, set it to empty
-        if reg.shape() != [16, 16, 16] {
-            reg.reshape(&[16, 16, 16]);
-        }
-        reg.palette = vec![Block::air()];
-        reg.array_yzx.fill(0);
-        return Ok(());
-    };
-    let block_states = unwrap_tag!(tag_bs,Compound,HashMap::new(),format!("{path}/block_states"));
+fn parse_blocks(reg: &mut SubChunk, sect: &HashMap<String, Value>, path: &str) -> Result<(), Error> {
+    let block_states = unwrap_opt_tag!(sect.get("block_states"),Compound,HashMap::new(),format!("{path}/block_states"));
 
     {
         let palette = unwrap_opt_tag!(block_states.get("palette"),List,vec![],format!("{path}/block_states/palette"));
@@ -158,7 +186,7 @@ fn parse_blocks(reg: &mut Region, sect: &HashMap<String, Value>, path: &str) -> 
     }
     // blocks
     if reg.palette.len() == 1 {
-        reg.array_yzx.fill(0);
+        reg.block_id_array.fill(0);
     } else {
         let path = format!("{path}/block_states/data");
         let array_i64 = unwrap_opt_tag!(block_states.get("data"),LongArray,fastnbt::LongArray::new(vec![]),path);
@@ -176,23 +204,18 @@ fn parse_blocks(reg: &mut Region, sect: &HashMap<String, Value>, path: &str) -> 
         }
         mbs.set_array_from_nbt(&array_i64);
 
-        let mut counter = 0;
-        for y in 0..16 {
-            for z in 0..16 {
-                for x in 0..16 {
-                    let blk_id = mbs.get(counter) as u16;
-                    if blk_id > block_id_max as u16 {
-                        return Err(Error::BlockIndexOutOfRange {
-                            tag_path: format!("{path}/block_states/data"),
-                            index: blk_id as i32,
-                            range: [0, block_id_max as i32],
-                        });
-                    }
-                    reg.array_yzx[[x, y, z]] = blk_id;
-                    counter += 1;
-                }
+        for idx in 0..4096 {
+            let blk_id = mbs.get(idx) as u16;
+            if blk_id > block_id_max as u16 {
+                return Err(Error::BlockIndexOutOfRange {
+                    tag_path: format!("{path}/block_states/data"),
+                    index: blk_id as i32,
+                    range: [0, block_id_max as i32],
+                });
             }
+            reg.block_id_array[idx] = blk_id;
         }
+
     }
     return Ok(());
 }
@@ -263,7 +286,7 @@ fn parse_biomes(reg: &mut SubChunk, sect: &HashMap<String, Value>, path: &str) -
 
 fn parse_section(sect: &HashMap<String, Value>, path: &str) -> Result<Option<(SubChunk, i8)>, Error> {
     let mut subchunk = SubChunk::new();
-    let reg = &mut subchunk.region;
+    // let reg = &mut subchunk.region;
 
     // y
     let y_pos = *unwrap_opt_tag!(sect.get("Y"),Byte,0,format!("{path}/Y"));
@@ -271,9 +294,17 @@ fn parse_section(sect: &HashMap<String, Value>, path: &str) -> Result<Option<(Su
     if y_pos >= 20 || y_pos <= -5 {
         return Ok(None);
     }
+    // block entities
+    if let Some(be) = sect.get("block_entities") {
+        let be = unwrap_tag!(be,List,vec![],format!("{path}/Entities"));
+        if !be.is_empty() {
+            println!("{} block entities in {path}", be.len());
+        }
+    }
+
 
     // palette
-    parse_blocks(reg, sect, path)?;
+    parse_blocks(&mut subchunk, sect, path)?;
 
     // skylight and block light
     {
@@ -317,12 +348,6 @@ fn parse_section(sect: &HashMap<String, Value>, path: &str) -> Result<Option<(Su
             let light = Light::new(sl, bl);
             subchunk.sky_block_light_array[counter] = light;
         }
-        // for y in 0..16 {
-        //     for z in 0..16 {
-        //         for x in 0..16 {
-        //         }
-        //     }
-        // }
     }
 
     //biomes

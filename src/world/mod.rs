@@ -17,10 +17,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 use std::collections::{BTreeMap, HashMap};
-use std::io::{Read};
+use std::io::Read;
 use crate::biome::Biome;
+use crate::block::Block;
 use crate::error::Error;
-use crate::Region;
 use crate::region::Light;
 
 pub mod mca;
@@ -37,7 +37,10 @@ pub struct XZCoordinate<T = i32> {
 }
 
 pub struct SubChunk {
-    pub region: Region,
+    /// All kinds of blocks
+    pub palette: Vec<Block>,
+    block_id_array: [u16; 4096],
+    // pub region: Region,
     /// Skylight, yzx
     pub sky_block_light_array: [Light; 4096],
 
@@ -57,12 +60,12 @@ pub struct Chunk {
     pub is_light_on: bool,
     sub_chunks: BTreeMap<i8, SubChunk>,
     pub source_file: String,
-
 }
 
 pub struct UnparsedChunkData {
     pub time_stamp: u32,
-    region_data: Vec<u8>,//uncompressed
+    region_data: Vec<u8>,
+    //uncompressed
     source_file: String,
 }
 

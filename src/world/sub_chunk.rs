@@ -1,13 +1,15 @@
 use ndarray::{ArrayView2, ArrayView3};
 use crate::biome::Biome;
-use crate::region::{Light, Region};
+use crate::region::{Light};
 use crate::world::SubChunk;
 
 
 impl SubChunk {
     pub fn new() -> SubChunk {
         let result = SubChunk {
-            region: Region::with_shape([16, 16, 16]),
+            // region: Region::with_shape([16, 16, 16]),
+            palette: Vec::new(),
+            block_id_array: [0; 4096],
             sky_block_light_array: [Light::new(15, 15); 4096],
             biome_array: [Biome::the_void; 64],
             // sky_block_light: Array3::default(shape_yzx),
@@ -16,6 +18,9 @@ impl SubChunk {
         return result;
     }
 
+    pub fn block_id(&self) -> ArrayView3<u16> {
+        return ArrayView3::from_shape([16, 16, 16], &self.block_id_array).unwrap();
+    }
 
     pub fn sky_block_light(&self) -> ArrayView3<Light> {
         // this will always succeed

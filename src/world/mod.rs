@@ -18,6 +18,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::collections::{BTreeMap, HashMap};
 use std::io::Read;
+use std::ops::Range;
+use std::sync::Arc;
 use crate::biome::Biome;
 use crate::block::Block;
 use crate::error::Error;
@@ -62,9 +64,16 @@ pub struct Chunk {
     pub source_file: String,
 }
 
+#[derive(Debug, Clone)]
+pub struct ArcSlice {
+    data_owner: Arc<Vec<u8>>,
+    range: Range<usize>,
+}
+
 pub struct UnparsedChunkData {
     pub time_stamp: u32,
-    region_data: Vec<u8>,
+    pub compress_method: u8,
+    region_data: ArcSlice,
     //uncompressed
     source_file: String,
 }
@@ -90,6 +99,7 @@ pub struct SubDirectory<'a> {
 }
 
 pub trait FilesRead {
+    fn path(&self) -> String;
     fn files(&self) -> Vec<FileInfo>;
 
     fn open_file(&self, filename: &str) -> Result<Box<dyn Read + '_>, Error>;
@@ -109,7 +119,7 @@ pub trait FilesRead {
         return Ok(result);
     }
 
-    fn read_file_nocopy(&self, filename: &str) -> Result<Option<&[u8]>, Error> {
+    fn read_file_nocopy(&self, filename: &str) -> Result<Option<ArcSlice>, Error> {
         let _ = self.open_file(filename)?;
         return Ok(None);
     }
@@ -125,6 +135,14 @@ pub trait FilesRead {
             dirname_with_slash: dir,
         };
     }
+
+    fn read_file_as_arc_slice(&self, filename: &str) -> Result<ArcSlice, Error> {
+        if let Some(arc_slice) = self.read_file_nocopy(filename)? {
+            return Ok(arc_slice);
+        }
+        let vec = self.read_file_as_bytes(filename)?;
+        return Ok(ArcSlice::from(Arc::new(vec)));
+    }
 }
 
 pub struct FolderOnDisk {
@@ -132,7 +150,7 @@ pub struct FolderOnDisk {
 }
 
 pub struct FilesInMemory {
-    files: HashMap<String, Vec<u8>>,
+    files: HashMap<String, Arc<Vec<u8>>>,
     /// The source of 7z archive, including but not limited to filename
     pub source: String,
 }

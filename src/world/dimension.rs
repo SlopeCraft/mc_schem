@@ -8,7 +8,7 @@ use crate::region::{BlockEntity, PendingTick, WorldSlice};
 
 impl Dimension {
     pub fn from_files(files: &dyn FilesRead, parse_directly: bool) -> Result<Dimension, Error> {
-        let chunks = mca::parse_multiple_regions(files, parse_directly)?;
+        let chunks = mca::parse_multiple_regions(files, &files.path(), parse_directly)?;
         return Ok(Dimension {
             chunks
         });
@@ -105,6 +105,23 @@ fn test_large_overworld() {
 
     dim.parse_all().unwrap();
     //dim.check_all().unwrap();
+
+    let parsed = time::SystemTime::now();
+
+    println!("{} chunks parsed in {} ms.", dim.chunks.len(), parsed.duration_since(begin).unwrap().as_millis());
+    println!("Decompression takes {} ms, parsing takes {} ms",
+             decompressed.duration_since(begin).unwrap().as_millis(),
+             parsed.duration_since(decompressed).unwrap().as_millis());
+}
+
+#[test]
+fn test_load_dimension_mcc_block_entities() {
+    let begin = time::SystemTime::now();
+    let files = FilesInMemory::from_7z_file("test_files/world/02_mcc-block-entities.7z", "").unwrap();
+    let decompressed = time::SystemTime::now();
+
+    let mut dim = Dimension::from_files(&files.sub_directory("region"), false).unwrap();
+    dim.parse_all().unwrap();
 
     let parsed = time::SystemTime::now();
 

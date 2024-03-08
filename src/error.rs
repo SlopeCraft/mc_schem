@@ -128,6 +128,10 @@ pub enum Error {
     MissingSubChunk {
         tag_path: String,
         sub_chunk_y: Vec<i8>,
+    },
+    MissingMCCFile {
+        filename: String,
+        detail: Box<Error>,
     }
 }
 
@@ -202,6 +206,8 @@ impl Display for Error {
             => write!(f, "Invalid chunk status \"{chunk_status}\" at {tag_path}"),
             Error::MissingSubChunk { tag_path, sub_chunk_y }
             => write!(f, "Chunk {tag_path} has missing sub chunk(s): {:#?}", sub_chunk_y),
+            Error::MissingMCCFile { filename, detail }
+            => write!(f, "MCC file {filename} is missing, detail: {detail}"),
         }
     }
 }

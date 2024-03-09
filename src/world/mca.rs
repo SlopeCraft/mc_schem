@@ -181,7 +181,7 @@ fn get_compress_label(mca_data: &[u8]) -> (u8, usize) {
 }
 
 
-pub fn parse_multiple_regions(region_dir: &dyn FilesRead, region_dir_name: &str, parse_directly: bool) -> Result<HashMap<ChunkPos, ChunkVariant>, Error> {
+pub fn parse_multiple_regions(region_dir: &dyn FilesRead, parse_directly: bool) -> Result<HashMap<ChunkPos, ChunkVariant>, Error> {
     let files = region_dir.files();
     let mut region_files = Vec::with_capacity(files.len());
     {
@@ -193,7 +193,7 @@ pub fn parse_multiple_regions(region_dir: &dyn FilesRead, region_dir_name: &str,
     }
     let mut result = HashMap::new();
     for (info, file_coord) in &region_files {
-        let mut chunks = parse_mca_file(info, file_coord, region_dir, region_dir_name)?;
+        let mut chunks = parse_mca_file(info, file_coord, region_dir)?;
 
         for (chunk_pos, variant) in chunks {
             let mut variant = variant;
@@ -208,7 +208,7 @@ pub fn parse_multiple_regions(region_dir: &dyn FilesRead, region_dir_name: &str,
 
 
 fn parse_mca_file(file_info: &FileInfo, file_coord: &XZCoordinate,
-                  region_dir: &dyn FilesRead, region_dir_name: &str) -> Result<HashMap<ChunkPos, ChunkVariant>, Error> {
+                  region_dir: &dyn FilesRead) -> Result<HashMap<ChunkPos, ChunkVariant>, Error> {
     let mca_bytes: ArcSlice = if let Some(slice) = region_dir.read_file_nocopy(&file_info.name)? {
         slice
     } else {
@@ -228,7 +228,7 @@ fn parse_mca_file(file_info: &FileInfo, file_coord: &XZCoordinate,
         for x in 0..32 {
             let local_pos = XZCoordinate { x, z };
             let pos = ChunkPos::from_local_pos(file_coord, &local_pos);
-            let unparsed = parse_mca_single_chunk(&pos, mca_bytes.clone(), region_dir, region_dir_name)?;
+            let unparsed = parse_mca_single_chunk(&pos, mca_bytes.clone(), region_dir)?;
             if let Some(unparsed) = unparsed {
                 result.insert(pos, ChunkVariant::Unparsed(unparsed));
             }
@@ -241,7 +241,7 @@ pub fn offset_in_mca_file(local_coord: &XZCoordinate<u32>) -> u32 {
     return 4 * ((local_coord.x & 31) + (local_coord.z & 31) * 32);
 }
 
-fn parse_mca_single_chunk(chunk_pos: &ChunkPos, mca_bytes: ArcSlice, region_dir: &dyn FilesRead, region_dir_name: &str) -> Result<Option<UnparsedChunkData>, Error> {
+fn parse_mca_single_chunk(chunk_pos: &ChunkPos, mca_bytes: ArcSlice, region_dir: &dyn FilesRead) -> Result<Option<UnparsedChunkData>, Error> {
     let header: [u8; 4];
     let local_coord = chunk_pos.local_coordinate();
     {
@@ -278,7 +278,7 @@ fn parse_mca_single_chunk(chunk_pos: &ChunkPos, mca_bytes: ArcSlice, region_dir:
             chunk_local_z: local_coord.z as i32,
             offset_by_segment,
             num_segments,
-            total_segments: mca_bytes.len(),
+            total_segments: mca_bytes.len() / SEGMENT_BYTES,
         });
     }
 
@@ -305,7 +305,7 @@ fn parse_mca_single_chunk(chunk_pos: &ChunkPos, mca_bytes: ArcSlice, region_dir:
             time_stamp,
             compress_method: compress_label,
             region_data: mcc_bytes,
-            source_file: format!("{region_dir_name}/{}", mcc_filename),
+            source_file: format!("{}/{}", region_dir.path(), mcc_filename),
         }));
     }
 
@@ -313,6 +313,6 @@ fn parse_mca_single_chunk(chunk_pos: &ChunkPos, mca_bytes: ArcSlice, region_dir:
         time_stamp,
         compress_method: compress_label,
         region_data: mca_bytes.slice((data_beg_idx + 5)..(data_beg_idx + 5 + compressed_len)),
-        source_file: format!("{region_dir_name}/{}", chunk_pos.filename_mca()),
+        source_file: format!("{}/{}", region_dir.path(), chunk_pos.filename_mca()),
     }));
 }

@@ -8,7 +8,7 @@ use crate::region::{BlockEntity, PendingTick, WorldSlice};
 
 impl Dimension {
     pub fn from_files(files: &dyn FilesRead, parse_directly: bool) -> Result<Dimension, Error> {
-        let chunks = mca::parse_multiple_regions(files, &files.path(), parse_directly)?;
+        let chunks = mca::parse_multiple_regions(files, parse_directly)?;
         return Ok(Dimension {
             chunks
         });

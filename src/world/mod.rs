@@ -40,6 +40,7 @@ pub struct XZCoordinate<T = i32> {
     pub z: T,
 }
 
+#[derive(Debug, Clone)]
 pub struct SubChunk {
     /// All kinds of blocks
     pub palette: Vec<Block>,
@@ -52,6 +53,7 @@ pub struct SubChunk {
     pub biome_array: [Biome; 64],
 }
 
+#[derive(Debug, Clone)]
 pub struct Chunk {
     pub time_stamp: u32,
     /// Status of chunk
@@ -68,6 +70,11 @@ pub struct Chunk {
     pub block_entities: HashMap<[i32; 3], BlockEntity>,
 }
 
+pub enum RefOrObject<'a, T: Sized> {
+    Ref(&'a T),
+    Object(T),
+}
+
 #[derive(Debug, Clone)]
 pub struct ArcSlice {
     data_owner: Arc<Vec<u8>>,
@@ -79,6 +86,7 @@ pub struct NBTWithSource<'a> {
     pub source: &'a str,
 }
 
+#[derive(Debug, Clone)]
 pub struct MCARawData {
     pub time_stamp: u32,
     pub compress_method: u8,
@@ -87,26 +95,36 @@ pub struct MCARawData {
     pub source_file: String,
 }
 
+#[derive(Debug, Clone)]
 pub struct UnparsedChunkData {
     pub region_data: MCARawData,
     pub entity_data: Option<MCARawData>,
 }
 
+#[derive(Debug, Clone)]
 pub enum ChunkVariant {
     Parsed(Chunk),
     Unparsed(UnparsedChunkData),
 }
 
+#[derive(Debug, Clone)]
 pub struct Dimension {
     pub chunks: HashMap<ChunkPos, ChunkVariant>,
 }
 
+#[derive(Debug, Clone)]
+pub struct World {
+    pub dimensions: BTreeMap<i32, Dimension>,
+}
+
+#[derive(Debug, Clone)]
 pub struct FileInfo {
     pub name: String,
     pub full_name: String,
     pub size: u64,
 }
 
+#[derive(Clone)]
 pub struct SubDirectory<'a> {
     root: &'a dyn FilesRead,
     dirname_with_slash: String,
@@ -148,17 +166,19 @@ pub trait FilesRead {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct FolderOnDisk {
     path: String,
 }
 
+#[derive(Debug, Clone)]
 pub struct FilesInMemory {
     files: HashMap<String, Arc<Vec<u8>>>,
     /// The source of 7z archive, including but not limited to filename
     pub source: String,
 }
 
-#[derive(Debug, Eq, Hash, PartialEq)]
+#[derive(Debug, Eq, Hash, PartialEq, Copy, Clone)]
 pub struct ChunkPos {
     global_x: i32,
     global_z: i32,

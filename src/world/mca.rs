@@ -7,7 +7,7 @@ use regex::Regex;
 use world::{XZCoordinate, ChunkPos};
 use crate::error::Error;
 use crate::world;
-use crate::world::{ArcSlice, Chunk, ChunkVariant, Dimension, FileInfo, MCARawData, NBTWithSource, UnparsedChunkData};
+use crate::world::{ArcSlice, Chunk, ChunkVariant, Dimension, FileInfo, MCARawData, NBTWithSource, RefOrObject, UnparsedChunkData};
 use world::FilesRead;
 
 pub const SEGMENT_BYTES: usize = 4096;
@@ -122,18 +122,24 @@ impl ChunkPos {
 }
 
 impl ChunkVariant {
-    pub fn check(&self, chunk_pos: &ChunkPos) -> Result<(), Error> {
-        if let ChunkVariant::Unparsed(raw) = self {
-            raw.parse(chunk_pos)?;
-        }
-        return Ok(());
+    pub fn check(&self, chunk_pos: &ChunkPos) -> Result<RefOrObject<Chunk>, Error> {
+        return match self {
+            ChunkVariant::Unparsed(raw) => {
+                let chunk = raw.parse(chunk_pos)?;
+                Ok(RefOrObject::Object(chunk))
+            },
+            ChunkVariant::Parsed(chunk) => Ok(RefOrObject::Ref(chunk))
+        };
     }
-    pub fn parse_inplace(&mut self, chunk_pos: &ChunkPos) -> Result<(), Error> {
+    pub fn parse_inplace(&mut self, chunk_pos: &ChunkPos) -> Result<&mut Chunk, Error> {
         if let ChunkVariant::Unparsed(raw) = self {
             *self = ChunkVariant::Parsed(raw.parse(chunk_pos)?);
         }
 
-        return Ok(());
+        match self {
+            ChunkVariant::Parsed(chunk) => return Ok(chunk),
+            ChunkVariant::Unparsed(_) => { panic!("Unreachable code"); }
+        }
     }
 }
 

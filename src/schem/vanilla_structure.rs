@@ -103,7 +103,8 @@ fn parse_array_item(item: &Value, tag_path: &str, palette_size: i32, region_size
             return Err(Error::BlockPosOutOfRange {
                 tag_path: format!("{}/pos[{}]", tag_path, idx),
                 pos,
-                range: region_size,
+                lower_bound: [0, 0, 0],
+                upper_bound: region_size,
             });
         }
     }

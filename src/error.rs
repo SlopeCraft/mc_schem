@@ -58,7 +58,8 @@ pub enum Error {
     BlockPosOutOfRange {
         tag_path: String,
         pos: [i32; 3],
-        range: [i32; 3],
+        lower_bound: [i32; 3],
+        upper_bound: [i32; 3],
     },
     FileOpenError(std::io::Error),
     MultipleBlockEntityInOnePos {
@@ -153,8 +154,8 @@ impl Display for Error {
             Error::PaletteTooLong(l) => write!(f, "Palette too long: {}", l),
             Error::BlockIndexOutOfRange { tag_path, index, range }
             => write!(f, "Block index out of range, tag: {}, index = {}, index should be in range [{}, {}]", tag_path, index, range[0], range[1]),
-            Error::BlockPosOutOfRange { tag_path, pos, range }
-            => write!(f, "Block pos out of range, tag: {}, coordinate: {}, range: {}", tag_path, format_size(pos), format_size(range)),
+            Error::BlockPosOutOfRange { tag_path, pos, lower_bound, upper_bound }
+            => write!(f, "Block pos out of range, tag: {}, coordinate: {}, lower bound: {}, upper bound:{}", tag_path, format_size(pos), format_size(lower_bound), format_size(upper_bound)),
             Error::FileOpenError(err)
             => write!(f, "File open error: {}", err),
             Error::MultipleBlockEntityInOnePos { pos, latter_tag_path }

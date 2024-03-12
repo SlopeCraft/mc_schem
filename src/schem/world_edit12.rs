@@ -250,7 +250,8 @@ impl Region {
                     return Err(Error::BlockPosOutOfRange {
                         tag_path,
                         pos: pos_xyz,
-                        range: shape_xyz,
+                        lower_bound: [0, 0, 0],
+                        upper_bound: shape_xyz,
                     });
                 }
             }

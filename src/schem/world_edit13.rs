@@ -433,7 +433,8 @@ fn parse_block_entity(mut nbt: HashMap<String, Value>, tag_path: &str, region_si
             return Err(Error::BlockPosOutOfRange {
                 tag_path: pos_tag_path,
                 pos,
-                range: region_size.clone(),
+                lower_bound: [0, 0, 0],
+                upper_bound: *region_size,
             });
         }
     }

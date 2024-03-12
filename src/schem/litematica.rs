@@ -27,7 +27,7 @@ use crate::schem::{LitematicaMetaData, Schematic, id_of_nbt_tag, MetaDataIR, Reg
 use crate::error::{Error};
 use crate::{unwrap_opt_tag, unwrap_tag};
 use crate::schem::common;
-use crate::region::{Entity, PendingTick, PendingTickInfo, WorldSlice};
+use crate::region::{PendingTick, PendingTickInfo, WorldSlice};
 
 impl MetaDataIR {
     pub fn from_litematica(src: &LitematicaMetaData) -> Self {
@@ -566,16 +566,9 @@ impl MultiBitSet {
 }
 
 
-fn parse_tile_entity(mut nbt: HashMap<String, Value>, tag_path: &str, region_size: &[i32; 3])
+fn parse_tile_entity(nbt: HashMap<String, Value>, tag_path: &str, region_size: &[i32; 3])
     -> Result<([i32; 3], BlockEntity), Error> {
-    let mut be = BlockEntity::new();
-
-    let pos: [i32; 3];
-    let pos_res = common::parse_size_compound(&nbt, tag_path, false);
-    match pos_res {
-        Ok(pos_) => pos = pos_,
-        Err(e) => return Err(e),
-    }
+    let (pos, be) = common::parse_block_entity_nocheck(nbt, tag_path, false)?;
 
     let tag_names = ['x', 'y', 'z'];
     for (dim, p) in pos.iter().enumerate() {
@@ -588,12 +581,6 @@ fn parse_tile_entity(mut nbt: HashMap<String, Value>, tag_path: &str, region_siz
             });
         }
     }
-
-    nbt.remove("x");
-    nbt.remove("y");
-    nbt.remove("z");
-    be.tags = nbt;
-
     return Ok((pos, be));
 }
 

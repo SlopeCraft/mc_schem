@@ -77,7 +77,8 @@ impl Chunk {
             is_light_on: true,
             sub_chunks: BTreeMap::new(),
             region_source_file: "Unnamed".to_string(),
-            entities: vec![]
+            entities: vec![],
+            block_entities: HashMap::new(),
         };
     }
 
@@ -126,6 +127,54 @@ impl Chunk {
                 result.sub_chunks.insert(y, sub_chunk);
             }
         }
+        // check for missing sub chunks
+        {
+            let missing = result.missing_sub_chunks();
+            if missing.len() > 0 {
+                return Err(Error::MissingSubChunk {
+                    tag_path: format!("{path_in_saves}"),
+                    sub_chunk_y: missing,
+                });
+            }
+        }
+
+        let pos_lb = chunk_pos.block_pos_lower_bound();
+        let pos_ub = chunk_pos.block_pos_upper_bound();
+        // block entities
+        {
+            let be_list_tag = format!("{path_in_saves}/block_entities");
+            let mut be_list = unwrap_opt_tag!(region_nbt.remove("block_entities"),List,vec![],be_list_tag);
+
+            let pos_lb = [pos_lb[0], -63, pos_lb[1]];
+            let pos_ub = [pos_ub[0], 320, pos_ub[1]];
+
+            result.block_entities.reserve(be_list.len());
+
+            for (idx, nbt) in be_list.iter_mut().enumerate() {
+                let mut temp = Value::Byte(0);
+                std::mem::swap(&mut temp, nbt);
+                let be_nbt_tag = format!("{path_in_saves}/block_entities/[{idx}]");
+                let be_nbt = unwrap_tag!(temp,Compound,HashMap::new(),be_nbt_tag);
+                let (pos, be) = common::parse_block_entity_nocheck(be_nbt, &be_nbt_tag, true)?;
+                if !common::check_pos_in_range(pos, pos_lb, pos_ub) {
+                    return Err(Error::BlockPosOutOfRange {
+                        tag_path: be_nbt_tag,
+                        pos,
+                        lower_bound: pos_lb,
+                        upper_bound: pos_ub,
+                    });
+                }
+                if result.block_entities.contains_key(&pos) {
+                    return Err(Error::MultipleBlockEntityInOnePos {
+                        pos,
+                        latter_tag_path: be_nbt_tag,
+                    });
+                }
+                result.block_entities.insert(pos, be);
+            }
+        }
+
+
         // entities
         if let Some(entity_nbt_data) = entity_nbt_data {
             let entity_source_file = entity_nbt_data.source;
@@ -145,8 +194,6 @@ impl Chunk {
                 let entity = common::parse_entity_litematica(entity, &cur_path)?;
                 // check for position
                 let entity_pos_xz = [entity.block_pos[0], entity.block_pos[2]];
-                let pos_lb = chunk_pos.block_pos_lower_bound();
-                let pos_ub = chunk_pos.block_pos_upper_bound();
                 for dim in 0..2 {
                     if entity_pos_xz[dim] < pos_lb[dim]
                         || entity_pos_xz[dim] > pos_ub[dim] {
@@ -160,16 +207,6 @@ impl Chunk {
                 }
 
                 result.entities.push(entity);
-            }
-        }
-
-        {
-            let missing = result.missing_sub_chunks();
-            if missing.len() > 0 {
-                return Err(Error::MissingSubChunk {
-                    tag_path: format!("{path_in_saves}"),
-                    sub_chunk_y: missing,
-                });
             }
         }
 

@@ -23,7 +23,7 @@ use std::sync::Arc;
 use fastnbt::Value;
 use crate::biome::Biome;
 use crate::block::Block;
-use crate::Entity;
+use crate::{BlockEntity, Entity};
 use crate::error::Error;
 use crate::region::Light;
 
@@ -65,6 +65,7 @@ pub struct Chunk {
     sub_chunks: BTreeMap<i8, SubChunk>,
     pub region_source_file: String,
     pub entities: Vec<Entity>,
+    pub block_entities: HashMap<[i32; 3], BlockEntity>,
 }
 
 #[derive(Debug, Clone)]

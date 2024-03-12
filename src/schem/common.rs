@@ -25,7 +25,7 @@ use fastnbt::Value;
 use crate::error::Error;
 use crate::{unwrap_opt_tag, schem::{id_of_nbt_tag}, unwrap_tag};
 use crate::block::Block;
-use crate::region::Entity;
+use crate::region::{BlockEntity, Entity};
 
 pub fn size_to_compound<T>(size: &[T; 3]) -> HashMap<String, Value>
     where T: Copy, Value: From<T>
@@ -156,4 +156,32 @@ pub fn parse_entity_litematica(nbt: HashMap<String, Value>, tag_path: &str) -> R
 
     entity.tags = nbt;
     return Ok(entity);
+}
+
+// Checks if pos >= lower_bound && pos <= upper_bound
+pub fn check_pos_in_range(pos: [i32; 3], lower_bound: [i32; 3], upper_bound: [i32; 3]) -> bool {
+    for dim in 0..3 {
+        if pos[dim] < lower_bound[dim] || pos[dim] > upper_bound[dim] {
+            return false;
+        }
+    }
+    return true;
+}
+
+pub fn parse_block_entity_nocheck(mut nbt: HashMap<String, Value>, tag_path: &str, allow_negative: bool) -> Result<([i32; 3], BlockEntity), Error> {
+    let mut be = BlockEntity::new();
+
+    let pos: [i32; 3];
+    let pos_res = parse_size_compound(&nbt, tag_path, allow_negative);
+    match pos_res {
+        Ok(pos_) => pos = pos_,
+        Err(e) => return Err(e),
+    }
+
+    nbt.remove("x");
+    nbt.remove("y");
+    nbt.remove("z");
+    be.tags = nbt;
+
+    return Ok((pos, be));
 }

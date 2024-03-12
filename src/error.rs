@@ -17,11 +17,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 use std::fmt::{Display, Formatter};
+use std::ops::Range;
 use strum::Display;
 use crate::block::{Block, BlockIdParseError};
 use crate::old_block::OldBlockParseError;
 use crate::region::Region;
-use crate::schem::common::format_size;
+use crate::schem::common::{format_range, format_size};
 
 /// Errors when loading and saving schematic
 #[derive(Debug)]
@@ -133,6 +134,12 @@ pub enum Error {
     MissingMCCFile {
         filename: String,
         detail: Box<Error>,
+    },
+    DifferentYRangeInOneDimension {
+        majority_y_range: Range<i32>,
+        exception_value: Range<i32>,
+        exception_chunk_x: i32,
+        exception_chunk_z: i32,
     }
 }
 
@@ -209,6 +216,8 @@ impl Display for Error {
             => write!(f, "Chunk {tag_path} has missing sub chunk(s): {:#?}", sub_chunk_y),
             Error::MissingMCCFile { filename, detail }
             => write!(f, "MCC file {filename} is missing, detail: {detail}"),
+            Error::DifferentYRangeInOneDimension { majority_y_range, exception_value, exception_chunk_x, exception_chunk_z }
+            => write!(f, "Chunk ({exception_chunk_x}, {exception_chunk_z}) has different y range ({}) than majority value({})", format_range(exception_value), format_range(majority_y_range)),
         }
     }
 }

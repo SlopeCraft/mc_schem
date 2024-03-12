@@ -1,10 +1,67 @@
-use std::sync::mpsc::channel;
+use std::collections::HashMap;
+use std::ops::Range;
+use std::sync::mpsc::{channel, Receiver};
 use std::time;
 use crate::Error;
-use crate::world::{Dimension, FilesInMemory, FilesRead, mca};
+use crate::world::{ChunkPos, Dimension, FilesInMemory, FilesRead, mca, RefOrObject, XZCoordinate};
 use rayon::prelude::*;
 use crate::block::Block;
 use crate::region::{BlockEntity, PendingTick, WorldSlice};
+
+impl<T> RefOrObject<'_, T> {
+    pub fn to_ref(&self) -> &T {
+        return match self {
+            RefOrObject::Ref(r) => r,
+            RefOrObject::Object(o) => &o
+        };
+    }
+}
+
+fn check_chunk_infos(recv: Receiver<(&ChunkPos, Range<i32>)>, num_chunks: usize)
+                     -> Result<(), Error> {
+    if let Err(_) = recv.try_recv() {
+        return Ok(());
+    }
+    let mut y_range_hist = HashMap::new();
+    for (pos, y_range) in recv.try_iter() {
+        if !y_range_hist.contains_key(&y_range) {
+            y_range_hist.insert(y_range.clone(), Vec::with_capacity(num_chunks));
+        }
+        let bin = y_range_hist.get_mut(&y_range).unwrap();
+        bin.push(*pos);
+    }
+
+    if y_range_hist.len() <= 1 {
+        return Ok(());
+    }
+    let mut majority_y_range = 0..0;
+    let mut num = 0;
+
+    for (range, bin) in &y_range_hist {
+        if bin.len() > num {
+            debug_assert!(bin.len() > 0);
+            num = bin.len();
+            majority_y_range = range.clone();
+        }
+    }
+    if num <= 0 {
+        return Ok(());
+    }
+    let mut exception_value = i32::MAX..i32::MAX;
+    let mut exception_chunk = ChunkPos::from_global_pos(&XZCoordinate { x: i32::MAX, z: i32::MAX });
+    for (range, bin) in &y_range_hist {
+        if range != &majority_y_range {
+            exception_value = range.clone();
+            exception_chunk = bin[0];
+        }
+    }
+    return Err(Error::DifferentYRangeInOneDimension {
+        majority_y_range,
+        exception_value,
+        exception_chunk_x: exception_chunk.global_x,
+        exception_chunk_z: exception_chunk.global_z,
+    });
+}
 
 impl Dimension {
     pub fn from_files(files: &dyn FilesRead, parse_directly: bool) -> Result<Dimension, Error> {
@@ -19,31 +76,46 @@ impl Dimension {
     pub fn check_all(&self) -> Result<(), Error> {
         let (tx, rx) = channel();
 
+        // Collect chunk infos of all chunks
+        let (chunk_info_tx, chunk_info_rx) = channel();
+
         self.chunks.par_iter().for_each(|(pos, variant)| {
-            if let Err(e) = variant.check(pos) {
-                tx.send(e).unwrap();
+            match variant.check(pos) {
+                Err(e) => { tx.send(e).unwrap(); },
+                Ok(chunk) => {
+                    chunk_info_tx.send((pos, chunk.to_ref().y_range())).unwrap()
+                }
             }
         });
 
         if let Ok(e) = rx.try_recv() {
             return Err(e);
         }
+
+        check_chunk_infos(chunk_info_rx, self.chunks.len())?;
 
         return Ok(());
     }
 
     pub fn parse_all(&mut self) -> Result<(), Error> {
         let (tx, rx) = channel();
+        let (chunk_info_tx, chunk_info_rx) = channel();
+        let num_chunks = self.chunks.len();
 
         self.chunks.par_iter_mut().for_each(|(pos, variant)| {
-            if let Err(e) = variant.parse_inplace(pos) {
-                tx.send(e).unwrap();
+            match variant.parse_inplace(pos) {
+                Err(e) => tx.send(e).unwrap(),
+                Ok(chunk) => {
+                    chunk_info_tx.send((pos, chunk.y_range())).unwrap();
+                }
             }
         });
 
         if let Ok(e) = rx.try_recv() {
             return Err(e);
         }
+
+        check_chunk_infos(chunk_info_rx, num_chunks)?;
 
         return Ok(());
     }

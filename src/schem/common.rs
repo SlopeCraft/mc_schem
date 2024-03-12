@@ -18,7 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::collections::HashMap;
 use std::fmt::Display;
-use std::ops::Add;
+use std::ops::{Add, Range};
 use std::time;
 use std::time::SystemTime;
 use fastnbt::Value;
@@ -168,6 +168,9 @@ pub fn check_pos_in_range(pos: [i32; 3], lower_bound: [i32; 3], upper_bound: [i3
     return true;
 }
 
+pub fn format_range<T: Display>(range: &Range<T>) -> String {
+    return format!("[{}, {})", range.start, range.end);
+}
 pub fn parse_block_entity_nocheck(mut nbt: HashMap<String, Value>, tag_path: &str, allow_negative: bool) -> Result<([i32; 3], BlockEntity), Error> {
     let mut be = BlockEntity::new();
 

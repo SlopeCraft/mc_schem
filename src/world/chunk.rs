@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Display, Formatter};
+use std::ops::Range;
 use std::time;
 use fastnbt::Value;
 use math::round::{ceil, floor};
@@ -145,8 +146,8 @@ impl Chunk {
             let be_list_tag = format!("{path_in_saves}/block_entities");
             let mut be_list = unwrap_opt_tag!(region_nbt.remove("block_entities"),List,vec![],be_list_tag);
 
-            let pos_lb = [pos_lb[0], -63, pos_lb[1]];
-            let pos_ub = [pos_ub[0], 320, pos_ub[1]];
+            let pos_lb = [pos_lb[0], result.y_range().start, pos_lb[1]];
+            let pos_ub = [pos_ub[0], result.y_range().end - 1, pos_ub[1]];
 
             result.block_entities.reserve(be_list.len());
 
@@ -234,6 +235,17 @@ impl Chunk {
             }
         }
         return missing;
+    }
+
+    pub fn y_range(&self) -> Range<i32> {
+        debug_assert!(self.missing_sub_chunks().is_empty());
+
+        let mut min = i8::MAX;
+        for (y, _) in &self.sub_chunks {
+            min = min.min(*y);
+        }
+        let y_min = min as i32 * 16;
+        return y_min..(y_min + self.height());
     }
 }
 

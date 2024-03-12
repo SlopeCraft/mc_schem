@@ -64,6 +64,17 @@ impl Index<Range<usize>> for ArcSlice {
     }
 }
 
+fn impl_sub_dir<'a, T: FilesRead>(src: &'a T, dir: &str) -> SubDirectory<'a> {
+    let mut dir = dir.replace('\\', "/");
+    if !dir.ends_with('/') {
+        dir.push('/');
+    }
+    return SubDirectory {
+        root: src,
+        dirname_with_slash: dir,
+    };
+}
+
 impl FolderOnDisk {
     pub fn new(path: &str) -> Self {
         let mut ret = FolderOnDisk { path: path.replace('\\', "/") };
@@ -75,6 +86,10 @@ impl FolderOnDisk {
 }
 
 impl FilesRead for FolderOnDisk {
+    fn sub_directory(&self, dir: &str) -> SubDirectory {
+        return impl_sub_dir(self, dir);
+    }
+
     fn path(&self) -> String {
         return self.path.clone();
     }
@@ -166,6 +181,10 @@ impl FilesInMemory {
 }
 
 impl FilesRead for FilesInMemory {
+    fn sub_directory(&self, dir: &str) -> SubDirectory {
+        return impl_sub_dir(self, dir);
+    }
+
     fn path(&self) -> String {
         return self.source.clone();
     }
@@ -228,6 +247,18 @@ impl FilesRead for FilesInMemory {
 }
 
 impl FilesRead for SubDirectory<'_> {
+    fn sub_directory(&self, dir: &str) -> SubDirectory {
+        let mut new_dir = self.dirname_with_slash.clone();
+        new_dir.push_str(dir);
+        if !new_dir.ends_with('/') {
+            new_dir.push('/');
+        }
+        return SubDirectory {
+            root: self.root,
+            dirname_with_slash: new_dir,
+        }
+    }
+
     fn path(&self) -> String {
         let mut ret = self.dirname_with_slash.clone();
         ret.pop();
@@ -260,3 +291,4 @@ impl FilesRead for SubDirectory<'_> {
         return self.root.read_file(&new_filename, dest);
     }
 }
+

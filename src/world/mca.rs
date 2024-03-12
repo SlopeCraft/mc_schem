@@ -7,7 +7,7 @@ use regex::Regex;
 use world::{XZCoordinate, ChunkPos};
 use crate::error::Error;
 use crate::world;
-use crate::world::{ArcSlice, Chunk, ChunkVariant, FileInfo, UnparsedChunkData};
+use crate::world::{ArcSlice, Chunk, ChunkVariant, Dimension, FileInfo, MCARawData, NBTWithSource, UnparsedChunkData};
 use world::FilesRead;
 
 pub const SEGMENT_BYTES: usize = 4096;
@@ -112,6 +112,13 @@ impl ChunkPos {
                        self.global_x,
                        self.global_z);
     }
+
+    pub fn block_pos_lower_bound(&self) -> [i32; 2] {
+        return [self.global_x * 16, self.global_z * 16];
+    }
+    pub fn block_pos_upper_bound(&self) -> [i32; 2] {
+        return [self.global_x * 16 + 16, self.global_z * 16 + 16];
+    }
 }
 
 impl ChunkVariant {
@@ -130,41 +137,59 @@ impl ChunkVariant {
     }
 }
 
-impl UnparsedChunkData {
-    pub fn to_nbt(&self) -> Result<HashMap<String, Value>, Error> {
+impl MCARawData {
+    pub fn to_nbt(&self) -> Result<NBTWithSource, Error> {
         let parse_opt: Result<HashMap<String, Value>, fastnbt::error::Error>;
 
-        if self.region_data[0..2] == [0x78, 0x9c] {//zlib
+        if self.data[0..2] == [0x78, 0x9c] {//zlib
             // Some mcc files are stored as zlib, but the compress method is 130.
             // This is to fix minecraft's error(at least in 1.20.2
-            let src = ZlibDecoder::new(self.region_data.as_slice());
+            let src = ZlibDecoder::new(self.data.as_slice());
             parse_opt = fastnbt::from_reader(src);
         } else {
             match self.compress_method {
                 1 | 128 => {//gzip
-                    let src = GzDecoder::new(self.region_data.as_slice());
+                    let src = GzDecoder::new(self.data.as_slice());
                     parse_opt = fastnbt::from_reader(src);
                 }
                 2 | 129 => {//zlib
-                    let src = ZlibDecoder::new(self.region_data.as_slice());
+                    let src = ZlibDecoder::new(self.data.as_slice());
                     parse_opt = fastnbt::from_reader(src);
                 }
                 3 | 130 => {// no compress
-                    parse_opt = fastnbt::from_reader(self.region_data.as_slice());
+                    parse_opt = fastnbt::from_reader(self.data.as_slice());
                 }
                 _ => { return Err(Error::InvalidMCACompressType { compress_label: self.compress_method }); }
             }
         }
 
         return match parse_opt {
-            Ok(nbt) => Ok(nbt),
+            Ok(nbt) => Ok(NBTWithSource {
+                nbt,
+                source: &self.source_file,
+            }),
             Err(e) => Err(Error::NBTReadError(e)),
         };
     }
-    pub fn parse(&self, chunk_pos: &ChunkPos) -> Result<Chunk, Error> {
-        let nbt = self.to_nbt()?;
+}
 
-        let chunk = Chunk::from_nbt(nbt, &chunk_pos, &self.source_file)?;
+impl UnparsedChunkData {
+    pub fn to_nbt(&self) -> Result<(NBTWithSource, Option<NBTWithSource>), Error> {
+        let region_data = self.region_data.to_nbt()?;
+        let entity_data = if let Some(raw) = &self.entity_data {
+            Some(raw.to_nbt()?)
+        } else {
+            None
+        };
+        return Ok((region_data, entity_data));
+    }
+
+    pub fn parse(&self, chunk_pos: &ChunkPos) -> Result<Chunk, Error> {
+        let (region_nbt, entity_nbt) = self.to_nbt()?;
+
+        let chunk = Chunk::from_nbt(region_nbt,
+                                    entity_nbt,
+                                    &chunk_pos, )?;
         return Ok(chunk);
     }
 }
@@ -180,35 +205,76 @@ fn get_compress_label(mca_data: &[u8]) -> (u8, usize) {
     return (compress_type, data_bytes);
 }
 
-
-pub fn parse_multiple_regions(region_dir: &dyn FilesRead, parse_directly: bool) -> Result<HashMap<ChunkPos, ChunkVariant>, Error> {
-    let files = region_dir.files();
-    let mut region_files = Vec::with_capacity(files.len());
-    {
-        for info in &files {
-            if let Some(coord) = parse_mca_filename(&info.name) {
-                region_files.push((info, coord));
-            }
+pub fn parse_multiple_mca_files(dir: &dyn FilesRead) -> Result<HashMap<ChunkPos, MCARawData>, Error> {
+    let files = dir.files();
+    let mut mca_files = Vec::with_capacity(files.len());
+    for info in files {
+        if let Some(coord) = parse_mca_filename(&info.name) {
+            mca_files.push((info, coord));
         }
     }
+
     let mut result = HashMap::new();
-    for (info, file_coord) in &region_files {
-        let mut chunks = parse_mca_file(info, file_coord, region_dir)?;
 
-        for (chunk_pos, variant) in chunks {
-            let mut variant = variant;
-            if parse_directly {
-                variant.parse_inplace(&chunk_pos)?;
-            }
-            result.insert(chunk_pos, variant);
+    for (info, file_coord) in &mca_files {
+        let mut chunk_region_data = parse_mca_file(info, file_coord, dir)?;
+        for (chunk_pos, raw) in chunk_region_data {
+            result.insert(chunk_pos, raw);
         }
     }
+
     return Ok(result);
 }
 
+// pub fn parse_multiple_regions(region_dir: &dyn FilesRead, parse_directly: bool) -> Result<HashMap<ChunkPos, ChunkVariant>, Error> {
+//     let region_data = parse_multiple_mca_files(region_dir)?;
+//     let mut result = HashMap::with_capacity(region_data.len());
+//     for (chunk_pos, raw) in region_data {
+//         let mut variant = ChunkVariant::Unparsed(UnparsedChunkData {
+//             region_data: raw,
+//             entity_data: None,
+//         });
+//         if parse_directly {
+//             variant.parse_inplace(&chunk_pos)?;
+//         }
+//         result.insert(chunk_pos, variant);
+//     }
+//
+//     return Ok(result);
+// }
+
+pub fn parse_multiple_regions(region_dir: &dyn FilesRead,
+                              entity_dir: Option<&dyn FilesRead>,
+                              parse_directly: bool)
+                              -> Result<HashMap<ChunkPos, ChunkVariant>, Error> {
+    let region_data = parse_multiple_mca_files(region_dir)?;
+    let mut entity_data = if let Some(entity_dir) = entity_dir {
+        parse_multiple_mca_files(entity_dir)?
+    } else {
+        HashMap::new()
+    };
+    let mut result = HashMap::with_capacity(region_data.len());
+
+    for (chunk_pos, r_data) in region_data {
+        let e_data = entity_data.remove(&chunk_pos);
+        let unparsed = UnparsedChunkData {
+            region_data: r_data,
+            entity_data: e_data,
+        };
+        result.insert(chunk_pos, ChunkVariant::Unparsed(unparsed));
+    }
+
+    if parse_directly {
+        let mut temp = Dimension { chunks: result };
+        temp.parse_all()?;
+        return Ok(temp.chunks);
+    }
+
+    return Ok(result);
+}
 
 fn parse_mca_file(file_info: &FileInfo, file_coord: &XZCoordinate,
-                  region_dir: &dyn FilesRead) -> Result<HashMap<ChunkPos, ChunkVariant>, Error> {
+                  region_dir: &dyn FilesRead) -> Result<HashMap<ChunkPos, MCARawData>, Error> {
     let mca_bytes: ArcSlice = if let Some(slice) = region_dir.read_file_nocopy(&file_info.name)? {
         slice
     } else {
@@ -229,8 +295,8 @@ fn parse_mca_file(file_info: &FileInfo, file_coord: &XZCoordinate,
             let local_pos = XZCoordinate { x, z };
             let pos = ChunkPos::from_local_pos(file_coord, &local_pos);
             let unparsed = parse_mca_single_chunk(&pos, mca_bytes.clone(), region_dir)?;
-            if let Some(unparsed) = unparsed {
-                result.insert(pos, ChunkVariant::Unparsed(unparsed));
+            if let Some(raw) = unparsed {
+                result.insert(pos, raw);
             }
         }
     }
@@ -241,7 +307,7 @@ pub fn offset_in_mca_file(local_coord: &XZCoordinate<u32>) -> u32 {
     return 4 * ((local_coord.x & 31) + (local_coord.z & 31) * 32);
 }
 
-fn parse_mca_single_chunk(chunk_pos: &ChunkPos, mca_bytes: ArcSlice, region_dir: &dyn FilesRead) -> Result<Option<UnparsedChunkData>, Error> {
+fn parse_mca_single_chunk(chunk_pos: &ChunkPos, mca_bytes: ArcSlice, region_dir: &dyn FilesRead) -> Result<Option<MCARawData>, Error> {
     let header: [u8; 4];
     let local_coord = chunk_pos.local_coordinate();
     {
@@ -301,18 +367,18 @@ fn parse_mca_single_chunk(chunk_pos: &ChunkPos, mca_bytes: ArcSlice, region_dir:
             Ok(bytes) => bytes,
         };
 
-        return Ok(Some(UnparsedChunkData {
+        return Ok(Some(MCARawData {
             time_stamp,
             compress_method: compress_label,
-            region_data: mcc_bytes,
+            data: mcc_bytes,
             source_file: format!("{}/{}", region_dir.path(), mcc_filename),
         }));
     }
 
-    return Ok(Some(UnparsedChunkData {
+    return Ok(Some(MCARawData {
         time_stamp,
         compress_method: compress_label,
-        region_data: mca_bytes.slice((data_beg_idx + 5)..(data_beg_idx + 5 + compressed_len)),
+        data: mca_bytes.slice((data_beg_idx + 5)..(data_beg_idx + 5 + compressed_len)),
         source_file: format!("{}/{}", region_dir.path(), chunk_pos.filename_mca()),
     }));
 }

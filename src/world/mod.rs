@@ -20,8 +20,10 @@ use std::collections::{BTreeMap, HashMap};
 use std::io::Read;
 use std::ops::Range;
 use std::sync::Arc;
+use fastnbt::Value;
 use crate::biome::Biome;
 use crate::block::Block;
+use crate::Entity;
 use crate::error::Error;
 use crate::region::Light;
 
@@ -61,7 +63,8 @@ pub struct Chunk {
     /// If light compute is finished
     pub is_light_on: bool,
     sub_chunks: BTreeMap<i8, SubChunk>,
-    pub source_file: String,
+    pub region_source_file: String,
+    pub entities: Vec<Entity>,
 }
 
 #[derive(Debug, Clone)]
@@ -70,12 +73,22 @@ pub struct ArcSlice {
     range: Range<usize>,
 }
 
-pub struct UnparsedChunkData {
+pub struct NBTWithSource<'a> {
+    pub nbt: HashMap<String, Value>,
+    pub source: &'a str,
+}
+
+pub struct MCARawData {
     pub time_stamp: u32,
     pub compress_method: u8,
-    region_data: ArcSlice,
+    pub data: ArcSlice,
     //uncompressed
-    source_file: String,
+    pub source_file: String,
+}
+
+pub struct UnparsedChunkData {
+    pub region_data: MCARawData,
+    pub entity_data: Option<MCARawData>,
 }
 
 pub enum ChunkVariant {
@@ -99,6 +112,8 @@ pub struct SubDirectory<'a> {
 }
 
 pub trait FilesRead {
+    fn sub_directory(&self, dir: &str) -> SubDirectory;
+
     fn path(&self) -> String;
     fn files(&self) -> Vec<FileInfo>;
 
@@ -123,19 +138,6 @@ pub trait FilesRead {
         let _ = self.open_file(filename)?;
         return Ok(None);
     }
-
-    fn sub_directory(&self, dir: &str) -> SubDirectory
-        where Self: Sized {
-        let mut dir = dir.replace('\\', "/");
-        if !dir.ends_with('/') {
-            dir.push('/');
-        }
-        return SubDirectory {
-            root: self,
-            dirname_with_slash: dir,
-        };
-    }
-
     fn read_file_as_arc_slice(&self, filename: &str) -> Result<ArcSlice, Error> {
         if let Some(arc_slice) = self.read_file_nocopy(filename)? {
             return Ok(arc_slice);

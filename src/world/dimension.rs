@@ -8,7 +8,9 @@ use crate::region::{BlockEntity, PendingTick, WorldSlice};
 
 impl Dimension {
     pub fn from_files(files: &dyn FilesRead, parse_directly: bool) -> Result<Dimension, Error> {
-        let chunks = mca::parse_multiple_regions(files, parse_directly)?;
+        let chunks = mca::parse_multiple_regions(&files.sub_directory("region"),
+                                                 Some(&files.sub_directory("entities")),
+                                                 parse_directly)?;
         return Ok(Dimension {
             chunks
         });
@@ -84,7 +86,7 @@ fn test_load_dimension() {
     let files = FilesInMemory::from_7z_file("test_files/world/00_1.20.2.7z", "").unwrap();
     let decompressed = time::SystemTime::now();
 
-    let mut dim = Dimension::from_files(&files.sub_directory("region"), false).unwrap();
+    let mut dim = Dimension::from_files(&files, false).unwrap();
     dim.parse_all().unwrap();
 
     let parsed = time::SystemTime::now();
@@ -101,7 +103,7 @@ fn test_large_overworld() {
     let files = FilesInMemory::from_7z_file("test_files/world/01_large-world-1.20.2.7z", "").unwrap();
     let decompressed = time::SystemTime::now();
 
-    let mut dim = Dimension::from_files(&files.sub_directory("region"), false).unwrap();
+    let mut dim = Dimension::from_files(&files, false).unwrap();
 
     dim.parse_all().unwrap();
     //dim.check_all().unwrap();
@@ -120,7 +122,7 @@ fn test_load_dimension_mcc_block_entities() {
     let files = FilesInMemory::from_7z_file("test_files/world/02_mcc-block-entities.7z", "").unwrap();
     let decompressed = time::SystemTime::now();
 
-    let mut dim = Dimension::from_files(&files.sub_directory("region"), false).unwrap();
+    let mut dim = Dimension::from_files(&files, false).unwrap();
     dim.parse_all().unwrap();
 
     let parsed = time::SystemTime::now();

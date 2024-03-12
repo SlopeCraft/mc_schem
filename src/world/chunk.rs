@@ -10,7 +10,7 @@ use crate::{unwrap_opt_tag, unwrap_tag};
 use crate::biome::Biome;
 use crate::schem::common;
 use crate::schem::id_of_nbt_tag;
-use crate::world::{Chunk, ChunkPos, ChunkStatus, SubChunk};
+use crate::world::{Chunk, ChunkPos, ChunkStatus, NBTWithSource, SubChunk};
 
 
 impl Display for ChunkStatus {
@@ -76,7 +76,8 @@ impl Chunk {
             inhabited_time: 0,
             is_light_on: true,
             sub_chunks: BTreeMap::new(),
-            source_file: "Unnamed".to_string(),
+            region_source_file: "Unnamed".to_string(),
+            entities: vec![]
         };
     }
 
@@ -85,16 +86,19 @@ impl Chunk {
         return self.sub_chunks.len() as i32 * 16;
     }
 
-    pub fn from_nbt(mut nbt: HashMap<String, Value>, chunk_pos: &ChunkPos, source_filename: &str) -> Result<Chunk, Error> {
-        let path_in_saves = format!("{source_filename}/[{},{}]",
+    pub fn from_nbt(region_nbt_data: NBTWithSource, entity_nbt_data: Option<NBTWithSource>, chunk_pos: &ChunkPos) -> Result<Chunk, Error> {
+        let region_source_filename = region_nbt_data.source;
+        let mut region_nbt = region_nbt_data.nbt;
+
+        let path_in_saves = format!("{region_source_filename}/[{},{}]",
                                     chunk_pos.local_coordinate().x,
                                     chunk_pos.local_coordinate().z);
         let mut result = Chunk::new();
-        result.source_file = source_filename.to_string();
+        result.region_source_file = region_source_filename.to_string();
         // chunk status
         {
             let status: ChunkStatus;
-            let str = unwrap_opt_tag!(nbt.get("Status"),String,"".to_string(),format!("{path_in_saves}/Status"));
+            let str = unwrap_opt_tag!(region_nbt.get("Status"),String,"".to_string(),format!("{path_in_saves}/Status"));
             match ChunkStatus::from_str(str) {
                 Some(s) => status = s,
                 None => {
@@ -106,13 +110,13 @@ impl Chunk {
             };
             result.status = status;
         }
-        result.last_update = *unwrap_opt_tag!(nbt.get("LastUpdate"),Long,0,format!("{path_in_saves}/LastUpdate"));
-        result.inhabited_time = *unwrap_opt_tag!(nbt.get("InhabitedTime"),Long,0,format!("{path_in_saves}/InhabitedTime"));
-        if let Some(tag) = nbt.get("isLightOn") {
+        result.last_update = *unwrap_opt_tag!(region_nbt.get("LastUpdate"),Long,0,format!("{path_in_saves}/LastUpdate"));
+        result.inhabited_time = *unwrap_opt_tag!(region_nbt.get("InhabitedTime"),Long,0,format!("{path_in_saves}/InhabitedTime"));
+        if let Some(tag) = region_nbt.get("isLightOn") {
             result.is_light_on = *unwrap_tag!(tag,Byte,1,format!("{path_in_saves}/isLightOn")) != 0;
         }
 
-        let sections = unwrap_opt_tag!(nbt.get_mut("sections"),List,vec![],format!("{path_in_saves}/sections"));
+        let sections = unwrap_opt_tag!(region_nbt.get_mut("sections"),List,vec![],format!("{path_in_saves}/sections"));
 
         for (idx, nbt) in sections.iter_mut().enumerate() {
             let path = format!("{path_in_saves}/sections[{idx}]");
@@ -120,6 +124,42 @@ impl Chunk {
             let opt = parse_section(sect_nbt, &path)?;
             if let Some((sub_chunk, y)) = opt {
                 result.sub_chunks.insert(y, sub_chunk);
+            }
+        }
+        // entities
+        if let Some(entity_nbt_data) = entity_nbt_data {
+            let entity_source_file = entity_nbt_data.source;
+            let mut entity_nbt = entity_nbt_data.nbt;
+
+            let entity_path = format!("{entity_source_file}/[{},{}]/Entities",
+                                      chunk_pos.local_coordinate().x,
+                                      chunk_pos.local_coordinate().z);
+            let mut entity_list = unwrap_opt_tag!(entity_nbt.remove("Entities"),List,vec![],entity_path);
+            result.entities.reserve(entity_list.len());
+            for (idx, entity) in entity_list.iter_mut().enumerate() {
+                let cur_path = format!("{entity_path}/[{idx}]");
+                let temp = unwrap_tag!(entity,Compound,HashMap::new(),cur_path);
+                let mut entity = HashMap::new();
+                std::mem::swap(&mut entity, temp);
+
+                let entity = common::parse_entity_litematica(entity, &cur_path)?;
+                // check for position
+                let entity_pos_xz = [entity.block_pos[0], entity.block_pos[2]];
+                let pos_lb = chunk_pos.block_pos_lower_bound();
+                let pos_ub = chunk_pos.block_pos_upper_bound();
+                for dim in 0..2 {
+                    if entity_pos_xz[dim] < pos_lb[dim]
+                        || entity_pos_xz[dim] > pos_ub[dim] {
+                        return Err(Error::BlockPosOutOfRange {
+                            tag_path: format!("{cur_path}/Pos"),
+                            pos: entity.block_pos,
+                            lower_bound: [pos_lb[0], i32::MIN, pos_lb[1]],
+                            upper_bound: [pos_ub[0], i32::MAX, pos_ub[1]],
+                        });
+                    }
+                }
+
+                result.entities.push(entity);
             }
         }
 

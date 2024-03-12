@@ -25,6 +25,7 @@ use fastnbt::Value;
 use crate::error::Error;
 use crate::{unwrap_opt_tag, schem::{id_of_nbt_tag}, unwrap_tag};
 use crate::block::Block;
+use crate::region::Entity;
 
 pub fn size_to_compound<T>(size: &[T; 3]) -> HashMap<String, Value>
     where T: Copy, Value: From<T>
@@ -59,8 +60,6 @@ pub fn parse_size_compound(nbt: &HashMap<String, Value>, tag_path: &str, allow_n
 
     return Ok(result);
 }
-
-
 pub fn parse_size_list(data: &[i32], tag_path: &str, allow_negative: bool) -> Result<[i32; 3], Error> {
     let mut result: [i32; 3] = [0, 0, 0];
     if data.len() != 3 {
@@ -129,4 +128,32 @@ pub fn format_size<T>(size: &[T; 3]) -> String
 pub fn i64_ms_timestamp_to_system_time(timestamp: i64) -> SystemTime {
     let time = time::UNIX_EPOCH.add(time::Duration::from_millis(timestamp as u64));
     return time;
+}
+
+
+pub fn parse_entity_litematica(nbt: HashMap<String, Value>, tag_path: &str) -> Result<Entity, Error> {
+    let mut entity = Entity::new();
+    {
+        let tag_pos_path = format!("{}/Pos", tag_path);
+        let pos = unwrap_opt_tag!(nbt.get("Pos"),List,vec![],tag_pos_path);
+        if pos.len() != 3 {
+            return Err(Error::InvalidValue {
+                tag_path: tag_pos_path,
+                error: format!("Pos field for an entity should contain 3 doubles, but found {}", pos.len()),
+            });
+        }
+
+
+        let mut pos_d = [0.0, 0.0, 0.0];
+        for dim in 0..3 {
+            let cur_tag_path = format!("{}/Pos[{}]", tag_path, dim);
+            pos_d[dim] = unwrap_tag!(pos[dim],Double,0.0,cur_tag_path);
+            entity.block_pos[dim] = pos_d[dim] as i32;
+        }
+
+        entity.position = pos_d;
+    }
+
+    entity.tags = nbt;
+    return Ok(entity);
 }

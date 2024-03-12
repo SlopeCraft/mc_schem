@@ -255,7 +255,7 @@ impl Region {
                     unwrap_tag!(entity_comp,Compound,HashMap::new(),cur_tag_path);
                 let mut temp = HashMap::new();
                 std::mem::swap(&mut temp, entity_comp);
-                let parse_res = parse_entity(temp, &cur_tag_path);
+                let parse_res = common::parse_entity_litematica(temp, &cur_tag_path);
                 match parse_res {
                     Ok(entity) => region.entities.push(entity),
                     Err(e) => return Err(e),
@@ -565,32 +565,6 @@ impl MultiBitSet {
     }
 }
 
-fn parse_entity(nbt: HashMap<String, Value>, tag_path: &str) -> Result<Entity, Error> {
-    let mut entity = Entity::new();
-    {
-        let tag_pos_path = format!("{}/Pos", tag_path);
-        let pos = unwrap_opt_tag!(nbt.get("Pos"),List,vec![],tag_pos_path);
-        if pos.len() != 3 {
-            return Err(Error::InvalidValue {
-                tag_path: tag_pos_path,
-                error: format!("Pos filed for an entity should contain 3 doubles, but found {}", pos.len()),
-            });
-        }
-
-
-        let mut pos_d = [0.0, 0.0, 0.0];
-        for dim in 0..3 {
-            let cur_tag_path = format!("{}/Pos[{}]", tag_path, dim);
-            pos_d[dim] = unwrap_tag!(pos[dim],Double,0.0,cur_tag_path);
-            entity.block_pos[dim] = pos_d[dim] as i32;
-        }
-
-        entity.position = pos_d;
-    }
-
-    entity.tags = nbt;
-    return Ok(entity);
-}
 
 fn parse_tile_entity(mut nbt: HashMap<String, Value>, tag_path: &str, region_size: &[i32; 3])
     -> Result<([i32; 3], BlockEntity), Error> {
@@ -609,7 +583,8 @@ fn parse_tile_entity(mut nbt: HashMap<String, Value>, tag_path: &str, region_siz
             return Err(Error::BlockPosOutOfRange {
                 tag_path: format!("{}/{}", tag_path, tag_names[dim]),
                 pos,
-                range: *region_size,
+                lower_bound: [0, 0, 0],
+                upper_bound: *region_size,
             });
         }
     }
@@ -636,7 +611,8 @@ fn parse_pending_tick(nbt: &HashMap<String, Value>, tag_path: &str, region_size:
             return Err(Error::BlockPosOutOfRange {
                 tag_path: format!("{}/{}", tag_path, pos_keys[dim]),
                 pos,
-                range: *region_size,
+                lower_bound: [0, 0, 0],
+                upper_bound: *region_size,
             });
         }
     }

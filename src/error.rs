@@ -137,9 +137,16 @@ pub enum Error {
     },
     DifferentYRangeInOneDimension {
         majority_y_range: Range<i32>,
-        exception_value: Range<i32>,
         exception_chunk_x: i32,
         exception_chunk_z: i32,
+        exception_value: Range<i32>,
+    },
+    IncorrectYRangeInChunk {
+        dimension_id: i32,
+        dimension_y_range: Range<i32>,
+        exception_chunk_x: i32,
+        exception_chunk_z: i32,
+        exception_value: Range<i32>,
     }
 }
 
@@ -217,7 +224,9 @@ impl Display for Error {
             Error::MissingMCCFile { filename, detail }
             => write!(f, "MCC file {filename} is missing, detail: {detail}"),
             Error::DifferentYRangeInOneDimension { majority_y_range, exception_value, exception_chunk_x, exception_chunk_z }
-            => write!(f, "Chunk ({exception_chunk_x}, {exception_chunk_z}) has different y range ({}) than majority value({})", format_range(exception_value), format_range(majority_y_range)),
+            => write!(f, "Chunk ({exception_chunk_x}, {exception_chunk_z}) has different y range ({}) different from majority value({})", format_range(exception_value), format_range(majority_y_range)),
+            Error::IncorrectYRangeInChunk { dimension_id, dimension_y_range, exception_chunk_x, exception_chunk_z, exception_value }
+            => write!(f, "The y range of dimension {dimension_id} is {}, but y range of chunk ({exception_chunk_x}, {exception_chunk_z}) is {}", format_range(dimension_y_range), format_range(exception_value)),
         }
     }
 }

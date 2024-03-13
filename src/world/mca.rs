@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
+use std::ops::Range;
 use std::sync::Arc;
 use fastnbt::Value;
 use flate2::read::{GzDecoder, ZlibDecoder};
@@ -251,6 +252,7 @@ pub fn parse_multiple_mca_files(dir: &dyn FilesRead) -> Result<HashMap<ChunkPos,
 
 pub fn parse_multiple_regions(region_dir: &dyn FilesRead,
                               entity_dir: Option<&dyn FilesRead>,
+                              y_range: Range<i32>, dimension_id: i32,
                               parse_directly: bool)
                               -> Result<HashMap<ChunkPos, ChunkVariant>, Error> {
     let region_data = parse_multiple_mca_files(region_dir)?;
@@ -271,8 +273,8 @@ pub fn parse_multiple_regions(region_dir: &dyn FilesRead,
     }
 
     if parse_directly {
-        let mut temp = Dimension { chunks: result };
-        temp.parse_all()?;
+        let mut temp = Dimension { chunks: result, y_range };
+        temp.parse_all(dimension_id)?;
         return Ok(temp.chunks);
     }
 

@@ -73,14 +73,14 @@ pub struct Chunk {
     pub pending_ticks: HashMap<[i32; 3], PendingTick>,
 }
 
-pub struct ChunkRefRelativePos<'a> {
+pub struct ChunkRefRelativePos<'chunk> {
+    chunk: &'chunk Chunk,
     chunk_pos: ChunkPos,
-    chunk: &'a Chunk,
 }
 
-pub struct ChunkRefAbsolutePos<'a> {
+pub struct ChunkRefAbsolutePos<'chunk> {
+    chunk: &'chunk Chunk,
     chunk_pos: ChunkPos,
-    chunk: &'a Chunk,
 }
 
 pub enum RefOrObject<'a, T: Sized> {
@@ -123,6 +123,8 @@ pub enum ChunkVariant {
 #[derive(Debug, Clone)]
 pub struct Dimension {
     pub chunks: HashMap<ChunkPos, ChunkVariant>,
+    y_range: Range<i32>,
+
 }
 
 #[derive(Debug, Clone)]
@@ -216,7 +218,11 @@ pub enum ChunkStatus {
     Full,
 }
 
-pub trait AbsolutePosIndexed {
+/// Part of Minecraft world that can be indexed with absolute position.
+/// `'dim` is the lifetime of the dimension/chunk, while `'this` is the lifetime of the trait object
+/// `'dim` and `'this` may be different, because `Self` is probably a proxy reference struct.
+///  However, `'dim` must outlive `'this`
+pub trait AbsolutePosIndexed<'this, 'dim: 'this> {
     /// Shape in x, y, z
     fn shape(&self) -> [i32; 3] {
         let r = self.pos_range();
@@ -244,7 +250,7 @@ pub trait AbsolutePosIndexed {
     fn total_blocks(&self, include_air: bool) -> u64;
     /// Returns detailed block infos at `r_pos`, including block index, block, block entity and pending tick.
     /// Returns `None` if the block is outside the region
-    fn block_info_at(&self, a_pos: [i32; 3]) -> Option<(u16, &Block, Option<&crate::region::BlockEntity>, Option<&PendingTick>)> {
+    fn block_info_at(&'this self, a_pos: [i32; 3]) -> Option<(u16, &'dim Block, Option<&'dim BlockEntity>, Option<&'dim PendingTick>)> {
         return Some((self.block_index_at(a_pos)?,
                      self.block_at(a_pos)?,
                      self.block_entity_at(a_pos),
@@ -254,9 +260,9 @@ pub trait AbsolutePosIndexed {
     /// Get block index at `r_pos`, returns `None` if the block is outside the region
     fn block_index_at(&self, a_pos: [i32; 3]) -> Option<u16>;
     /// Get block at `r_pos`, returns `None` if the block is outside the region
-    fn block_at(&self, a_pos: [i32; 3]) -> Option<&Block>;
+    fn block_at(&'this self, a_pos: [i32; 3]) -> Option<&'dim Block>;
     /// Get block entity at `r_pos`
-    fn block_entity_at(&self, a_pos: [i32; 3]) -> Option<&crate::region::BlockEntity>;
+    fn block_entity_at(&'this self, a_pos: [i32; 3]) -> Option<&'dim BlockEntity>;
     /// Get pending tick at `r_pos`
-    fn pending_tick_at(&self, a_pos: [i32; 3]) -> Option<&PendingTick>;
+    fn pending_tick_at(&'this self, a_pos: [i32; 3]) -> Option<&'dim PendingTick>;
 }

@@ -224,7 +224,7 @@ pub fn parse_multiple_mca_files(dir: &dyn FilesRead) -> Result<HashMap<ChunkPos,
     let mut result = HashMap::new();
 
     for (info, file_coord) in &mca_files {
-        let mut chunk_region_data = parse_mca_file(info, file_coord, dir)?;
+        let chunk_region_data = parse_mca_file(info, file_coord, dir)?;
         for (chunk_pos, raw) in chunk_region_data {
             result.insert(chunk_pos, raw);
         }

@@ -20,7 +20,6 @@ use std::collections::{BTreeMap, HashMap};
 use std::io::Read;
 use std::ops::Range;
 use std::sync::Arc;
-use chrono::Offset;
 use fastnbt::Value;
 use crate::biome::Biome;
 use crate::block::Block;
@@ -67,10 +66,14 @@ pub struct Chunk {
     /// If light compute is finished
     pub is_light_on: bool,
     sub_chunks: BTreeMap<i8, SubChunk>,
-    pub region_source_file: String,
     pub entities: Vec<Entity>,
     pub block_entities: HashMap<[i32; 3], BlockEntity>,
     pub pending_ticks: HashMap<[i32; 3], PendingTick>,
+
+    /// Related region file
+    pub file_region: String,
+    /// Related entities file
+    pub file_entities: String,
 }
 
 pub struct ChunkRefRelativePos<'chunk> {

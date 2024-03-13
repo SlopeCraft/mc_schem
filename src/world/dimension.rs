@@ -6,7 +6,7 @@ use crate::Error;
 use crate::world::{AbsolutePosIndexed, Chunk, ChunkPos, ChunkRefAbsolutePos, ChunkVariant, Dimension, FilesInMemory, FilesRead, mca, RefOrObject, XZCoordinate};
 use rayon::prelude::*;
 use crate::block::Block;
-use crate::region::{BlockEntity, HasOffset, PendingTick, WorldSlice};
+use crate::region::{BlockEntity, HasOffset, PendingTick};
 
 impl<T> RefOrObject<'_, T> {
     pub fn to_ref(&self) -> &T {
@@ -172,6 +172,7 @@ impl HasOffset for Dimension {
     }
 }
 
+// For dimension, since all chunks are stored in the dimension, 'this equals to 'dim
 impl<'dim> AbsolutePosIndexed<'dim, 'dim> for Dimension {
 
     fn shape(&self) -> [i32; 3] {

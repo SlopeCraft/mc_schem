@@ -88,7 +88,9 @@ impl<'s, 'chunk: 's> ChunkRefAbsolutePos<'chunk> {
 
 impl HasOffset for ChunkRefAbsolutePos<'_> {
     fn offset(&self) -> [i32; 3] {
-        return [0, self.chunk.y_offset(), 0];
+        return [self.chunk_pos.block_pos_lower_bound()[0],
+            self.chunk.y_offset(),
+            self.chunk_pos.block_pos_lower_bound()[1]];
     }
 }
 

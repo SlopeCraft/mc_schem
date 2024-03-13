@@ -78,10 +78,11 @@ impl Chunk {
             inhabited_time: 0,
             is_light_on: true,
             sub_chunks: BTreeMap::new(),
-            region_source_file: "Unnamed".to_string(),
             entities: vec![],
             block_entities: HashMap::new(),
             pending_ticks: HashMap::new(),
+            file_region: "NoFile".to_string(),
+            file_entities: "NoFile".to_string(),
         };
     }
 
@@ -98,7 +99,7 @@ impl Chunk {
                                     chunk_pos.local_coordinate().x,
                                     chunk_pos.local_coordinate().z);
         let mut result = Chunk::new();
-        result.region_source_file = region_source_filename.to_string();
+        result.file_region = region_source_filename.to_string();
         // chunk status
         {
             let status: ChunkStatus;
@@ -183,6 +184,7 @@ impl Chunk {
             let entity_source_file = entity_nbt_data.source;
             let mut entity_nbt = entity_nbt_data.nbt;
 
+            result.file_entities = entity_source_file.to_string();
             let entity_path = format!("{entity_source_file}/[{},{}]/Entities",
                                       chunk_pos.local_coordinate().x,
                                       chunk_pos.local_coordinate().z);

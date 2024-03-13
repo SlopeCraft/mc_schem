@@ -9,7 +9,7 @@ use math::round::{ceil, floor};
 use crate::{unwrap_opt_tag, unwrap_tag};
 use crate::biome::Biome;
 use crate::error::Error;
-use crate::region::{Light, WorldSlice};
+use crate::region::{Light, PendingTick, PendingTickInfo, WorldSlice};
 use crate::schem::common;
 use crate::schem::common::ceil_up_to;
 use crate::schem::id_of_nbt_tag;
@@ -67,6 +67,27 @@ impl ChunkStatus {
         }
         return None;
     }
+}
+
+fn parse_pending_tick(nbt: &HashMap<String, Value>, is_block_tick: bool, tag_path: &str) -> Result<([i32; 3], PendingTick), Error> {
+    let pos = common::parse_size_compound(nbt, tag_path, true)?;
+    let id = unwrap_opt_tag!(nbt.get("i"),String,"".to_string(),format!("{tag_path}/i"));
+    let p = *unwrap_opt_tag!(nbt.get("p"),Int,0,format!("{tag_path}/p"));
+    let t = *unwrap_opt_tag!(nbt.get("t"),Int,0,format!("{tag_path}/t"));
+
+    let info = if is_block_tick {
+        PendingTickInfo::Block { id: id.clone() }
+    } else {
+        PendingTickInfo::Fluid { id: id.clone() }
+    };
+    let tick = PendingTick {
+        priority: p,
+        time: t,
+        sub_tick: 0,
+        info,
+    };
+
+    return Ok((pos, tick));
 }
 
 impl Chunk {
@@ -177,6 +198,33 @@ impl Chunk {
                 result.block_entities.insert(pos, be);
             }
         }
+        // pending ticks
+        {
+            let tag_path_block_ticks = format!("{path_in_saves}/block_ticks");
+            let tag_block_ticks = unwrap_opt_tag!(region_nbt.get("block_ticks"),List,vec![],tag_path_block_ticks);
+
+
+            let tag_path_fluid_ticks = format!("{path_in_saves}/fluid_ticks");
+            let tag_fluid_ticks = unwrap_opt_tag!(region_nbt.get("fluid_ticks"),List,vec![],tag_path_fluid_ticks);
+            result.pending_ticks.reserve(tag_block_ticks.len() + tag_fluid_ticks.len());
+            for (is_block, (list, tag_path)) in [(tag_block_ticks, tag_path_block_ticks),
+                (tag_fluid_ticks, tag_path_fluid_ticks)].iter().enumerate() {
+                let is_block = is_block == 0;
+                for (idx, nbt) in list.iter().enumerate() {
+                    let cur_tag_path = format!("{tag_path}[{idx}]");
+                    let nbt = unwrap_tag!(nbt,Compound,HashMap::new(),cur_tag_path);
+                    let (pos, tick) = parse_pending_tick(nbt, is_block, &cur_tag_path)?;
+
+                    if result.pending_ticks.contains_key(&pos) {
+                        return Err(Error::MultiplePendingTickInOnePos {
+                            pos,
+                            latter_tag_path: cur_tag_path,
+                        });
+                    }
+                    result.pending_ticks.insert(pos, tick);
+                }
+            }
+        }
 
 
         // entities
@@ -200,8 +248,7 @@ impl Chunk {
                 // check for position
                 let entity_pos_xz = [entity.block_pos[0], entity.block_pos[2]];
                 for dim in 0..2 {
-                    if entity_pos_xz[dim] < pos_lb[dim]
-                        || entity_pos_xz[dim] > pos_ub[dim] {
+                    if entity_pos_xz[dim] < pos_lb[dim] || entity_pos_xz[dim] > pos_ub[dim] {
                         return Err(Error::BlockPosOutOfRange {
                             tag_path: format!("{cur_path}/Pos"),
                             pos: entity.block_pos,

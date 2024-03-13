@@ -259,7 +259,7 @@ fn test_load_dimension() {
     let files = FilesInMemory::from_7z_file("test_files/world/00_1.20.2.7z", "").unwrap();
     let decompressed = time::SystemTime::now();
 
-    let mut dim = Dimension::from_files(&files, false, -63..320, 0).unwrap();
+    let mut dim = Dimension::from_files(&files, false, -64..320, 0).unwrap();
     dim.parse_all(0).unwrap();
 
     let parsed = time::SystemTime::now();
@@ -276,7 +276,7 @@ fn test_large_overworld() {
     let files = FilesInMemory::from_7z_file("test_files/world/01_large-world-1.20.2.7z", "").unwrap();
     let decompressed = time::SystemTime::now();
 
-    let mut dim = Dimension::from_files(&files, false, -63..320, 0).unwrap();
+    let mut dim = Dimension::from_files(&files, false, -64..320, 0).unwrap();
 
     dim.parse_all(0).unwrap();
     //dim.check_all().unwrap();
@@ -295,7 +295,7 @@ fn test_load_dimension_mcc_block_entities() {
     let files = FilesInMemory::from_7z_file("test_files/world/02_mcc-block-entities.7z", "").unwrap();
     let decompressed = time::SystemTime::now();
 
-    let mut dim = Dimension::from_files(&files, false, -63..320, 0).unwrap();
+    let mut dim = Dimension::from_files(&files, false, -64..320, 0).unwrap();
     dim.parse_all(0).unwrap();
 
     let parsed = time::SystemTime::now();

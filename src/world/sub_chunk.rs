@@ -1,6 +1,7 @@
 use ndarray::{ArrayView2, ArrayView3};
 use crate::biome::Biome;
-use crate::region::{Light};
+use crate::block::Block;
+use crate::region::{BlockEntity, HasPalette, Light, PendingTick, WorldSlice};
 use crate::world::SubChunk;
 
 
@@ -34,5 +35,64 @@ impl SubChunk {
 
     pub fn biome_at(&self, r_pos: [i32; 3]) -> Biome {
         return self.biome()[[(r_pos[2] / 2) as usize, (r_pos[0] / 2) as usize]];
+    }
+}
+
+impl HasPalette for SubChunk {
+    fn palette(&self) -> &[Block] {
+        return &self.palette;
+    }
+}
+
+impl WorldSlice for SubChunk {
+    fn shape(&self) -> [i32; 3] {
+        return [16, 16, 16];
+    }
+
+
+    fn total_blocks(&self, include_air: bool) -> u64 {
+        let air_index = self.block_index_of_air();
+        let void_index = self.block_index_of_structure_void();
+        let mut counter = 0;
+        for idx in self.block_id_array {
+            if let Some(void_index) = void_index {
+                if idx == void_index {
+                    continue;
+                }
+            }
+            if let Some(air_index) = air_index {
+                if include_air && air_index == idx {
+                    counter += 1;
+                    continue;
+                }
+            }
+            counter += 1;
+        }
+        return counter;
+    }
+
+    fn block_index_at(&self, r_pos: [i32; 3]) -> Option<u16> {
+        if self.contains_coord(r_pos) {
+            let r_pos = [r_pos[0] as usize, r_pos[1] as usize, r_pos[2] as usize];
+            return Some(self.block_id()[r_pos]);
+        }
+        return None;
+    }
+
+    fn block_at(&self, r_pos: [i32; 3]) -> Option<&Block> {
+        if self.contains_coord(r_pos) {
+            let r_pos = [r_pos[0] as usize, r_pos[1] as usize, r_pos[2] as usize];
+            let id = self.block_id()[r_pos];
+            return Some(&self.palette[id as usize]);
+        }
+        return None;
+    }
+
+    fn block_entity_at(&self, _r_pos: [i32; 3]) -> Option<&BlockEntity> {
+        return None;
+    }
+
+    fn pending_tick_at(&self, _r_pos: [i32; 3]) -> Option<&PendingTick> {
+        return None;
     }
 }

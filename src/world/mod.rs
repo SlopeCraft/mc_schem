@@ -20,18 +20,20 @@ use std::collections::{BTreeMap, HashMap};
 use std::io::Read;
 use std::ops::Range;
 use std::sync::Arc;
+use chrono::Offset;
 use fastnbt::Value;
 use crate::biome::Biome;
 use crate::block::Block;
 use crate::{BlockEntity, Entity};
 use crate::error::Error;
-use crate::region::Light;
+use crate::region::{Light, PendingTick};
 
 pub mod mca;
 mod files_reader;
 mod chunk;
 mod dimension;
 mod sub_chunk;
+mod chunk_ref;
 
 
 #[derive(Debug, Eq, Hash, PartialEq)]
@@ -68,6 +70,17 @@ pub struct Chunk {
     pub region_source_file: String,
     pub entities: Vec<Entity>,
     pub block_entities: HashMap<[i32; 3], BlockEntity>,
+    pub pending_ticks: HashMap<[i32; 3], PendingTick>,
+}
+
+pub struct ChunkRefRelativePos<'a> {
+    chunk_pos: ChunkPos,
+    chunk: &'a Chunk,
+}
+
+pub struct ChunkRefAbsolutePos<'a> {
+    chunk_pos: ChunkPos,
+    chunk: &'a Chunk,
 }
 
 pub enum RefOrObject<'a, T: Sized> {
@@ -203,3 +216,47 @@ pub enum ChunkStatus {
     Full,
 }
 
+pub trait AbsolutePosIndexed {
+    /// Shape in x, y, z
+    fn shape(&self) -> [i32; 3] {
+        let r = self.pos_range();
+        return [r[0].len() as i32, r[1].len() as i32, r[2].len() as i32];
+    }
+    /// Returns the volume
+    fn volume(&self) -> u64 {
+        return self.shape()[0] as u64 * self.shape()[1] as u64 * self.shape()[2] as u64;
+    }
+
+    fn pos_range(&self) -> [Range<i32>; 3];
+
+    fn contains_coord(&self, a_pos: [i32; 3]) -> bool {
+        let r = self.pos_range();
+        for dim in 0..3 {
+            if !r[dim].contains(&a_pos[dim]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    ///Returns the count of blocks in region. Air will be counted if `include_air` is true, structure
+    /// void is never counted.
+    fn total_blocks(&self, include_air: bool) -> u64;
+    /// Returns detailed block infos at `r_pos`, including block index, block, block entity and pending tick.
+    /// Returns `None` if the block is outside the region
+    fn block_info_at(&self, a_pos: [i32; 3]) -> Option<(u16, &Block, Option<&crate::region::BlockEntity>, Option<&PendingTick>)> {
+        return Some((self.block_index_at(a_pos)?,
+                     self.block_at(a_pos)?,
+                     self.block_entity_at(a_pos),
+                     self.pending_tick_at(a_pos),
+        ));
+    }
+    /// Get block index at `r_pos`, returns `None` if the block is outside the region
+    fn block_index_at(&self, a_pos: [i32; 3]) -> Option<u16>;
+    /// Get block at `r_pos`, returns `None` if the block is outside the region
+    fn block_at(&self, a_pos: [i32; 3]) -> Option<&Block>;
+    /// Get block entity at `r_pos`
+    fn block_entity_at(&self, a_pos: [i32; 3]) -> Option<&crate::region::BlockEntity>;
+    /// Get pending tick at `r_pos`
+    fn pending_tick_at(&self, a_pos: [i32; 3]) -> Option<&PendingTick>;
+}

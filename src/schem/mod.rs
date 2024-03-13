@@ -460,6 +460,15 @@ impl Schematic {
         return None;
     }
 
+    pub fn first_pending_tick_at(&self, pos: [i32; 3]) -> Option<&PendingTick> {
+        for reg in &self.regions {
+            if let Some(b) = reg.pending_ticks.get(&reg.global_pos_to_relative_pos(pos)) {
+                return Some(b);
+            }
+        }
+        return None;
+    }
+
     /// Get detailed info of the first block at `pos`
     pub fn first_block_info_at(&self, pos: [i32; 3]) -> Option<(u16, &Block, Option<&BlockEntity>, Option<&PendingTick>)> {
         for reg in &self.regions {

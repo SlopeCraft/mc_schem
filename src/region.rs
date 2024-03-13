@@ -61,10 +61,44 @@ pub struct PendingTick {
     pub info: PendingTickInfo,
 }
 
+pub trait HasPalette {
+    fn palette(&self) -> &[Block];
+
+    /// Find the block index of a block in palette
+    fn find_in_palette(&self, block: &Block) -> Option<u16> {
+        for (idx, blk) in self.palette().iter().enumerate() {
+            if blk == block {
+                return Some(idx as u16);
+            }
+        }
+        return None;
+    }
+
+
+    /// Returns the block index of air in this region
+    fn block_index_of_air(&self) -> Option<u16> {
+        for (idx, blk) in self.palette().iter().enumerate() {
+            if blk.is_air() {
+                return Some(idx as u16);
+            }
+        }
+        return None;
+    }
+
+    /// Returns the block index of structure void in this region
+    fn block_index_of_structure_void(&self) -> Option<u16> {
+        for (idx, blk) in self.palette().iter().enumerate() {
+            if blk.is_structure_void() {
+                return Some(idx as u16);
+            }
+        }
+        return None;
+    }
+}
+
+
 /// Part of a Minecraft world
 pub trait WorldSlice {
-    /// Offset of this region
-    fn offset(&self) -> [i32; 3];
     /// Shape in x, y, z
     fn shape(&self) -> [i32; 3];
     /// If `r_pos` is inside the region
@@ -86,35 +120,40 @@ pub trait WorldSlice {
     fn total_blocks(&self, include_air: bool) -> u64;
     /// Returns detailed block infos at `r_pos`, including block index, block, block entity and pending tick.
     /// Returns `None` if the block is outside the region
-    fn block_info_at(&self, r_pos: [i32; 3]) -> Option<(u16, &Block, Option<&BlockEntity>, Option<&PendingTick>)>;
+    fn block_info_at(&self, r_pos: [i32; 3]) -> Option<(u16, &Block, Option<&BlockEntity>, Option<&PendingTick>)> {
+        return Some((self.block_index_at(r_pos)?,
+                     self.block_at(r_pos)?,
+                     self.block_entity_at(r_pos),
+                     self.pending_tick_at(r_pos),
+        ));
+    }
     /// Get block index at `r_pos`, returns `None` if the block is outside the region
-    fn block_index_at(&self, r_pos: [i32; 3]) -> Option<u16> {
-        return Some(self.block_info_at(r_pos)?.0);
-    }
+    fn block_index_at(&self, r_pos: [i32; 3]) -> Option<u16>;
     /// Get block at `r_pos`, returns `None` if the block is outside the region
-    fn block_at(&self, r_pos: [i32; 3]) -> Option<&Block> {
-        return Some(self.block_info_at(r_pos)?.1);
-    }
+    fn block_at(&self, r_pos: [i32; 3]) -> Option<&Block>;
     /// Get block entity at `r_pos`
-    fn block_entity_at(&self, r_pos: [i32; 3]) -> Option<&BlockEntity> {
-        return self.block_info_at(r_pos)?.2;
-    }
+    fn block_entity_at(&self, r_pos: [i32; 3]) -> Option<&BlockEntity>;
     /// Get pending tick at `r_pos`
-    fn pending_tick_at(&self, r_pos: [i32; 3]) -> Option<&PendingTick> {
-        return self.block_info_at(r_pos)?.3;
-    }
-    // /// Returns detailed block infos at `r_pos`, including block index, block, block entity(mutable) and pending tick(mutable).
-    // /// Returns `None` if the block is outside the region
-    // fn block_info_at_mut(&mut self, r_pos: [i32; 3]) -> Option<(u16, &Block, Option<&mut BlockEntity>, Option<&mut PendingTick>)>;
-    // /// Get mutable block entity at `r_pos`
-    // fn block_entity_at_mut(&mut self, r_pos: [i32; 3]) -> Option<&mut BlockEntity> {
-    //     return self.block_info_at_mut(r_pos)?.2;
-    // }
-    // /// Get mutable pending tick at `r_pos`
-    // fn pending_tick_at_mut(&mut self, r_pos: [i32; 3]) -> Option<&mut PendingTick> {
-    //     return self.block_info_at_mut(r_pos)?.3;
-    // }
+    fn pending_tick_at(&self, r_pos: [i32; 3]) -> Option<&PendingTick>;
 }
+
+pub trait HasOffset {
+    /// Offset of this region
+    fn offset(&self) -> [i32; 3];
+}
+
+// /// Returns detailed block infos at `r_pos`, including block index, block, block entity(mutable) and pending tick(mutable).
+// /// Returns `None` if the block is outside the region
+// fn block_info_at_mut(&mut self, r_pos: [i32; 3]) -> Option<(u16, &Block, Option<&mut BlockEntity>, Option<&mut PendingTick>)>;
+// /// Get mutable block entity at `r_pos`
+// fn block_entity_at_mut(&mut self, r_pos: [i32; 3]) -> Option<&mut BlockEntity> {
+//     return self.block_info_at_mut(r_pos)?.2;
+// }
+// /// Get mutable pending tick at `r_pos`
+// fn pending_tick_at_mut(&mut self, r_pos: [i32; 3]) -> Option<&mut PendingTick> {
+//     return self.block_info_at_mut(r_pos)?.3;
+// }
+
 
 /// Region is a 3d area in Minecraft, containing blocks and entities. \
 /// Litematica files can have multiple regions, but vanilla structure, world edit schematics can have only one. \
@@ -195,10 +234,19 @@ impl PendingTickInfo {
     }
 }
 
-impl WorldSlice for Region {
+impl HasPalette for Region {
+    fn palette(&self) -> &[Block] {
+        return &self.palette;
+    }
+}
+
+impl HasOffset for Region {
     fn offset(&self) -> [i32; 3] {
         return self.offset;
     }
+}
+
+impl WorldSlice for Region {
 
     /// Shape in x, y, z
     fn shape(&self) -> [i32; 3] {
@@ -277,6 +325,7 @@ impl WorldSlice for Region {
         return self.pending_ticks.get(&r_pos);
     }
 }
+
 
 #[allow(dead_code)]
 impl Region {
@@ -414,25 +463,6 @@ impl Region {
         return [shape[0] as i32, shape[1] as i32, shape[2] as i32];
     }
 
-    /// Returns the block index of air in this region
-    pub fn block_index_of_air(&self) -> Option<u16> {
-        for (idx, blk) in self.palette.iter().enumerate() {
-            if blk.is_air() {
-                return Some(idx as u16);
-            }
-        }
-        return None;
-    }
-
-    /// Returns the block index of structure void in this region
-    pub fn block_index_of_structure_void(&self) -> Option<u16> {
-        for (idx, blk) in self.palette.iter().enumerate() {
-            if blk.is_structure_void() {
-                return Some(idx as u16);
-            }
-        }
-        return None;
-    }
     /// Convert global position to relative position. `r_pos` = `g_pos` - `self.offset`
     pub fn global_pos_to_relative_pos(&self, g_pos: [i32; 3]) -> [i32; 3] {
         return [

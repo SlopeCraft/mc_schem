@@ -3,10 +3,10 @@ use std::ops::Range;
 use std::sync::mpsc::{channel, Receiver};
 use std::time;
 use crate::Error;
-use crate::world::{ChunkPos, Dimension, FilesInMemory, FilesRead, mca, RefOrObject, XZCoordinate};
+use crate::world::{Chunk, ChunkPos, ChunkVariant, Dimension, FilesInMemory, FilesRead, mca, RefOrObject, XZCoordinate};
 use rayon::prelude::*;
 use crate::block::Block;
-use crate::region::{BlockEntity, PendingTick, WorldSlice};
+use crate::region::{BlockEntity, HasOffset, PendingTick, WorldSlice};
 
 impl<T> RefOrObject<'_, T> {
     pub fn to_ref(&self) -> &T {
@@ -73,6 +73,26 @@ impl Dimension {
         });
     }
 
+    pub fn block_pos_to_chunk_pos(block_pos: [i32; 3]) -> (ChunkPos, i8) {
+        let cpos = ChunkPos::from_global_pos(&XZCoordinate { x: block_pos[0] / 16, z: block_pos[2] / 16 });
+        let y = block_pos[1] / 16;
+        return (cpos, y as i8);
+    }
+
+    pub fn get_chunk(&self, chunk_pos: &ChunkPos) -> Option<&Chunk> {
+        return match self.chunks.get(chunk_pos)? {
+            ChunkVariant::Parsed(chunk) => Some(chunk),
+            ChunkVariant::Unparsed(_) => None
+        };
+    }
+
+    pub fn get_chunk_mut(&mut self, chunk_pos: &ChunkPos) -> Option<&mut Chunk> {
+        return match self.chunks.get_mut(chunk_pos)? {
+            ChunkVariant::Parsed(chunk) => Some(chunk),
+            ChunkVariant::Unparsed(_) => None
+        };
+    }
+
     pub fn check_all(&self) -> Result<(), Error> {
         let (tx, rx) = channel();
 
@@ -121,10 +141,13 @@ impl Dimension {
     }
 }
 
-impl WorldSlice for Dimension {
+impl HasOffset for Dimension {
     fn offset(&self) -> [i32; 3] {
         return [0, 0, 0];
     }
+}
+
+impl WorldSlice for Dimension {
 
     fn shape(&self) -> [i32; 3] {
         let mut xmin = i32::MAX;
@@ -144,10 +167,28 @@ impl WorldSlice for Dimension {
     }
 
     fn total_blocks(&self, include_air: bool) -> u64 {
+        let mut num_blocks = 0;
+        for (_, chunk) in &self.chunks {
+            if let ChunkVariant::Parsed(chunk) = chunk {
+                num_blocks += chunk.total_blocks(include_air);
+            }
+        }
+        return num_blocks;
+    }
+
+    fn block_index_at(&self, r_pos: [i32; 3]) -> Option<u16> {
         todo!()
     }
 
-    fn block_info_at(&self, r_pos: [i32; 3]) -> Option<(u16, &Block, Option<&BlockEntity>, Option<&PendingTick>)> {
+    fn block_at(&self, r_pos: [i32; 3]) -> Option<&Block> {
+        todo!()
+    }
+
+    fn block_entity_at(&self, r_pos: [i32; 3]) -> Option<&BlockEntity> {
+        todo!()
+    }
+
+    fn pending_tick_at(&self, r_pos: [i32; 3]) -> Option<&PendingTick> {
         todo!()
     }
 }

@@ -5,13 +5,14 @@ use std::time;
 use fastnbt::Value;
 use math::round::{ceil, floor};
 use crate::error::Error;
-use crate::region::{Light};
+use crate::region::{BlockEntity, Light, PendingTick, WorldSlice};
 use crate::schem::common::ceil_up_to;
 use crate::{unwrap_opt_tag, unwrap_tag};
 use crate::biome::Biome;
+use crate::block::Block;
 use crate::schem::common;
 use crate::schem::id_of_nbt_tag;
-use crate::world::{Chunk, ChunkPos, ChunkStatus, NBTWithSource, SubChunk};
+use crate::world::{Chunk, ChunkPos, ChunkRefAbsolutePos, ChunkRefRelativePos, ChunkStatus, NBTWithSource, SubChunk};
 
 
 impl Display for ChunkStatus {
@@ -80,6 +81,7 @@ impl Chunk {
             region_source_file: "Unnamed".to_string(),
             entities: vec![],
             block_entities: HashMap::new(),
+            pending_ticks: HashMap::new(),
         };
     }
 
@@ -247,6 +249,37 @@ impl Chunk {
         let y_min = min as i32 * 16;
         return y_min..(y_min + self.height());
     }
+    pub fn y_offset(&self) -> i32 {
+        return self.y_range().start;
+    }
+
+
+    pub fn shape(&self) -> [i32; 3] {
+        return [16, self.height(), 16];
+    }
+
+    pub fn total_blocks(&self, include_air: bool) -> u64 {
+        let mut num_blocks = 0;
+        for (_, subchunk) in &self.sub_chunks {
+            num_blocks += subchunk.total_blocks(include_air);
+        }
+        return num_blocks;
+    }
+
+    pub fn as_relative_pos(&self, chunk_pos: &ChunkPos) -> ChunkRefRelativePos {
+        return ChunkRefRelativePos {
+            chunk: self,
+            chunk_pos: *chunk_pos,
+        };
+    }
+
+    pub fn as_absolute_pos(&self, chunk_pos: &ChunkPos) -> ChunkRefAbsolutePos {
+        return ChunkRefAbsolutePos {
+            chunk: self,
+            chunk_pos: *chunk_pos,
+        };
+    }
+
 }
 
 pub fn bits_per_block(block_types: usize, min_value: u8) -> u8 {

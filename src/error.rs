@@ -16,13 +16,16 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::ops::Range;
+use fastnbt::Value;
 use strum::Display;
 use crate::block::{Block, BlockIdParseError};
 use crate::old_block::OldBlockParseError;
 use crate::region::Region;
 use crate::schem::common::{format_range, format_size};
+use crate::schem::id_of_nbt_tag;
 
 /// Errors when loading and saving schematic
 #[derive(Debug)]
@@ -270,6 +273,32 @@ macro_rules! unwrap_tag {
                 }
         };
     }
+
+pub fn unwrap_opt_i8(nbt: &HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<i8, Error> {
+    Ok(*unwrap_opt_tag!(nbt.get(key),Byte,0,format!("{nbt_path}/{key}")))
+}
+
+pub fn unwrap_opt_i16(nbt: &HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<i16, Error> {
+    Ok(*unwrap_opt_tag!(nbt.get(key),Short,0,format!("{nbt_path}/{key}")))
+}
+
+pub fn unwrap_opt_i32(nbt: &HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<i32, Error> {
+    Ok(*unwrap_opt_tag!(nbt.get(key),Int,0,format!("{nbt_path}/{key}")))
+}
+
+pub fn unwrap_opt_i64(nbt: &HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<i64, Error> {
+    Ok(*unwrap_opt_tag!(nbt.get(key),Long,0,format!("{nbt_path}/{key}")))
+}
+
+pub fn unwrap_opt_f32(nbt: &HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<f32, Error> {
+    Ok(*unwrap_opt_tag!(nbt.get(key),Float,0.0,format!("{nbt_path}/{key}")))
+}
+
+pub fn unwrap_opt_f64(nbt: &HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<f64, Error> {
+    Ok(*unwrap_opt_tag!(nbt.get(key),Double,0.0,format!("{nbt_path}/{key}")))
+}
+
+
 
 /// Not used now.
 #[repr(u8)]

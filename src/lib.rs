@@ -56,6 +56,7 @@ pub mod world;
 
 mod c_ffi;
 mod biome;
+mod raid;
 
 /// `Block` is a type of block with namespace and properties(aka attributes) in MC.
 pub type Block = block::Block;

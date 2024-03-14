@@ -2,11 +2,16 @@ use std::collections::HashMap;
 use std::ops::Range;
 use std::sync::mpsc::{channel, Receiver};
 use std::time;
-use crate::Error;
-use crate::world::{AbsolutePosIndexed, Chunk, ChunkPos, ChunkRefAbsolutePos, ChunkVariant, Dimension, FilesInMemory, FilesRead, mca, RefOrObject, XZCoordinate};
+use fastnbt::Value;
+use flate2::read::GzDecoder;
+use crate::{Error, unwrap_opt_tag, unwrap_tag};
+use crate::world::{AbsolutePosIndexed, Chunk, ChunkPos, ChunkRefAbsolutePos, ChunkVariant, Dimension, FileInfo, FilesInMemory, FilesRead, mca, RefOrObject, XZCoordinate};
 use rayon::prelude::*;
 use crate::block::Block;
+use crate::error::unwrap_opt_i32;
+use crate::raid::{Raid, RaidList};
 use crate::region::{BlockEntity, HasOffset, PendingTick};
+use crate::schem::id_of_nbt_tag;
 
 impl<T> RefOrObject<'_, T> {
     pub fn to_ref(&self) -> &T {
@@ -63,6 +68,56 @@ fn check_chunk_infos(recv: Receiver<(&ChunkPos, Range<i32>)>, num_chunks: usize)
     });
 }
 
+fn get_raid_file_name(data_dir: &dyn FilesRead) -> Result<FileInfo, Error> {
+    for info in data_dir.files() {
+        println!("filename: {}, full name: {}", info.name, info.full_name);
+        if info.name.starts_with("raids") && info.name.ends_with(".dat") {
+            return Ok(info);
+        }
+    }
+    return Err(Error::NoSuchFile {
+        filename: "raids.dat".to_string(),
+        expected_to_exist_in: data_dir.path(),
+    });
+}
+
+fn parse_raids(data_dir: &dyn FilesRead) -> Result<RaidList, Error> {
+    let file = get_raid_file_name(data_dir)?;
+    let mut nbt: HashMap<String, Value>;
+    {
+        let src = data_dir.open_file(&file.name)?;
+        let decoder = GzDecoder::new(src);
+        match fastnbt::from_reader(decoder) {
+            Ok(n) => nbt = n,
+            Err(e) => return Err(Error::NBTReadError(e))
+        }
+    }
+
+    let tag_path_data = format!("{}/data", file.full_name);
+    let mut data = unwrap_opt_tag!(nbt.remove("data"),Compound,HashMap::new(),tag_path_data);
+
+    let next_available_id = unwrap_opt_i32(&data, "NextAvailableID", &tag_path_data)?;
+    let tick = unwrap_opt_i32(&data, "Tick", &tag_path_data)?;
+
+    let raids_path = format!("{tag_path_data}/Raids");
+    let raids_tag = unwrap_opt_tag!(data.remove("Raids"),List,vec![],raids_path);
+
+    let mut raids = Vec::with_capacity(raids_tag.len());
+    for (idx, tag) in raids_tag.iter().enumerate() {
+        let path = format!("{raids_path}/[{idx}]");
+        let tag = unwrap_tag!(tag,Compound,HashMap::new(),path);
+
+        let raid = Raid::from_nbt(tag, &path)?;
+        raids.push(raid);
+    }
+
+    return Ok(RaidList {
+        raids,
+        next_available_id,
+        tick,
+    })
+}
+
 impl Dimension {
     pub fn from_files(files: &dyn FilesRead, parse_directly: bool, y_range: Range<i32>, dimension_id: i32) -> Result<Dimension, Error> {
         let chunks = mca::parse_multiple_regions(&files.sub_directory("region"),
@@ -70,9 +125,13 @@ impl Dimension {
                                                  y_range.clone(),
                                                  dimension_id,
                                                  parse_directly)?;
+
+        let raids = parse_raids(&files.sub_directory("data"))?;
+
         return Ok(Dimension {
             chunks,
-            y_range
+            y_range,
+            raids,
         });
     }
 
@@ -295,8 +354,10 @@ fn test_load_dimension_mcc_block_entities() {
     let files = FilesInMemory::from_7z_file("test_files/world/02_mcc-block-entities.7z", "").unwrap();
     let decompressed = time::SystemTime::now();
 
+
     let mut dim = Dimension::from_files(&files, false, -64..320, 0).unwrap();
     dim.parse_all(0).unwrap();
+
 
     let parsed = time::SystemTime::now();
 
@@ -304,4 +365,13 @@ fn test_load_dimension_mcc_block_entities() {
     println!("Decompression takes {} ms, parsing takes {} ms",
              decompressed.duration_since(begin).unwrap().as_millis(),
              parsed.duration_since(decompressed).unwrap().as_millis());
+}
+
+#[test]
+fn test_raids() {
+    let files = FilesInMemory::from_7z_file("test_files/world/03_raids-1.20.2.7z", "").unwrap();
+    // overworld
+    Dimension::from_files(&files, false, -64..320, 0).unwrap();
+    Dimension::from_files(&files.sub_directory("DIM-1"), false, -64..320, -1).unwrap();
+    Dimension::from_files(&files.sub_directory("DIM1"), false, -64..320, 1).unwrap();
 }

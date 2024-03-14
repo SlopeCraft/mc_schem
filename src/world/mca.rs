@@ -10,6 +10,7 @@ use crate::error::Error;
 use crate::world;
 use crate::world::{ArcSlice, Chunk, ChunkVariant, Dimension, FileInfo, MCARawData, NBTWithSource, RefOrObject, UnparsedChunkData};
 use world::FilesRead;
+use crate::raid::RaidList;
 
 pub const SEGMENT_BYTES: usize = 4096;
 
@@ -273,7 +274,7 @@ pub fn parse_multiple_regions(region_dir: &dyn FilesRead,
     }
 
     if parse_directly {
-        let mut temp = Dimension { chunks: result, y_range };
+        let mut temp = Dimension { chunks: result, y_range, raids: RaidList::default() };
         temp.parse_all(dimension_id)?;
         return Ok(temp.chunks);
     }

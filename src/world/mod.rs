@@ -20,11 +20,14 @@ use std::collections::{BTreeMap, HashMap};
 use std::io::Read;
 use std::ops::Range;
 use std::sync::Arc;
+
 use fastnbt::Value;
+
+use crate::{BlockEntity, Entity};
 use crate::biome::Biome;
 use crate::block::Block;
-use crate::{BlockEntity, Entity};
 use crate::error::Error;
+use crate::raid::RaidList;
 use crate::region::{Light, PendingTick};
 
 pub mod mca;
@@ -74,6 +77,14 @@ pub struct Chunk {
     pub file_region: String,
     /// Related entities file
     pub file_entities: String,
+}
+
+#[derive(Debug, Eq, Hash, PartialEq, Copy, Clone)]
+pub struct ChunkPos {
+    global_x: i32,
+    global_z: i32,
+    // pub file_coordinate: XZCoordinate,
+    // pub coordinate_in_file: XZCoordinate,
 }
 
 pub struct ChunkRefRelativePos<'chunk> {
@@ -127,7 +138,7 @@ pub enum ChunkVariant {
 pub struct Dimension {
     pub chunks: HashMap<ChunkPos, ChunkVariant>,
     y_range: Range<i32>,
-
+    raids: RaidList,
 }
 
 #[derive(Debug, Clone)]
@@ -194,14 +205,6 @@ pub struct FilesInMemory {
     files: HashMap<String, Arc<Vec<u8>>>,
     /// The source of 7z archive, including but not limited to filename
     pub source: String,
-}
-
-#[derive(Debug, Eq, Hash, PartialEq, Copy, Clone)]
-pub struct ChunkPos {
-    global_x: i32,
-    global_z: i32,
-    // pub file_coordinate: XZCoordinate,
-    // pub coordinate_in_file: XZCoordinate,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd)]

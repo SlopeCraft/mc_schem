@@ -20,8 +20,9 @@ use std::collections::HashMap;
 use std::mem::swap;
 use std::ptr::{drop_in_place, null, null_mut};
 use fastnbt::Value;
+use ndarray::CowArray;
 use crate::Block;
-use crate::c_ffi::{CMapRef, CPendingTickType, CPosDouble, CPosInt, CRegionBlockInfo, CStringView, error_to_box};
+use crate::c_ffi::{CArrayView, CMapRef, CPendingTickType, CPosDouble, CPosInt, CRegionBlockInfo, CStringView, error_to_box};
 use crate::region::{BlockEntity, Entity, HasPalette, PendingTick, PendingTickInfo, Region, WorldSlice};
 use crate::error::Error;
 
@@ -261,7 +262,7 @@ unsafe extern "C" fn MC_SCHEM_region_get_block_entities(region: *const Region) -
 #[no_mangle]
 unsafe extern "C" fn MC_SCHEM_region_get_pending_ticks(region: *const Region) -> CMapRef {
     let region = &mut *(region as *mut Region);
-    return CMapRef::PosPendingTick(&mut region.pending_ticks as *mut HashMap<[i32; 3], PendingTick>);
+    return CMapRef::PosPendingTick(&mut region.pending_ticks as *mut HashMap<[i32; 3], Vec<PendingTick>>);
 }
 
 #[no_mangle]
@@ -356,11 +357,8 @@ unsafe extern "C" fn MC_SCHEM_region_get_block_info(region: *const Region, r_pos
     } else {
         null_mut()
     };
-    result.pending_tick = if let Some(pt) = region.pending_tick_at(r_pos.pos) {
-        pt as *const PendingTick as *mut PendingTick
-    } else {
-        null_mut()
-    };
+    result.pending_ticks = CArrayView::from_slice(region.pending_tick_at(r_pos.pos));
+
 
     return result;
 }

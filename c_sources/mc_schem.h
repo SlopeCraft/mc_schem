@@ -105,7 +105,9 @@ typedef struct MC_SCHEM_block_entity_s {
   size_t reserved[11];
 } MC_SCHEM_block_entity;
 MC_SCHEM_DEFINE_BOX(MC_SCHEM_block_entity)
-typedef struct MC_SCHEM_pending_tick_s MC_SCHEM_pending_tick;
+typedef struct MC_SCHEM_pending_tick_s {
+  size_t reserved[6];
+} MC_SCHEM_pending_tick;
 MC_SCHEM_DEFINE_BOX(MC_SCHEM_pending_tick)
 
 typedef enum : uint8_t {
@@ -117,7 +119,7 @@ typedef enum : uint8_t {
   MC_SCHEM_MVT_string = 0,
   MC_SCHEM_MVT_nbt = 1,
   MC_SCHEM_MVT_block_entity = 2,
-  MC_SCHEM_MVT_pending_tick = 3,
+  MC_SCHEM_MVT_pending_tick_list = 3,
 } MC_SCHEM_map_value_type;
 
 typedef struct {
@@ -137,11 +139,16 @@ typedef union {
   int pos[3];
 } MC_SCHEM_key_wrapper;
 
+typedef struct {
+  MC_SCHEM_pending_tick *begin;
+  MC_SCHEM_pending_tick *end;
+} MC_SCHEM_pending_tick_view;
+
 typedef union {
   MC_SCHEM_string *string;
   MC_SCHEM_nbt_value *nbt;
   MC_SCHEM_block_entity *block_entity;
-  MC_SCHEM_pending_tick *pending_tick;
+  MC_SCHEM_pending_tick_view pending_tick_list;
 } MC_SCHEM_value_wrapper;
 
 MC_SCHEM_EXPORT MC_SCHEM_map_ref MC_SCHEM_map_unwrap_box(const MC_SCHEM_map_box *);
@@ -499,7 +506,7 @@ typedef struct {
   uint16_t block_index;
   const MC_SCHEM_block *block;
   MC_SCHEM_block_entity *block_entity;
-  MC_SCHEM_pending_tick *pending_tick;
+  MC_SCHEM_pending_tick_view pending_ticks;
 } MC_SCHEM_region_block_info;
 MC_SCHEM_EXPORT MC_SCHEM_region_block_info
 MC_SCHEM_region_get_block_info(const MC_SCHEM_region *, MC_SCHEM_array3_i32 r_pos);

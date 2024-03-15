@@ -289,7 +289,7 @@ impl WorldSlice for Region {
         return if let Some(pid) = self.block_index_at(r_pos) {
             Some((pid, &self.palette[pid as usize],
                   self.block_entities.get(&r_pos),
-                  &self.pending_ticks.get(&r_pos).unwrap_or(&vec![])))
+                  self.pending_tick_at(r_pos)))
         } else {
             None
         };
@@ -322,7 +322,10 @@ impl WorldSlice for Region {
 
     /// Get pending tick at `r_pos`
     fn pending_tick_at(&self, r_pos: [i32; 3]) -> &[PendingTick] {
-        return &self.pending_ticks.get(&r_pos).unwrap_or(&vec![]);
+        if let Some(pts) = self.pending_ticks.get(&r_pos) {
+            return &pts;
+        }
+        return &[];
     }
 }
 
@@ -569,7 +572,8 @@ impl Region {
         return if let Some(pid) = self.block_index_at(r_pos) {
             Some((pid, &self.palette[pid as usize],
                   self.block_entities.get_mut(&r_pos),
-                  self.pending_tick_at_mut(r_pos)))
+                  if let Some(pts) = self.pending_ticks.get_mut(&r_pos) { pts.as_mut_slice() } else { &mut [] }
+            ))
         } else {
             None
         };
@@ -581,6 +585,10 @@ impl Region {
 
     /// Get mutable pending tick at `r_pos`
     pub fn pending_tick_at_mut(&mut self, r_pos: [i32; 3]) -> &mut [PendingTick] {
-        return &mut self.pending_ticks.get_mut(&r_pos).unwrap_or(&mut vec![]);
+        return if let Some(pts) = self.pending_ticks.get_mut(&r_pos) {
+            pts.as_mut_slice()
+        } else {
+            &mut []
+        };
     }
 }

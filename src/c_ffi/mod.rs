@@ -25,7 +25,7 @@ use std::io::{ErrorKind, Read, Write};
 use std::ptr::{drop_in_place, null, null_mut, slice_from_raw_parts, slice_from_raw_parts_mut};
 use std::str::from_utf8_unchecked;
 use static_assertions as sa;
-use std::mem::{size_of, swap};
+use std::mem::{ManuallyDrop, size_of, swap};
 use fastnbt::Value;
 use flate2::Compression;
 #[allow(unused_imports)]
@@ -139,7 +139,14 @@ enum CMapValueType {
     String = 0,
     NBT = 1,
     BlockEntity = 2,
-    PendingTick = 3,
+    PendingTickList = 3,
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+struct CArrayView<T> {
+    begin: *mut T,
+    end: *mut T,
 }
 
 #[repr(C)]
@@ -147,7 +154,7 @@ enum CMapRef {
     StrStr(*mut BTreeMap<String, String>),
     StrValue(*mut HashMap<String, Value>),
     PosBlockEntity(*mut HashMap<[i32; 3], BlockEntity>),
-    PosPendingTick(*mut HashMap<[i32; 3], PendingTick>),
+    PosPendingTick(*mut HashMap<[i32; 3], Vec<PendingTick>>),
 }
 sa::const_assert!(size_of::<CMapRef>()==2*size_of::<usize>());
 
@@ -156,7 +163,7 @@ enum CMapBox {
     StrStr(Box<BTreeMap<String, String>>),
     StrValue(Box<HashMap<String, Value>>),
     PosBlockEntity(Box<HashMap<[i32; 3], BlockEntity>>),
-    PosPendingTick(Box<HashMap<[i32; 3], PendingTick>>),
+    PosPendingTick(Box<HashMap<[i32; 3], Vec<PendingTick>>>),
     None,
 }
 sa::const_assert!(size_of::<CMapBox>()==2*size_of::<usize>());
@@ -173,9 +180,9 @@ union CMapValueWrapper {
     string: *mut String,
     nbt: *mut Value,
     block_entity: *mut BlockEntity,
-    pending_tick: *mut PendingTick,
+    pending_tick_view: ManuallyDrop<CArrayView<PendingTick>>,
 }
-sa::const_assert!(size_of::<CMapValueWrapper>()==size_of::<usize>());
+sa::const_assert!(size_of::<CMapValueWrapper>()==2*size_of::<usize>());
 
 pub struct KVRef<K, V> {
     pub key: *const K,
@@ -214,8 +221,8 @@ enum CMapIterator {
         deref: KVRef<[i32; 3], BlockEntity>,
     },
     PosPendingTick {
-        iter: std::collections::hash_map::IterMut<'static, [i32; 3], PendingTick>,
-        deref: KVRef<[i32; 3], PendingTick>,
+        iter: std::collections::hash_map::IterMut<'static, [i32; 3], Vec<PendingTick>>,
+        deref: KVRef<[i32; 3], Vec<PendingTick>>,
     },
     None,
 }
@@ -234,6 +241,7 @@ fn sizes() {
 
     println!("Size of Block = {}", size_of::<Block>());
     println!("Size of Entity = {}", size_of::<Entity>());
+    println!("Size of Pending tick = {}", size_of::<PendingTick>());
     println!("Size of (u8,u8) = {}", size_of::<(u8, u8)>());
 
     println!("Size of CLitematicaLoadOption = {}", size_of::<CLitematicaLoadOption>());
@@ -261,12 +269,6 @@ enum CEnumNBTType {
 
 type CValueBox = Box<Value>;
 sa::const_assert!(size_of::<CValueBox>()==size_of::<usize>());
-
-#[repr(C)]
-struct CArrayView<T> {
-    begin: *mut T,
-    end: *mut T,
-}
 
 impl<T> CArrayView<T> {
     pub fn from_slice(slice: &[T]) -> CArrayView<T> {
@@ -330,7 +332,7 @@ struct CRegionBlockInfo {
     block_index: u16,
     block: *const Block,
     block_entity: *mut BlockEntity,
-    pending_tick: *mut PendingTick,
+    pending_ticks: CArrayView<PendingTick>,
 }
 
 impl Default for CRegionBlockInfo {
@@ -339,7 +341,7 @@ impl Default for CRegionBlockInfo {
             block_index: u16::MAX,
             block: null(),
             block_entity: null_mut(),
-            pending_tick: null_mut(),
+            pending_ticks: CArrayView::empty(),
         }
     }
 }

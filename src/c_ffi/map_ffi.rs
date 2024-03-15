@@ -19,9 +19,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 use std::cmp::max;
 use std::collections::{BTreeMap, HashMap};
 use std::ffi::c_void;
+use std::mem::ManuallyDrop;
 use std::ptr::{null, null_mut};
 use fastnbt::Value;
-use crate::c_ffi::{CMapBox, CMapIterator, CMapKeyType, CMapKeyWrapper, CMapRef, CMapValueType, CMapValueWrapper, CStringView, KVRef};
+use crate::c_ffi::{CArrayView, CMapBox, CMapIterator, CMapKeyType, CMapKeyWrapper, CMapRef, CMapValueType, CMapValueWrapper, CStringView, KVRef};
 use crate::region::{BlockEntity, PendingTick};
 
 impl CMapRef {
@@ -30,7 +31,7 @@ impl CMapRef {
             CMapRef::StrStr(_) => (CMapKeyType::String, CMapValueType::String),
             CMapRef::StrValue(_) => (CMapKeyType::String, CMapValueType::NBT),
             CMapRef::PosBlockEntity(_) => (CMapKeyType::Pos, CMapValueType::BlockEntity),
-            CMapRef::PosPendingTick(_) => (CMapKeyType::Pos, CMapValueType::PendingTick),
+            CMapRef::PosPendingTick(_) => (CMapKeyType::Pos, CMapValueType::PendingTickList),
         }
     }
 }
@@ -56,7 +57,7 @@ impl CMapBox {
             },
             CMapBox::PosPendingTick(pp)
             => {
-                type V = HashMap<[i32; 3], PendingTick>;
+                type V = HashMap<[i32; 3], Vec<PendingTick>>;
                 CMapRef::PosPendingTick(pp.as_ref() as *const V as *mut V)
             },
             CMapBox::None => panic!("Trying to convert CMapBox::None to CMapRef"),
@@ -105,7 +106,7 @@ extern "C" fn MC_SCHEM_create_map(key_t: CMapKeyType, val_t: CMapValueType, succ
             *success = true;
             return CMapBox::PosBlockEntity(Box::new(HashMap::new()));
         }
-        if key_t == CMapKeyType::Pos && val_t == CMapValueType::PendingTick {
+        if key_t == CMapKeyType::Pos && val_t == CMapValueType::PendingTickList {
             *success = true;
             return CMapBox::PosPendingTick(Box::new(HashMap::new()));
         }
@@ -166,13 +167,13 @@ extern "C" fn MC_SCHEM_map_find(map: *const CMapRef, key_t: CMapKeyType, val_t: 
             }
             CMapRef::PosPendingTick(map) => {
                 debug_assert!(key_t == CMapKeyType::Pos);
-                debug_assert!(val_t == CMapValueType::PendingTick);
+                debug_assert!(val_t == CMapValueType::PendingTickList);
                 let map = &mut *(*map);
-                let ptr = match map.get_mut(&key.pos) {
-                    Some(v) => v as *mut PendingTick,
-                    None => null_mut(),
+                let slice = match map.get_mut(&key.pos) {
+                    Some(v) => v.as_slice(),
+                    None => &[],
                 };
-                CMapValueWrapper { pending_tick: ptr }
+                CMapValueWrapper { pending_tick_view: ManuallyDrop::new(CArrayView::from_slice(slice)) }
             }
         }
     }
@@ -262,7 +263,7 @@ extern "C" fn MC_SCHEM_map_iterator_first(
             }
             CMapRef::PosPendingTick(map) => {
                 debug_assert!(key_t == CMapKeyType::Pos);
-                debug_assert!(val_t == CMapValueType::PendingTick);
+                debug_assert!(val_t == CMapValueType::PendingTickList);
                 let map = &mut *(*map);
                 let deref = KVRef::new(map.iter_mut().next());
                 CMapIterator::PosPendingTick { iter: map.iter_mut(), deref }
@@ -345,7 +346,7 @@ extern "C" fn MC_SCHEM_map_iterator_deref(it: *const CMapIterator) -> IterDerefR
             CMapIterator::PosPendingTick { iter: _, deref } => {
                 if !deref.is_null() {
                     ret.key.pos = *deref.key;
-                    ret.value.pending_tick = deref.value;
+                    ret.value.pending_tick_view = ManuallyDrop::new(CArrayView::from_slice(&*(deref.value)));
                     ret.has_value = true;
                 }
             }
@@ -437,7 +438,9 @@ extern "C" fn MC_SCHEM_map_foreach(map: *const CMapRef,
             CMapRef::PosPendingTick(map) => {
                 let map = &mut *(*map);
                 for (idx, (key, val)) in map.iter_mut().enumerate() {
-                    fun(idx, CMapKeyWrapper { pos: *key }, CMapValueWrapper { pending_tick: val }, custom_data);
+                    fun(idx, CMapKeyWrapper { pos: *key }, CMapValueWrapper {
+                        pending_tick_view: ManuallyDrop::new(CArrayView::from_slice(val.as_slice()))
+                    }, custom_data);
                 }
             }
         }
@@ -463,7 +466,7 @@ extern "C" fn MC_SCHEM_map_insert(map: *mut CMapRef, key: CMapKeyWrapper, value:
             },
             CMapRef::PosPendingTick(map) => {
                 let map = &mut *(*map);
-                map.insert(key.pos, (*value.pending_tick).clone());
+                map.insert(key.pos, value.pending_tick_view.to_vec());
             },
         }
     }

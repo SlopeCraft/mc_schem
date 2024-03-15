@@ -164,6 +164,19 @@ namespace mc_schem {
       void reset_handle(handle_t ptr) noexcept { this->handle = ptr; }
     };
 
+
+    template<class cpp_type, class c_array_view>
+    [[nodiscard]] std::vector<cpp_type> c_view_to_vector(c_array_view view) noexcept {
+      using handle_t = std::decay_t<decltype(view.begin)>;
+      std::vector<cpp_type> result{};
+      result.reserve(view.end - view.begin);
+      for (auto ptr = view.begin; ptr < view.end; ptr++) {
+        result.emplace_back(ptr);
+      }
+      return result;
+    }
+
+
     class deleter {
      public:
       static void operator()(MC_SCHEM_block *s) noexcept {
@@ -398,7 +411,7 @@ namespace mc_schem {
         } else if constexpr (value_e == map_value_type::nbt) {
           vw.nbt = value.unwrap_handle();
         } else {
-          vw.pending_tick = value.unwrap_handle();
+          vw.pending_tick_list = value.unwrap_handle();
         }
         return vw;
       }
@@ -411,7 +424,7 @@ namespace mc_schem {
         } else if constexpr (value_e == map_value_type::nbt) {
           return vw.nbt;
         } else {
-          return vw.pending_tick;
+          return vw.pending_tick_list;
         }
       }
 
@@ -1283,7 +1296,7 @@ namespace mc_schem {
                           map_value_type::block_entity, block_entity>;
     using pending_tick_map =
       detail::map_wrapper<map_key_type::pos_i32, std::span<const int, 3>,
-                          map_value_type::pending_tick, pending_tick>;
+        map_value_type::pending_tick, std::vector<pending_tick>>;
 
    protected:
     [[nodiscard]] block_entity_map impl_block_entities() const noexcept {
@@ -1389,8 +1402,8 @@ namespace mc_schem {
     struct block_info {
       uint16_t block_index;
       const ::mc_schem::block block;
-      block_entity blockEntity;
-      pending_tick pendingTick;
+      block_entity block_entity;
+      std::vector<pending_tick> pending_ticks;
     };
 
    protected:
@@ -1402,7 +1415,7 @@ namespace mc_schem {
         result.block_index,
         block{const_cast<MC_SCHEM_block *>(result.block)},
         block_entity{const_cast<MC_SCHEM_block_entity *>(result.block_entity)},
-        pending_tick{const_cast<MC_SCHEM_pending_tick *>(result.pending_tick)},
+        detail::c_view_to_vector<pending_tick>(result.pending_ticks)
       };
     }
 

@@ -72,6 +72,7 @@ pub enum Error {
     },
     MultiplePendingTickInOnePos {
         pos: [i32; 3],
+        former_tag_path: String,
         latter_tag_path: String,
     },
     ConflictingIndexInPalette {
@@ -177,8 +178,8 @@ impl Display for Error {
             => write!(f, "File open error: {}", err),
             Error::MultipleBlockEntityInOnePos { pos, latter_tag_path }
             => write!(f, "Multiple block entities in one {}, the latter block is defined at {}", format_size(pos), latter_tag_path),
-            Error::MultiplePendingTickInOnePos { pos, latter_tag_path }
-            => write!(f, "Multiple pending ticks in one {}, the latter block is defined at {}", format_size(pos), latter_tag_path),
+            Error::MultiplePendingTickInOnePos { pos, former_tag_path, latter_tag_path }
+            => write!(f, "Multiple pending ticks in one {}, the former is at {former_tag_path},the latter is at {latter_tag_path}", format_size(pos)),
             Error::ConflictingIndexInPalette { index, former_block_id, latter_block_id }
             => write!(f, "2 blocks have same id({}) in palette, \"{}\" and \"{}\"", index, former_block_id, latter_block_id),
             Error::BlockDataIncomplete { tag_path, index, detail }

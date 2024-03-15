@@ -70,7 +70,7 @@ fn check_chunk_infos(recv: Receiver<(&ChunkPos, Range<i32>)>, num_chunks: usize)
 
 fn get_raid_file_name(data_dir: &dyn FilesRead) -> Result<FileInfo, Error> {
     for info in data_dir.files() {
-        println!("filename: {}, full name: {}", info.name, info.full_name);
+        //println!("filename: {}, full name: {}", info.name, info.full_name);
         if info.name.starts_with("raids") && info.name.ends_with(".dat") {
             return Ok(info);
         }

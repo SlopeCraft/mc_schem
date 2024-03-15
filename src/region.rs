@@ -44,7 +44,7 @@ pub struct BlockEntity {
 }
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 #[allow(dead_code)]
 pub enum PendingTickInfo {
     Fluid { id: String },
@@ -52,7 +52,7 @@ pub enum PendingTickInfo {
 }
 
 /// A tick waiting to be processed
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 #[allow(dead_code)]
 pub struct PendingTick {
     pub priority: i32,

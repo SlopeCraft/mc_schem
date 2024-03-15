@@ -294,36 +294,45 @@ impl Region {
             }
         }
 
-        // PendingFluidTicks
-        if let Some(pft_tag) = nbt.get("PendingFluidTicks") {
-            let pft_tag_path = format!("{}/PendingFluidTicks", tag_path);
-            let pft_list = unwrap_tag!(pft_tag,List,vec![],pft_tag_path);
-            region.pending_ticks.reserve(region.pending_ticks.len() + pft_list.len());
-
-            for (idx, pft_comp) in pft_list.iter().enumerate() {
-                let cur_tag_path = format!("{}[{}]", pft_tag_path, idx);
-                let pft_comp = unwrap_tag!(pft_comp,Compound,HashMap::new(),cur_tag_path);
-                let (pos, pft) = parse_pending_tick(pft_comp, &cur_tag_path, &region.shape(), false)?;
-                if region.pending_ticks.contains_key(&pos) {
-                    return Err(Error::MultiplePendingTickInOnePos { pos, latter_tag_path: cur_tag_path });
-                }
-                region.pending_ticks.insert(pos, pft);
-            }
-        }
-
-        // PendingBlockTicks
-        if let Some(pbt_tag) = nbt.get("PendingBlockTicks") {
+        // PendingBlockTicks &&  PendingFluidTicks
+        {
+            let block_ticks = nbt.get("PendingBlockTicks");
             let pbt_tag_path = format!("{}/PendingBlockTicks", tag_path);
-            let pbt_list = unwrap_tag!(pbt_tag,List,vec![],pbt_tag_path);
-            region.pending_ticks.reserve(region.pending_ticks.len() + pbt_list.len());
-            for (idx, pbt_comp) in pbt_list.iter().enumerate() {
-                let cur_tag_path = format!("{}[{}]", pbt_tag_path, idx);
-                let pbt_comp = unwrap_tag!(pbt_comp,Compound,HashMap::new(),cur_tag_path);
-                let (pos, pft) = parse_pending_tick(pbt_comp, &cur_tag_path, &region.shape(), true)?;
-                if region.pending_ticks.contains_key(&pos) {
-                    return Err(Error::MultiplePendingTickInOnePos { pos, latter_tag_path: cur_tag_path });
+            let fluid_ticks = nbt.get("PendingFluidTicks");
+            let pft_tag_path = format!("{}/PendingFluidTicks", tag_path);
+
+            let mut tick_tag_record = HashMap::new();
+
+            for (is_block, (tag, path)) in
+            [(block_ticks, pbt_tag_path), (fluid_ticks, pft_tag_path)].iter().enumerate() {
+                let is_block = is_block == 0;
+                // PendingBlockTicks and PendingFluidTicks may be empty. If empty, skip it
+                let ticks = match tag {
+                    Some(t) => t,
+                    None => continue
+                };
+                let ticks = unwrap_tag!(ticks,List,vec![],path);
+                tick_tag_record.reserve(ticks.len());
+
+                for (idx, tick) in ticks.iter().enumerate() {
+                    let path = format!("{path}/[{idx}]");
+                    let tick = unwrap_tag!(tick,Compound,HashMap::new(),path);
+                    let (pos, tick) = parse_pending_tick(tick, &path, &region.shape(), is_block)?;
+
+                    if region.pending_ticks.contains_key(&pos) {
+                        if tick == region.pending_ticks[&pos] {
+                            continue;
+                        }
+                        debug_assert!(tick_tag_record.contains_key(&pos));
+                        return Err(Error::MultiplePendingTickInOnePos {
+                            pos,
+                            former_tag_path: tick_tag_record.remove(&pos).unwrap(),
+                            latter_tag_path: path,
+                        });
+                    }
+                    region.pending_ticks.insert(pos, tick);
+                    tick_tag_record.insert(pos, path);
                 }
-                region.pending_ticks.insert(pos, pft);
             }
         }
 

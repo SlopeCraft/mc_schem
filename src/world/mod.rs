@@ -36,6 +36,7 @@ mod chunk;
 mod dimension;
 mod sub_chunk;
 mod chunk_ref;
+mod world;
 
 
 #[derive(Debug, Eq, Hash, PartialEq)]
@@ -145,6 +146,12 @@ pub struct Dimension {
 pub struct World {
     pub dimensions: BTreeMap<i32, Dimension>,
 }
+
+#[derive(Debug, Clone)]
+pub struct WorldLoadOption {
+    parse_directly: bool,
+}
+
 
 #[derive(Debug, Clone)]
 pub struct FileInfo {

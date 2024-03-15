@@ -200,6 +200,7 @@ impl Chunk {
         }
         // pending ticks
         {
+            let mut tick_tag_record = HashMap::new();
             let tag_path_block_ticks = format!("{path_in_saves}/block_ticks");
             let tag_block_ticks = unwrap_opt_tag!(region_nbt.get("block_ticks"),List,vec![],tag_path_block_ticks);
 
@@ -216,12 +217,20 @@ impl Chunk {
                     let (pos, tick) = parse_pending_tick(nbt, is_block, &cur_tag_path)?;
 
                     if result.pending_ticks.contains_key(&pos) {
+                        let former = &result.pending_ticks[&pos];
+                        // If the pending tick is repeated, ignore the latter
+                        if &tick == former {
+                            continue;
+                        }
+                        debug_assert!(tick_tag_record.contains_key(&pos));
                         return Err(Error::MultiplePendingTickInOnePos {
                             pos,
+                            former_tag_path: tick_tag_record.remove(&pos).unwrap(),
                             latter_tag_path: cur_tag_path,
                         });
                     }
                     result.pending_ticks.insert(pos, tick);
+                    tick_tag_record.insert(pos, cur_tag_path);
                 }
             }
         }

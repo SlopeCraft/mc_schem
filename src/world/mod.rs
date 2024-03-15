@@ -72,7 +72,7 @@ pub struct Chunk {
     sub_chunks: BTreeMap<i8, SubChunk>,
     pub entities: Vec<Entity>,
     pub block_entities: HashMap<[i32; 3], BlockEntity>,
-    pub pending_ticks: HashMap<[i32; 3], PendingTick>,
+    pub pending_ticks: HashMap<[i32; 3], Vec<PendingTick>>,
 
     /// Related region file
     pub file_region: String,
@@ -263,7 +263,7 @@ pub trait AbsolutePosIndexed<'this, 'dim: 'this> {
     fn total_blocks(&self, include_air: bool) -> u64;
     /// Returns detailed block infos at `r_pos`, including block index, block, block entity and pending tick.
     /// Returns `None` if the block is outside the region
-    fn block_info_at(&'this self, a_pos: [i32; 3]) -> Option<(u16, &'dim Block, Option<&'dim BlockEntity>, Option<&'dim PendingTick>)> {
+    fn block_info_at(&'this self, a_pos: [i32; 3]) -> Option<(u16, &'dim Block, Option<&'dim BlockEntity>, &'dim [PendingTick])> {
         return Some((self.block_index_at(a_pos)?,
                      self.block_at(a_pos)?,
                      self.block_entity_at(a_pos),
@@ -277,5 +277,5 @@ pub trait AbsolutePosIndexed<'this, 'dim: 'this> {
     /// Get block entity at `r_pos`
     fn block_entity_at(&'this self, a_pos: [i32; 3]) -> Option<&'dim BlockEntity>;
     /// Get pending tick at `r_pos`
-    fn pending_tick_at(&'this self, a_pos: [i32; 3]) -> Option<&'dim PendingTick>;
+    fn pending_tick_at(&'this self, a_pos: [i32; 3]) -> &'dim [PendingTick];
 }

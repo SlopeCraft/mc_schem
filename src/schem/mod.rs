@@ -460,17 +460,17 @@ impl Schematic {
         return None;
     }
 
-    pub fn first_pending_tick_at(&self, pos: [i32; 3]) -> Option<&PendingTick> {
+    pub fn first_pending_tick_at(&self, pos: [i32; 3]) -> &[PendingTick] {
         for reg in &self.regions {
             if let Some(b) = reg.pending_ticks.get(&reg.global_pos_to_relative_pos(pos)) {
-                return Some(b);
+                return b.as_slice();
             }
         }
-        return None;
+        return &[];
     }
 
     /// Get detailed info of the first block at `pos`
-    pub fn first_block_info_at(&self, pos: [i32; 3]) -> Option<(u16, &Block, Option<&BlockEntity>, Option<&PendingTick>)> {
+    pub fn first_block_info_at(&self, pos: [i32; 3]) -> Option<(u16, &Block, Option<&BlockEntity>, &[PendingTick])> {
         for reg in &self.regions {
             let r_pos = reg.global_pos_to_relative_pos(pos);
             if !reg.contains_coord(r_pos) {
@@ -679,7 +679,7 @@ impl Schematic {
                         Some(ri) => ri,
                         None => continue,
                     };
-                    let (local_block_idx, _blk, be_opt, pd_opt) = info.unwrap();
+                    let (local_block_idx, _blk, be_opt, pd_list) = info.unwrap();
                     let global_block_idx = lut_lut[reg_idx][local_block_idx as usize] as u16;
                     {
                         let res = region.set_block_id(g_pos, global_block_idx);
@@ -688,8 +688,12 @@ impl Schematic {
                     if let Some(be) = be_opt {
                         region.block_entities.insert(g_pos, be.clone());
                     }
-                    if let Some(pb) = pd_opt {
-                        region.pending_ticks.insert(g_pos, pb.clone());
+                    for pd in pd_list {
+                        if let Some(dst) = region.pending_ticks.get_mut(&g_pos) {
+                            dst.push(pd.clone());
+                        } else {
+                            region.pending_ticks.insert(g_pos, vec![pd.clone()]);
+                        }
                     }
                 }
             }

@@ -66,11 +66,15 @@ impl WorldSlice for ChunkRefRelativePos<'_> {
         return None;
     }
 
-    fn pending_tick_at(&self, r_pos: [i32; 3]) -> Option<&'_ PendingTick> {
+    fn pending_tick_at(&self, r_pos: [i32; 3]) -> &'_ [PendingTick] {
         if self.contains_coord(r_pos) {
-            return self.chunk.pending_ticks.get(&self.to_absolute_pos(r_pos));
+            return if let Some(pts) = self.chunk.pending_ticks.get(&self.to_absolute_pos(r_pos)) {
+                pts
+            } else {
+                &[]
+            }
         }
-        return None;
+        return &[];
     }
 }
 
@@ -130,7 +134,11 @@ impl<'s, 'chunk: 's> AbsolutePosIndexed<'s, 'chunk> for ChunkRefAbsolutePos<'chu
         return self.chunk.block_entities.get(&a_pos);
     }
 
-    fn pending_tick_at(&self, a_pos: [i32; 3]) -> Option<&'chunk PendingTick> {
-        return self.chunk.pending_ticks.get(&a_pos);
+    fn pending_tick_at(&self, a_pos: [i32; 3]) -> &'chunk [PendingTick] {
+        return if let Some(pts) = self.chunk.pending_ticks.get(&a_pos) {
+            pts
+        } else {
+            &[]
+        };
     }
 }

@@ -46,7 +46,7 @@ impl WorldSlice for SchemSlice<'_> {
         return counter;
     }
 
-    fn block_info_at(&self, r_pos: [i32; 3]) -> Option<(u16, &Block, Option<&BlockEntity>, Option<&PendingTick>)> {
+    fn block_info_at(&self, r_pos: [i32; 3]) -> Option<(u16, &Block, Option<&BlockEntity>, &[PendingTick])> {
         let g_pos = [r_pos[0] + self.offset[0], r_pos[1] + self.offset[1], r_pos[2] + self.offset[2]];
         return self.source.first_block_info_at(g_pos);
     }
@@ -66,7 +66,7 @@ impl WorldSlice for SchemSlice<'_> {
         return self.source.first_block_entity_at(g_pos);
     }
 
-    fn pending_tick_at(&self, r_pos: [i32; 3]) -> Option<&PendingTick> {
+    fn pending_tick_at(&self, r_pos: [i32; 3]) -> &[PendingTick] {
         let g_pos = [r_pos[0] + self.offset[0], r_pos[1] + self.offset[1], r_pos[2] + self.offset[2]];
         return self.source.first_pending_tick_at(g_pos);
     }

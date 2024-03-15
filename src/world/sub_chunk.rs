@@ -92,7 +92,7 @@ impl WorldSlice for SubChunk {
         return None;
     }
 
-    fn pending_tick_at(&self, _r_pos: [i32; 3]) -> Option<&PendingTick> {
-        return None;
+    fn pending_tick_at(&self, _r_pos: [i32; 3]) -> &[PendingTick] {
+        return &[];
     }
 }

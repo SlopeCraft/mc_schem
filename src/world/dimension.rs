@@ -302,13 +302,17 @@ impl<'dim> AbsolutePosIndexed<'dim, 'dim> for Dimension {
         return None;
     }
 
-    fn pending_tick_at(&'dim self, a_pos: [i32; 3]) -> Option<&'dim PendingTick> {
+    fn pending_tick_at(&'dim self, a_pos: [i32; 3]) -> &'dim [PendingTick] {
         if self.contains_coord(a_pos) {
             let (chunk_pos, _y) = Self::block_pos_to_chunk_pos(a_pos);
-            let abs: ChunkRefAbsolutePos<'dim> = self.get_chunk(&chunk_pos)?.as_absolute_pos(&chunk_pos);
+            let abs = if let Some(chunk) = self.get_chunk(&chunk_pos) {
+                chunk.as_absolute_pos(&chunk_pos)
+            } else {
+                return &[];
+            };
             return abs.pending_tick_at(a_pos);
         }
-        return None;
+        return &[];
     }
 }
 

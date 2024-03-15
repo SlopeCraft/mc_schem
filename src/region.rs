@@ -120,7 +120,7 @@ pub trait WorldSlice {
     fn total_blocks(&self, include_air: bool) -> u64;
     /// Returns detailed block infos at `r_pos`, including block index, block, block entity and pending tick.
     /// Returns `None` if the block is outside the region
-    fn block_info_at(&self, r_pos: [i32; 3]) -> Option<(u16, &Block, Option<&BlockEntity>, Option<&PendingTick>)> {
+    fn block_info_at(&self, r_pos: [i32; 3]) -> Option<(u16, &Block, Option<&BlockEntity>, &[PendingTick])> {
         return Some((self.block_index_at(r_pos)?,
                      self.block_at(r_pos)?,
                      self.block_entity_at(r_pos),
@@ -134,7 +134,7 @@ pub trait WorldSlice {
     /// Get block entity at `r_pos`
     fn block_entity_at(&self, r_pos: [i32; 3]) -> Option<&BlockEntity>;
     /// Get pending tick at `r_pos`
-    fn pending_tick_at(&self, r_pos: [i32; 3]) -> Option<&PendingTick>;
+    fn pending_tick_at(&self, r_pos: [i32; 3]) -> &[PendingTick];
 }
 
 pub trait HasOffset {
@@ -172,7 +172,7 @@ pub struct Region {
     /// All block entities. The key is position (xyz)
     pub block_entities: HashMap<[i32; 3], BlockEntity>,
     /// All pending ticks. The key is position (xyz)
-    pub pending_ticks: HashMap<[i32; 3], PendingTick>,
+    pub pending_ticks: HashMap<[i32; 3], Vec<PendingTick>>,
     /// All entities
     pub entities: Vec<Entity>,
     /// Offset of this region
@@ -285,11 +285,11 @@ impl WorldSlice for Region {
 
     /// Returns detailed block infos at `r_pos`, including block index, block, block entity and pending tick.
     /// Returns `None` if the block is outside the region
-    fn block_info_at(&self, r_pos: [i32; 3]) -> Option<(u16, &Block, Option<&BlockEntity>, Option<&PendingTick>)> {
+    fn block_info_at(&self, r_pos: [i32; 3]) -> Option<(u16, &Block, Option<&BlockEntity>, &[PendingTick])> {
         return if let Some(pid) = self.block_index_at(r_pos) {
             Some((pid, &self.palette[pid as usize],
                   self.block_entities.get(&r_pos),
-                  self.pending_ticks.get(&r_pos)))
+                  &self.pending_ticks.get(&r_pos).unwrap_or(&vec![])))
         } else {
             None
         };
@@ -321,8 +321,8 @@ impl WorldSlice for Region {
     }
 
     /// Get pending tick at `r_pos`
-    fn pending_tick_at(&self, r_pos: [i32; 3]) -> Option<&PendingTick> {
-        return self.pending_ticks.get(&r_pos);
+    fn pending_tick_at(&self, r_pos: [i32; 3]) -> &[PendingTick] {
+        return &self.pending_ticks.get(&r_pos).unwrap_or(&vec![]);
     }
 }
 
@@ -559,17 +559,17 @@ impl Region {
         return self.block_entities.insert(r_pos, be);
     }
     /// Set pending tick at `r_pos`
-    pub fn set_pending_tick_at(&mut self, r_pos: [i32; 3], value: PendingTick) -> Option<PendingTick> {
+    pub fn set_pending_tick_at(&mut self, r_pos: [i32; 3], value: Vec<PendingTick>) -> Option<Vec<PendingTick>> {
         return self.pending_ticks.insert(r_pos, value);
     }
 
     /// Returns detailed block infos at `r_pos`, including block index, block, block entity(mutable) and pending tick(mutable).
     /// Returns `None` if the block is outside the region
-    pub fn block_info_at_mut(&mut self, r_pos: [i32; 3]) -> Option<(u16, &Block, Option<&mut BlockEntity>, Option<&mut PendingTick>)> {
+    pub fn block_info_at_mut(&mut self, r_pos: [i32; 3]) -> Option<(u16, &Block, Option<&mut BlockEntity>, &mut [PendingTick])> {
         return if let Some(pid) = self.block_index_at(r_pos) {
             Some((pid, &self.palette[pid as usize],
                   self.block_entities.get_mut(&r_pos),
-                  self.pending_ticks.get_mut(&r_pos)))
+                  self.pending_tick_at_mut(r_pos)))
         } else {
             None
         };
@@ -580,7 +580,7 @@ impl Region {
     }
 
     /// Get mutable pending tick at `r_pos`
-    pub fn pending_tick_at_mut(&mut self, r_pos: [i32; 3]) -> Option<&mut PendingTick> {
-        return self.pending_ticks.get_mut(&r_pos);
+    pub fn pending_tick_at_mut(&mut self, r_pos: [i32; 3]) -> &mut [PendingTick] {
+        return &mut self.pending_ticks.get_mut(&r_pos).unwrap_or(&mut vec![]);
     }
 }

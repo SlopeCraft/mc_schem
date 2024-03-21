@@ -41,3 +41,4 @@ sevenz-rust = "0.5.4"
 walkdir = "2.4.0"
 regex = "1.10.3"
 rayon = "1.9.0"
+serde = { verision = "1.0.197", features = ["derive"] }

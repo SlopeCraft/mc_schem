@@ -19,9 +19,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::ops::Range;
-use fastnbt::Value;
+use fastnbt::{ByteArray, IntArray, LongArray, Value};
+use serde::de::{StdError};
+use serde::Deserializer;
 use strum::Display;
 use crate::block::{Block, BlockIdParseError};
+use crate::item::Item;
 use crate::old_block::OldBlockParseError;
 use crate::region::Region;
 use crate::schem::common::{format_range, format_size};
@@ -151,7 +154,13 @@ pub enum Error {
         exception_chunk_x: i32,
         exception_chunk_z: i32,
         exception_value: Range<i32>,
-    }
+    },
+    MultipleItemsInOneSlot {
+        slot: i8,
+        former: (Item, String),
+        latter: (Item, String),
+    },
+    CustomError(String),
 }
 
 impl Display for Error {
@@ -231,9 +240,22 @@ impl Display for Error {
             => write!(f, "Chunk ({exception_chunk_x}, {exception_chunk_z}) has different y range ({}) different from majority value({})", format_range(exception_value), format_range(majority_y_range)),
             Error::IncorrectYRangeInChunk { dimension_id, dimension_y_range, exception_chunk_x, exception_chunk_z, exception_value }
             => write!(f, "The y range of dimension {dimension_id} is {}, but y range of chunk ({exception_chunk_x}, {exception_chunk_z}) is {}", format_range(dimension_y_range), format_range(exception_value)),
+            Error::MultipleItemsInOneSlot { slot, former, latter }
+            => write!(f, "Found multiple items in slot {slot} when parsing inventory, the former is {:?}, defined at {}, the latter is {:?}, defined at {}", former.0, former.1, latter.0, latter.1),
+            Error::CustomError(s)
+            => write!(f, "Custom error : \"{s}\"")
         }
     }
 }
+
+impl StdError for Error {}
+
+impl serde::de::Error for Error {
+    fn custom<T>(msg: T) -> Self where T: Display {
+        return Self::CustomError(msg.to_string());
+    }
+}
+
 /// Unwrap a `Option<&Value>` or `Option<&mut Value>` as some type, if the option is `None`, returns
 /// `Err(Error::TagMissing)`. If the option is not none, but the type doesn't match, returns
 /// `Err(Error::TagTypeMismatch)`.
@@ -299,6 +321,249 @@ pub fn unwrap_opt_f64(nbt: &HashMap<String, Value>, key: &str, nbt_path: &str) -
     Ok(*unwrap_opt_tag!(nbt.get(key),Double,0.0,format!("{nbt_path}/{key}")))
 }
 
+pub fn unwrap_opt_string<'a>(nbt: &'a HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<&'a String, Error> {
+    Ok(unwrap_opt_tag!(nbt.get(key),String,"".to_string(),format!("{nbt_path}/{key}")))
+}
+
+pub fn unwrap_opt_string_mut<'a>(nbt: &'a mut HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<&'a mut String, Error> {
+    Ok(unwrap_opt_tag!(nbt.get_mut(key),String,"".to_string(),format!("{nbt_path}/{key}")))
+}
+
+pub fn unwrap_opt_string_remove(nbt: &mut HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<String, Error> {
+    Ok(unwrap_opt_tag!(nbt.remove(key),String,"".to_string(),format!("{nbt_path}/{key}")))
+}
+
+
+pub fn unwrap_opt_compound<'a>(nbt: &'a HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<&'a HashMap<String, Value>, Error> {
+    Ok(unwrap_opt_tag!(nbt.get(key),Compound,HashMap::new(),format!("{nbt_path}/{key}")))
+}
+
+pub fn unwrap_opt_compound_mut<'a>(nbt: &'a mut HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<&'a mut HashMap<String, Value>, Error> {
+    Ok(unwrap_opt_tag!(nbt.get_mut(key),Compound,HashMap::new(),format!("{nbt_path}/{key}")))
+}
+
+pub fn unwrap_opt_compound_remove(nbt: &mut HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<HashMap<String, Value>, Error> {
+    Ok(unwrap_opt_tag!(nbt.remove(key),Compound,HashMap::new(),format!("{nbt_path}/{key}")))
+}
+
+pub fn unwrap_opt_list<'a>(nbt: &'a HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<&'a [Value], Error> {
+    Ok(unwrap_opt_tag!(nbt.get(key),List,vec![],format!("{nbt_path}/{key}")))
+}
+
+
+pub fn unwrap_opt_list_mut<'a>(nbt: &'a mut HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<&'a mut Vec<Value>, Error> {
+    Ok(unwrap_opt_tag!(nbt.get_mut(key),List,vec![],format!("{nbt_path}/{key}")))
+}
+
+pub fn unwrap_opt_list_remove(nbt: &mut HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<Vec<Value>, Error> {
+    Ok(unwrap_opt_tag!(nbt.remove(key),List,vec![],format!("{nbt_path}/{key}")))
+}
+
+pub fn unwrap_opt_byte_array<'a>(nbt: &'a HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<&'a [i8], Error> {
+    Ok(unwrap_opt_tag!(nbt.get(key),ByteArray,ByteArray::new(vec![]),format!("{nbt_path}/{key}")))
+}
+
+
+pub fn unwrap_opt_byte_array_mut<'a>(nbt: &'a mut HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<&'a mut ByteArray, Error> {
+    Ok(unwrap_opt_tag!(nbt.get_mut(key),ByteArray,ByteArray::new(vec![]),format!("{nbt_path}/{key}")))
+}
+
+
+pub fn unwrap_opt_byte_array_remove(nbt: &mut HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<ByteArray, Error> {
+    Ok(unwrap_opt_tag!(nbt.remove(key),ByteArray,ByteArray::new(vec![]),format!("{nbt_path}/{key}")))
+}
+
+pub fn unwrap_opt_int_array<'a>(nbt: &'a HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<&'a [i32], Error> {
+    Ok(unwrap_opt_tag!(nbt.get(key),IntArray,IntArray::new(vec![]),format!("{nbt_path}/{key}")))
+}
+
+pub fn unwrap_opt_int_array_mut<'a>(nbt: &'a mut HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<&'a mut IntArray, Error> {
+    Ok(unwrap_opt_tag!(nbt.get_mut(key),IntArray,IntArray::new(vec![]),format!("{nbt_path}/{key}")))
+}
+
+pub fn unwrap_opt_int_array_remove(nbt: &mut HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<IntArray, Error> {
+    Ok(unwrap_opt_tag!(nbt.remove(key),IntArray,IntArray::new(vec![]),format!("{nbt_path}/{key}")))
+}
+
+pub fn unwrap_opt_long_array<'a>(nbt: &'a HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<&'a [i64], Error> {
+    Ok(unwrap_opt_tag!(nbt.get(key),LongArray,LongArray::new(vec![]),format!("{nbt_path}/{key}")))
+}
+
+pub fn unwrap_opt_long_array_mut<'a>(nbt: &'a mut HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<&'a mut LongArray, Error> {
+    Ok(unwrap_opt_tag!(nbt.get_mut(key),LongArray,LongArray::new(vec![]),format!("{nbt_path}/{key}")))
+}
+
+pub fn unwrap_opt_long_array_remove(nbt: &mut HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<LongArray, Error> {
+    Ok(unwrap_opt_tag!(nbt.remove(key),LongArray,LongArray::new(vec![]),format!("{nbt_path}/{key}")))
+}
+
+
+// pub struct NBTWithPath<'nbt> {
+//     pub nbt: Option<&'nbt Value>,
+//     pub path: String,
+// }
+//
+// impl<'de, 'nbt> Deserializer<'de> for NBTWithPath<'nbt> {
+//     type Error = Error;
+//
+//     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
+//         todo!()
+//     }
+//
+//     fn deserialize_bool<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
+//         let value = *unwrap_opt_tag!(&self.nbt,Byte,0,self.path);
+//         visitor.visit_bool(value != 0)
+//     }
+//
+//     fn deserialize_i8<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
+//         let value = *unwrap_opt_tag!(&self.nbt,Byte,0,self.path);
+//         visitor.visit_i8(value)
+//     }
+//
+//     fn deserialize_i16<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
+//         let value = *unwrap_opt_tag!(&self.nbt,Short,0,self.path);
+//         visitor.visit_i16(value)
+//     }
+//
+//     fn deserialize_i32<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
+//         let value = *unwrap_opt_tag!(&self.nbt,Int,0,self.path);
+//         visitor.visit_i32(value)
+//     }
+//
+//     fn deserialize_i64<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
+//         let value = *unwrap_opt_tag!(&self.nbt,Long,0,self.path);
+//         visitor.visit_i64(value)
+//     }
+//
+//     fn deserialize_u8<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
+//         let value = *unwrap_opt_tag!(&self.nbt,Byte,0,self.path);
+//         visitor.visit_u8(value as u8)
+//     }
+//
+//     fn deserialize_u16<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
+//         let value = *unwrap_opt_tag!(&self.nbt,Short,0,self.path);
+//         visitor.visit_u16(value as u16)
+//     }
+//
+//     fn deserialize_u32<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
+//         let value = *unwrap_opt_tag!(&self.nbt,Int,0,self.path);
+//         visitor.visit_u32(value as u32)
+//     }
+//
+//     fn deserialize_u64<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
+//         let value = *unwrap_opt_tag!(&self.nbt,Long,0,self.path);
+//         visitor.visit_u64(value as u64)
+//     }
+//
+//     fn deserialize_f32<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
+//         let value = *unwrap_opt_tag!(&self.nbt,Float,0.0,self.path);
+//         visitor.visit_f32(value)
+//     }
+//
+//     fn deserialize_f64<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
+//         let value = *unwrap_opt_tag!(&self.nbt,Double,0.0,self.path);
+//         visitor.visit_f64(value)
+//     }
+//
+//     fn deserialize_char<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
+//         !todo!()
+//     }
+//
+//     fn deserialize_str<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
+//         let value = unwrap_opt_tag!(&self.nbt,String,"".to_string(),self.path);
+//         visitor.visit_str(value.as_str())
+//     }
+//
+//     fn deserialize_string<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
+//         let value = unwrap_opt_tag!(&self.nbt,String,"".to_string(),self.path);
+//         visitor.visit_string(value.to_string())
+//     }
+//
+//     fn deserialize_bytes<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
+//         let value = unwrap_opt_tag!(&self.nbt,ByteArray,fastnbt::ByteArray::new(vec![]),self.path);
+//         let value = value as &[i8];
+//         unsafe {
+//             let ptr = value.as_ptr();
+//             let slice = &*slice_from_raw_parts(ptr as *const u8, value.len());
+//             visitor.visit_bytes(slice)
+//         }
+//     }
+//
+//     fn deserialize_byte_buf<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
+//         let value = unwrap_opt_tag!(&self.nbt,ByteArray,fastnbt::ByteArray::new(vec![]),self.path);
+//         let mut dest = Vec::new();
+//         dest.resize(value.len(), 0u8);
+//         for idx in 0..value.len() {
+//             dest[idx] = u8::from_ne_bytes(value[idx].to_ne_bytes());
+//         }
+//         visitor.visit_byte_buf(dest)
+//     }
+//
+//     fn deserialize_option<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
+//         if let Some(value)=&self.nbt {
+//             match value {
+//                 Value::Byte(v) => visitor.visit_i8(*v),
+//                 Value::Short(v) => visitor.visit_i16(*v),
+//                 Value::Int(v) => visitor.visit_i32(*v),
+//                 Value::Long(v) => visitor.visit_i64(*v),
+//                 Value::Float(v) => visitor.visit_f32(*v),
+//                 Value::Double(v) => visitor.visit_f64(*v),
+//                 Value::String(v) => visitor.visit_str(&v),
+//                 Value::List(v)=>{
+//
+//                 },
+//                 Value::ByteArray(v) => {}
+//                 Value::IntArray(v) => {}
+//                 Value::LongArray(v) => {}
+//                 Value::Compound(v) => {}
+//             }
+//         }
+//     }
+//
+//     fn deserialize_unit<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
+//         todo!()
+//     }
+//
+//     fn deserialize_unit_struct<V>(self, name: &'static str, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
+//         todo!()
+//     }
+//
+//     fn deserialize_newtype_struct<V>(self, name: &'static str, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
+//         todo!()
+//     }
+//
+//     fn deserialize_seq<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
+//         todo!()
+//     }
+//
+//     fn deserialize_tuple<V>(self, len: usize, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
+//         todo!()
+//     }
+//
+//     fn deserialize_tuple_struct<V>(self, name: &'static str, len: usize, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
+//         todo!()
+//     }
+//
+//     fn deserialize_map<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
+//         todo!()
+//     }
+//
+//     fn deserialize_struct<V>(self, name: &'static str, fields: &'static [&'static str], visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
+//         todo!()
+//     }
+//
+//     fn deserialize_enum<V>(self, name: &'static str, variants: &'static [&'static str], visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
+//         todo!()
+//     }
+//
+//     fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
+//         todo!()
+//     }
+//
+//     fn deserialize_ignored_any<V>(self, visitor: V) -> Result<V::Value, Self::Error> where V: Visitor<'de> {
+//         todo!()
+//     }
+// }
 
 
 /// Not used now.

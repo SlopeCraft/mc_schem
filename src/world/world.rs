@@ -19,7 +19,8 @@ impl World {
                 Dimension::from_files(files, option.parse_directly, -64..320, dim)?
             } else {
                 let dir = format!("DIM{dim}");
-                let y_range = if dim == -1 { 0..256 } else { -64..320 };
+                // let y_range = if dim == -1 { 0..256 } else { -64..320 };
+                let y_range = 0..256;
                 Dimension::from_files(&files.sub_directory(&dir), option.parse_directly, y_range, dim)?
             };
             world.dimensions.insert(dim, dimension);

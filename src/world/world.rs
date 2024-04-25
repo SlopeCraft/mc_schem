@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
+#[allow(unused_imports)]
 use std::time;
 use crate::Error;
+#[allow(unused_imports)]
 use crate::world::{Dimension, FilesInMemory, FilesRead, World, WorldLoadOption};
 
 impl Default for WorldLoadOption {

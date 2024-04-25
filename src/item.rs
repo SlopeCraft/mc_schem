@@ -44,6 +44,7 @@ impl Item {
 #[derive(Debug, Clone, Default)]
 pub struct Inventory(pub BTreeMap<i8, Item>);
 
+#[allow(dead_code)]
 impl Inventory {
     pub fn from_nbt(nbt: &[Value], tag_path: &str) -> Result<Inventory, Error> {
         let mut result = BTreeMap::new();

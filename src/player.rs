@@ -13,6 +13,7 @@ impl Default for DimensionId {
     }
 }
 
+#[allow(dead_code)]
 impl DimensionId {
     pub fn overworld() -> Self {
         return DimensionId("minecraft:overworld".to_string());
@@ -27,6 +28,7 @@ impl DimensionId {
 
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, FromRepr)]
+#[allow(dead_code)]
 pub enum AttributeOperation {
     Add = 0,
     MultiplyBase = 1,
@@ -132,12 +134,14 @@ impl Default for MobFields {
 }
 
 #[derive(Debug, Clone, Default)]
+#[allow(dead_code)]
 pub struct MobMemory {
     ttl: i64,
     value: MemoryValue,
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum MemoryValue {
     Boolean(bool),
     Integer(i32),
@@ -211,6 +215,7 @@ impl Default for PlayerAbilities {
 
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, FromRepr)]
+#[allow(dead_code)]
 pub enum PlayerGameType {
     Survival = 0,
     Creative = 1,
@@ -318,6 +323,7 @@ impl Default for PlayerFields {
     }
 }
 
+#[allow(dead_code)]
 impl PlayerFields {
     fn selected_item(&self) -> Option<&Item> {
         let slot = self.selected_item_slot as i8;

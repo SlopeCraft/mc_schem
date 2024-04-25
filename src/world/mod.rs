@@ -139,6 +139,7 @@ pub enum ChunkVariant {
 pub struct Dimension {
     pub chunks: HashMap<ChunkPos, ChunkVariant>,
     y_range: Range<i32>,
+    #[allow(dead_code)]
     raids: RaidList,
 }
 

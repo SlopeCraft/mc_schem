@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 use std::ops::Range;
 use std::sync::mpsc::{channel, Receiver};
+#[allow(unused_imports)]
 use std::time;
 use fastnbt::Value;
 use flate2::read::GzDecoder;
 use crate::{Error, unwrap_opt_tag, unwrap_tag};
+#[allow(unused_imports)]
 use crate::world::{AbsolutePosIndexed, Chunk, ChunkPos, ChunkRefAbsolutePos, ChunkVariant, Dimension, FileInfo, FilesInMemory, FilesRead, mca, RefOrObject, XZCoordinate};
 use rayon::prelude::*;
 use crate::block::Block;

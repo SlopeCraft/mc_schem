@@ -19,11 +19,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 use std::collections::HashMap;
 use std::env;
 use std::fs::{create_dir_all, File};
-use std::io::Read;
-use std::ptr::slice_from_raw_parts;
+// use std::io::Read;
 use fastnbt::Value;
 use flate2::{Compression, GzBuilder};
-use flate2::read::{GzDecoder, ZlibDecoder};
+use flate2::read::{GzDecoder};
 use ndarray::Array3;
 use rand::Rng;
 use mc_schem::block::CommonBlock;

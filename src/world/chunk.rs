@@ -548,6 +548,7 @@ struct MultiBitSet {
     element_bits: u8,
 }
 
+#[allow(dead_code)]
 impl MultiBitSet {
     pub fn num_element_per_u64(element_bits: u8) -> u8 {
         return floor(64.0 / element_bits as f64, 0) as u8;

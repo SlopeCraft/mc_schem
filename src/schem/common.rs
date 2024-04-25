@@ -40,6 +40,9 @@ pub fn size_to_list<T>(size: &[T; 3]) -> Vec<Value>
     return vec![Value::from(size[0]), Value::from(size[1]), Value::from(size[2])];
 }
 
+pub fn size_i32_abs(pos: [i32; 3]) -> [i32; 3] {
+    return [pos[0].abs(), pos[1].abs(), pos[2].abs()];
+}
 
 pub fn parse_size_compound(nbt: &HashMap<String, Value>, tag_path: &str, allow_negative: bool) -> Result<[i32; 3], Error> {
     // let x = *unwrap_opt_tag!(nbt.get("x"),Int,0,format!("{}/x",tag_path));

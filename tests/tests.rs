@@ -451,7 +451,13 @@ fn load_save_litematica() {
 
         //println!("Metadata: \n{:?}", schem.metadata_litematica());
     }
+}
 
+#[test]
+fn load_litematica_with_negative_size() {
+    let src_dir = "./test_files/litematica";
+    let src_filename = format!("{}/negative-size-Supercharged_contained_shulker_farm.litematic", src_dir);
+    let _ = Schematic::from_litematica_file(&src_filename, &LitematicaLoadOption::default()).unwrap().0;
 }
 
 #[test]

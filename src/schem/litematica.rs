@@ -28,6 +28,7 @@ use crate::error::{Error};
 use crate::{unwrap_opt_tag, unwrap_tag};
 use crate::schem::common;
 use crate::region::{PendingTick, PendingTickInfo, WorldSlice};
+use crate::schem::common::size_i32_abs;
 
 impl MetaDataIR {
     pub fn from_litematica(src: &LitematicaMetaData) -> Self {
@@ -177,8 +178,8 @@ impl Region {
         {
             let cur_tag_path = format!("{}/Position", tag_path);
             let position = unwrap_opt_tag!(nbt.get("Position"),Compound,HashMap::new(),cur_tag_path);
-            match common::parse_size_compound(position, &cur_tag_path, false) {
-                Ok(pos) => region.offset = pos,
+            match common::parse_size_compound(position, &cur_tag_path, true) {
+                Ok(pos) => region.offset = size_i32_abs(pos),
                 Err(e) => return Err(e),
             }
         }
@@ -204,14 +205,17 @@ impl Region {
         {
             let cur_tag_path = format!("{}/Size", tag_path);
             let size = unwrap_opt_tag!(nbt.get("Size"),Compound,HashMap::new(),cur_tag_path);
-            match common::parse_size_compound(size, &cur_tag_path, false) {
+            match common::parse_size_compound(size, &cur_tag_path, true) {
                 Ok(size) => {
+                    let size = size_i32_abs(size);
                     region.reshape(&size);
                     region_size = size;
                 },
                 Err(e) => return Err(e),
             }
         }
+
+
         let total_blocks = region_size[0] as isize * region_size[1] as isize * region_size[2] as isize;
 
         //parse 3d

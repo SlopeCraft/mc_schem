@@ -320,7 +320,7 @@ impl MetaDataIR {
             litematica_subversion: LitematicaMetaData::default().sub_version,
             schem_version: WE13MetaData::default().version,
             schem_offset: [0, 0, 0],
-            schem_we_offset: Some([0, 0, 0]),
+            schem_we_offset: None,
             //date: Some(time),
             schem_world_edit_version: None,
             schem_editing_platform: None,

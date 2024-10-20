@@ -461,7 +461,8 @@ impl Schematic {
         // }
 
         result.data_version = self.metadata.mc_data_version;
-        result.offset = [0, 0, 0];
+        result.offset = self.metadata.schem_offset;
+        result.we_offset = self.metadata.schem_we_offset.unwrap_or(self.metadata.schem_offset);
         result.date = Some(self.metadata.time_modified);
         result.width = self.shape()[0] as i16;//x
         result.height = self.shape()[1] as i16;//y

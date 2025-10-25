@@ -461,7 +461,8 @@ impl Schematic {
         // }
 
         result.data_version = self.metadata.mc_data_version;
-        result.offset = [0, 0, 0];
+        result.offset = self.metadata.schem_offset;
+        result.we_offset = self.metadata.schem_we_offset.unwrap_or(self.metadata.schem_offset);
         result.date = Some(self.metadata.time_modified);
         result.width = self.shape()[0] as i16;//x
         result.height = self.shape()[1] as i16;//y
@@ -554,8 +555,7 @@ impl Schematic {
                 for x in 0..shape[0] {
                     let mut cur_block_gindex: Option<u16> = None;
                     for (reg_idx, reg) in self.regions.iter().enumerate() {
-                        let offset = reg.offset;
-                        match reg.block_index_at([x - offset[0], y - offset[1], z - offset[2]]) {
+                        match reg.block_index_at([x, y, z]) {
                             Some(cur_idx) => {
                                 cur_block_gindex = Some(luts_of_block_idx[reg_idx][cur_idx as usize] as u16);
                                 break;

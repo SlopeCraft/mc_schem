@@ -320,7 +320,7 @@ impl MetaDataIR {
             litematica_subversion: LitematicaMetaData::default().sub_version,
             schem_version: WE13MetaData::default().version,
             schem_offset: [0, 0, 0],
-            schem_we_offset: Some([0, 0, 0]),
+            schem_we_offset: None,
             //date: Some(time),
             schem_world_edit_version: None,
             schem_editing_platform: None,
@@ -485,13 +485,23 @@ impl Schematic {
 
     /// The enclosing shape(xyz) of schematic
     pub fn shape(&self) -> [i32; 3] {
-        let mut result = [0, 0, 0];
-        for reg in &self.regions {
-            for dim in 0..3 {
-                result[dim] = max(result[dim], reg.offset[dim] + reg.shape()[dim]);
-            }
+        if self.regions.is_empty() {
+            [0, 0, 0]
+        } else {
+            std::array::from_fn(|dim| {
+                self.regions
+                    .iter()
+                    .map(|reg| reg.offset[dim] + reg.shape()[dim])
+                    .max()
+                    .unwrap()
+                    - self
+                        .regions
+                        .iter()
+                        .map(|reg| reg.offset[dim])
+                        .min()
+                        .unwrap()
+            })
         }
-        return result;
     }
 
     /// The volume of whole schematic

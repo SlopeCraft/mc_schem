@@ -16,7 +16,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use ndarray::{Array3};
 use crate::block::Block;
 use crate::error::Error;
@@ -142,18 +142,204 @@ pub trait HasOffset {
     fn offset(&self) -> [i32; 3];
 }
 
-// /// Returns detailed block infos at `r_pos`, including block index, block, block entity(mutable) and pending tick(mutable).
-// /// Returns `None` if the block is outside the region
-// fn block_info_at_mut(&mut self, r_pos: [i32; 3]) -> Option<(u16, &Block, Option<&mut BlockEntity>, Option<&mut PendingTick>)>;
-// /// Get mutable block entity at `r_pos`
-// fn block_entity_at_mut(&mut self, r_pos: [i32; 3]) -> Option<&mut BlockEntity> {
-//     return self.block_info_at_mut(r_pos)?.2;
-// }
-// /// Get mutable pending tick at `r_pos`
-// fn pending_tick_at_mut(&mut self, r_pos: [i32; 3]) -> Option<&mut PendingTick> {
-//     return self.block_info_at_mut(r_pos)?.3;
-// }
 
+#[derive(Debug, Clone)]
+pub struct Sparse3DArray {
+    elements: BTreeMap<usize, u16>,
+    shape: [usize; 3],
+}
+
+impl Default for Sparse3DArray {
+    fn default() -> Self {
+        Sparse3DArray {
+            elements: BTreeMap::new(),
+            shape: [0, 0, 0],
+        }
+    }
+}
+
+impl Sparse3DArray {
+    pub fn new() -> Sparse3DArray {
+        Sparse3DArray::default()
+    }
+
+    pub fn coordinate_3d_to_1d(coord: &[usize; 3], shape: &[usize; 3]) -> usize {
+        let [sy, sz, sx] = shape;
+        let [y, z, x] = coord;
+        debug_assert!(*sy > 0 && *sz > 0 && *sx > 0);
+
+        x + z * sx + y * sx * sz
+    }
+
+    pub fn coordinate_1d_to_3d(idx: usize, shape: &[usize; 3]) -> [usize; 3] {
+        let [sy, sz, sx] = shape;
+        debug_assert!(*sy > 0 && *sz > 0 && *sx > 0);
+        let y = idx / (sx * sz);
+        let rest = idx % (sx * sz);
+        let z = rest / sx;
+        let x = rest & sx;
+        debug_assert!(x < *sx);
+        debug_assert!(y < *sy);
+        debug_assert!(z < *sz);
+        return [y, z, x];
+    }
+    pub fn reshape(&mut self, shape_new: &[usize; 3]) {
+        self.elements.clear();
+        self.shape = *shape_new;
+        // let mut usz: [usize; 3] = [0, 0, 0];
+        // for idx in 0..3 {
+        //     let sz = shape_new[idx];
+        //     if sz < 0 {
+        //         panic!("Try resizing with negative size [{},{},{}]", shape_new[0], shape_new[1], shape_new[2]);
+        //     }
+        //     usz[idx] = sz as usize;
+        // }
+        // self.shape = usz;
+    }
+
+    pub fn with_shape(shape: &[usize; 3]) -> Sparse3DArray {
+        let mut ret = Self::new();
+        ret.reshape(shape);
+        ret
+    }
+
+    pub fn index_1d_max(&self) -> usize {
+        self.shape[0] * self.shape[1] * self.shape[2]
+    }
+    pub fn get_1d(&self, idx: usize) -> u16 {
+        *self.elements.get(&idx).unwrap_or(&0)
+    }
+    pub fn erase_1d(&mut self, idx: usize) -> Option<u16> {
+        self.elements.remove(&idx)
+    }
+    pub fn set_1d(&mut self, idx: usize, value: u16) {
+        if value == 0 {
+            self.erase_1d(idx);
+        } else {
+            self.elements.insert(idx, value);
+        }
+    }
+
+    pub fn get_3d(&self, pos: &[usize; 3]) -> u16 {
+        self.get_1d(Self::coordinate_3d_to_1d(pos, &self.shape))
+    }
+
+    pub fn set_3d(&mut self, pos: &[usize; 3], value: u16) {
+        self.set_1d(Self::coordinate_3d_to_1d(pos, &self.shape), value);
+    }
+
+    pub fn erase_3d(&mut self, pos: &[usize; 3]) -> Option<u16> {
+        self.erase_1d(Self::coordinate_3d_to_1d(pos, &self.shape))
+    }
+
+    pub fn num_non_zero(&self) -> usize {
+        self.elements.len()
+    }
+
+    /// Visit all non-air blocks
+    pub fn visit_non_zero<F: FnMut(usize, &[usize; 3], u16)>(&self, func: &mut F) {
+        for (idx_1d, value) in &self.elements {
+            let idx_3d = Self::coordinate_1d_to_3d(*idx_1d, &self.shape);
+            func(*idx_1d, &idx_3d, *value);
+        }
+    }
+    /// Visit all non-air blocks with mutable
+    pub fn visit_non_zero_mut<F: FnMut(usize, &[usize; 3], &mut u16)>(&mut self, func: &mut F) {
+        for (idx_1d, value) in &mut self.elements {
+            let idx_3d = Self::coordinate_1d_to_3d(*idx_1d, &self.shape);
+            func(*idx_1d, &idx_3d, value);
+        }
+    }
+    /// Visit all blocks including blank
+    pub fn visit_dense<F: FnMut(usize, &[usize; 3], u16)>(&self, func: &mut F) {
+        let mut previous_idx_1d = 0usize;
+        for (idx_1d_nz, value) in &self.elements {
+            for idx_1d in previous_idx_1d..*idx_1d_nz {
+                let idx_3d = Self::coordinate_1d_to_3d(idx_1d, &self.shape);
+                func(idx_1d, &idx_3d, 0);
+            }
+            let idx_3d = Self::coordinate_1d_to_3d(*idx_1d_nz, &self.shape);
+            func(*idx_1d_nz, &idx_3d, *value);
+            previous_idx_1d = *idx_1d_nz;
+        }
+
+        for idx_1d in previous_idx_1d..self.index_1d_max() {
+            let idx_3d = Self::coordinate_1d_to_3d(idx_1d, &self.shape);
+            func(idx_1d, &idx_3d, 0);
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum Array3DVariant {
+    Dense(Array3<u16>),
+    Sparse(Sparse3DArray),
+}
+
+impl Array3DVariant {
+    pub fn is_sparse(&self) -> bool {
+        if let Array3DVariant::Dense(_) = self {
+            return false;
+        }
+        true
+    }
+
+    pub fn is_dense(&self) -> bool {
+        !self.is_sparse()
+    }
+
+    pub fn shape(&self) -> [usize; 3] {
+        match self {
+            Array3DVariant::Dense(arr) => {
+                let sh = arr.shape();
+                debug_assert!(sh.len() == 3);
+                [sh[0], sh[1], sh[2]]
+            },
+            Array3DVariant::Sparse(arr) => {
+                arr.shape.clone()
+            }
+        }
+    }
+
+    pub fn reshape(&mut self, new_shape: &[usize; 3]) {
+        match self {
+            Array3DVariant::Dense(arr) => {
+                *arr = Array3::zeros(*new_shape);
+            },
+            Array3DVariant::Sparse(arr) => {
+                arr.reshape(new_shape);
+            },
+        }
+    }
+
+    pub fn get_3d(&self, pos: &[usize; 3]) -> u16 {
+        match self {
+            Array3DVariant::Dense(arr) => arr[*pos],
+            Array3DVariant::Sparse(arr) => arr.get_3d(pos)
+        }
+    }
+
+    pub fn set_3d(&mut self, pos: &[usize; 3], value: u16) {
+        match self {
+            Array3DVariant::Dense(arr) => arr[*pos] = value,
+            Array3DVariant::Sparse(arr) => arr.set_3d(pos, value)
+        }
+    }
+
+    pub fn visit_dense<F: FnMut(usize, &[usize; 3], u16)>(&self, func: &mut F) {
+        match self {
+            Array3DVariant::Dense(arr) => {
+                for idx_1d in 0..arr.len() {
+                    let pos = Sparse3DArray::coordinate_1d_to_3d(idx_1d, &self.shape());
+                    func(idx_1d, &pos, arr[pos]);
+                }
+            },
+            Array3DVariant::Sparse(arr) => {
+                arr.visit_dense(func);
+            },
+        }
+    }
+}
 
 /// Region is a 3d area in Minecraft, containing blocks and entities. \
 /// Litematica files can have multiple regions, but vanilla structure, world edit schematics can have only one. \

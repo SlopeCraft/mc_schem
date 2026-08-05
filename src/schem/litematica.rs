@@ -808,17 +808,12 @@ impl Region {
             let mut mbs = MultiBitSet::new();
             mbs.reset(block_required_bits(self.palette.len()) as u8, self.volume() as usize);
 
-            //TODO: Use visit_dense instead
-            let mut idx = 0usize;
-            for y in 0..self.shape()[1] as usize {
-                for z in 0..self.shape()[2] as usize {
-                    for x in 0..self.shape()[0] as usize {
-                        let res = mbs.set(idx, self.array_yzx.get_3d(&[y, z, x]) as u64);
-                        assert!(res.is_ok());
-                        idx += 1;
-                    }
+            self.array_yzx.visit_dense(
+                &mut |idx, _, blkid| {
+                    let res = mbs.set(idx, blkid as u64);
+                    assert!(res.is_ok());
                 }
-            }
+            );
 
             let u64_slice = mbs.as_u64_slice();
             let mut i64_rep = Vec::with_capacity(u64_slice.len());

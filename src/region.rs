@@ -259,6 +259,15 @@ impl Sparse3DArray {
             func(idx_1d, &idx_3d, 0);
         }
     }
+
+    pub fn into_dense(&self) -> Array3<u16> {
+        let mut ret = Array3::zeros(self.shape);
+        self.visit_non_zero(
+            &mut |_, pos, val| { ret[*pos] = val; }
+        );
+
+        ret
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -384,6 +393,34 @@ impl Array3DVariant {
             Array3DVariant::Sparse(arr) => {
                 arr.visit_dense(func);
             },
+        }
+    }
+
+    pub fn convert_to_dense(&mut self) {
+        if let Array3DVariant::Dense(_) = self {
+            return;
+        }
+        if let Array3DVariant::Sparse(arr) = self {
+            *self = Array3DVariant::Dense(arr.into_dense());
+        }
+    }
+
+    pub fn convert_to_sparse(&mut self) {
+        if let Array3DVariant::Sparse(_) = self {
+            return;
+        }
+        let shape = self.shape();
+        if let Array3DVariant::Dense(arr_old) = self {
+            let mut arr = Sparse3DArray::zeros(&shape);
+            let mut idx = 0usize;
+            for val in arr_old.iter() {
+                if *val != 0 {
+                    arr.set_1d(idx, *val);
+                }
+                idx += 1;
+            }
+
+            *self = Array3DVariant::Sparse(arr);
         }
     }
 }
@@ -602,29 +639,6 @@ impl Region {
         return result;
     }
 
-    // pub fn array(&self) -> &Array3<u16> {
-    //     return &self.array;
-    // }
-    // pub fn palette(&self) -> &[Block] {
-    //     return &self.palette;
-    // }
-    // pub fn block_entities(&self) -> &HashMap<[i32; 3], BlockEntity> {
-    //     return &self.block_entities;
-    // }
-    // pub fn pending_ticks(&self) -> &HashMap<[i32; 3], PendingTick> {
-    //     return &self.pending_ticks;
-    // }
-    // pub fn entities(&self) -> &[Entity] {
-    //     return &self.entities;
-    // }
-    // pub fn offset(&self) -> &[i32; 3] {
-    //     return &self.offset;
-    // }
-    //
-    // pub fn set_offset(&mut self, new_offset: [i32; 3]) {
-    //     self.offset = new_offset;
-    // }
-
     /// Convert pos in `[i32;3]` to `[usize;3]`
     pub fn i32_to_usize(pos: &[i32; 3]) -> [usize; 3] {
         let x = pos[0] as usize;
@@ -837,5 +851,21 @@ impl Region {
         } else {
             &mut []
         };
+    }
+
+    pub fn convert_to_dense(&mut self) {
+        self.array_yzx.convert_to_dense();
+    }
+
+    pub fn is_dense(&self) -> bool {
+        self.array_yzx.is_dense()
+    }
+
+    pub fn is_sparse(&self) -> bool {
+        self.array_yzx.is_sparse()
+    }
+
+    pub fn convert_to_sparse(&mut self) {
+        self.array_yzx.convert_to_sparse();
     }
 }

@@ -17,13 +17,13 @@ use crate::world::{Chunk, ChunkPos, ChunkRefAbsolutePos, ChunkRefRelativePos, Ch
 
 impl Display for ChunkStatus {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        return write!(f, "minecraft:{}", self.name_without_namespace());
+        write!(f, "minecraft:{}", self.name_without_namespace())
     }
 }
 
 impl ChunkStatus {
     pub fn name_without_namespace(&self) -> &'static str {
-        return match self {
+        match self {
             ChunkStatus::Empty => "empty",
             ChunkStatus::StructureStarts => "structure_starts",
             ChunkStatus::StructureReferences => "structure_references",
@@ -36,11 +36,11 @@ impl ChunkStatus {
             ChunkStatus::Light => "light",
             ChunkStatus::Spawn => "spawn",
             ChunkStatus::Full => "full",
-        };
+        }
     }
 
     fn all() -> &'static [ChunkStatus] {
-        return &[
+        &[
             ChunkStatus::Empty,
             ChunkStatus::StructureStarts,
             ChunkStatus::StructureReferences,
@@ -52,7 +52,7 @@ impl ChunkStatus {
             ChunkStatus::InitializeLight,
             ChunkStatus::Light,
             ChunkStatus::Spawn,
-            ChunkStatus::Full, ];
+            ChunkStatus::Full, ]
     }
 
     pub fn from_str(str: &str) -> Option<ChunkStatus> {
@@ -65,7 +65,7 @@ impl ChunkStatus {
                 return Some(*cs);
             }
         }
-        return None;
+        None
     }
 }
 
@@ -87,12 +87,12 @@ fn parse_pending_tick(nbt: &HashMap<String, Value>, is_block_tick: bool, tag_pat
         info,
     };
 
-    return Ok((pos, tick));
+    Ok((pos, tick))
 }
 
 impl Chunk {
     pub fn new() -> Chunk {
-        return Chunk {
+        Chunk {
             time_stamp: time::SystemTime::now().duration_since(time::UNIX_EPOCH).unwrap().as_secs() as u32,
             status: ChunkStatus::Empty,
             last_update: 0,
@@ -104,12 +104,12 @@ impl Chunk {
             pending_ticks: HashMap::new(),
             file_region: "NoFile".to_string(),
             file_entities: "NoFile".to_string(),
-        };
+        }
     }
 
     pub fn height(&self) -> i32 {
         debug_assert!(self.missing_sub_chunks().is_empty());
-        return self.sub_chunks.len() as i32 * 16;
+        self.sub_chunks.len() as i32 * 16
     }
 
     pub fn from_nbt(region_nbt_data: NBTWithSource, entity_nbt_data: Option<NBTWithSource>, chunk_pos: &ChunkPos) -> Result<Chunk, Error> {
@@ -275,7 +275,7 @@ impl Chunk {
             }
         }
 
-        return Ok(result);
+        Ok(result)
     }
 
     fn missing_sub_chunks(&self) -> Vec<i8> {
@@ -298,7 +298,7 @@ impl Chunk {
                 missing.push(y);
             }
         }
-        return missing;
+        missing
     }
 
     pub fn y_range(&self) -> Range<i32> {
@@ -309,15 +309,15 @@ impl Chunk {
             min = min.min(*y);
         }
         let y_min = min as i32 * 16;
-        return y_min..(y_min + self.height());
+        y_min..(y_min + self.height())
     }
     pub fn y_offset(&self) -> i32 {
-        return self.y_range().start;
+        self.y_range().start
     }
 
 
     pub fn shape(&self) -> [i32; 3] {
-        return [16, self.height(), 16];
+        [16, self.height(), 16]
     }
 
     pub fn total_blocks(&self, include_air: bool) -> u64 {
@@ -325,27 +325,27 @@ impl Chunk {
         for (_, subchunk) in &self.sub_chunks {
             num_blocks += subchunk.total_blocks(include_air);
         }
-        return num_blocks;
+        num_blocks
     }
 
     pub fn as_relative_pos(&self, chunk_pos: &ChunkPos) -> ChunkRefRelativePos {
-        return ChunkRefRelativePos {
+        ChunkRefRelativePos {
             chunk: self,
             chunk_pos: *chunk_pos,
-        };
+        }
     }
 
     pub fn as_absolute_pos(&self, chunk_pos: &ChunkPos) -> ChunkRefAbsolutePos {
-        return ChunkRefAbsolutePos {
+        ChunkRefAbsolutePos {
             chunk: self,
             chunk_pos: *chunk_pos,
-        };
+        }
     }
 
 }
 
 pub fn bits_per_block(block_types: usize, min_value: u8) -> u8 {
-    return (ceil((block_types as f64).log2(), 0) as u8).max(min_value);
+    (ceil((block_types as f64).log2(), 0) as u8).max(min_value)
 }
 
 fn parse_blocks(reg: &mut SubChunk, sect: &HashMap<String, Value>, path: &str) -> Result<(), Error> {
@@ -401,7 +401,7 @@ fn parse_blocks(reg: &mut SubChunk, sect: &HashMap<String, Value>, path: &str) -
         }
 
     }
-    return Ok(());
+    Ok(())
 }
 
 fn parse_biomes(reg: &mut SubChunk, sect: &HashMap<String, Value>, path: &str) -> Result<(), Error> {
@@ -465,7 +465,7 @@ fn parse_biomes(reg: &mut SubChunk, sect: &HashMap<String, Value>, path: &str) -
             reg.biome_array[counter] = biome_pal[biome_idx];
         }
     }
-    return Ok(());
+    Ok(())
 }
 
 fn parse_section(sect: &HashMap<String, Value>, path: &str) -> Result<Option<(SubChunk, i8)>, Error> {
@@ -537,7 +537,7 @@ fn parse_section(sect: &HashMap<String, Value>, path: &str) -> Result<Option<(Su
     //biomes
     parse_biomes(&mut subchunk, sect, path)?;
 
-    return Ok(Some((subchunk, y_pos)));
+    Ok(Some((subchunk, y_pos)))
 }
 
 // MultiBitSet in chunk.rs and litematic.rs is different. MC doesn't allow to separate an element
@@ -551,7 +551,7 @@ struct MultiBitSet {
 #[allow(dead_code)]
 impl MultiBitSet {
     pub fn num_element_per_u64(element_bits: u8) -> u8 {
-        return floor(64.0 / element_bits as f64, 0) as u8;
+        floor(64.0 / element_bits as f64, 0) as u8
     }
 
     pub fn required_num_u64(num_elements: usize, element_bits: u8) -> usize {
@@ -566,7 +566,7 @@ impl MultiBitSet {
             element_bits,
         };
         result.reset(len, element_bits);
-        return result;
+        result
     }
     pub fn reset(&mut self, num_elements: usize, element_bits: u8) {
         assert!(element_bits < 64);
@@ -580,19 +580,19 @@ impl MultiBitSet {
         let u64_idx = ele_idx / num_per_u64;
         let bit_index_beg: u8 = ((ele_idx % num_per_u64) * self.element_bits as usize) as u8;
         debug_assert!(bit_index_beg + self.element_bits <= 64);
-        return (u64_idx, bit_index_beg);
+        (u64_idx, bit_index_beg)
     }
 
     pub fn mask(element_bits: u8, bit_index_beg: u8) -> u64 {
         assert!(element_bits < 64);
         let mask = (1u64 << element_bits) - 1;
-        return mask << bit_index_beg;
+        mask << bit_index_beg
     }
 
     pub fn get(&self, ele_idx: usize) -> u64 {
         let (u64_idx, bit_index_beg) = self.index_of_element(ele_idx);
         let mask = Self::mask(self.element_bits, bit_index_beg);
-        return (self.array[u64_idx] & mask) >> bit_index_beg;
+        (self.array[u64_idx] & mask) >> bit_index_beg
     }
 
     pub fn set(&mut self, ele_idx: usize, value: u64) {
@@ -608,7 +608,7 @@ impl MultiBitSet {
     }
 
     pub fn num_u64(&self) -> usize {
-        return self.array.len();
+        self.array.len()
     }
 
     pub fn set_array_from_nbt(&mut self, i64_ne: &[i64]) {

@@ -10,14 +10,12 @@ pub struct SchemSlice<'a> {
 }
 
 impl HasOffset for SchemSlice<'_> {
-
     fn offset(&self) -> [i32; 3] {
         return self.offset;
     }
 }
 
 impl WorldSlice for SchemSlice<'_> {
-
     fn shape(&self) -> [i32; 3] {
         return self.shape;
     }
@@ -46,28 +44,51 @@ impl WorldSlice for SchemSlice<'_> {
         counter
     }
 
-    fn block_info_at(&self, r_pos: [i32; 3]) -> Option<(u16, &Block, Option<&BlockEntity>, &[PendingTick])> {
-        let g_pos = [r_pos[0] + self.offset[0], r_pos[1] + self.offset[1], r_pos[2] + self.offset[2]];
+    fn block_info_at(
+        &self,
+        r_pos: [i32; 3],
+    ) -> Option<(u16, &Block, Option<&BlockEntity>, &[PendingTick])> {
+        let g_pos = [
+            r_pos[0] + self.offset[0],
+            r_pos[1] + self.offset[1],
+            r_pos[2] + self.offset[2],
+        ];
         return self.source.first_block_info_at(g_pos);
     }
 
     fn block_index_at(&self, r_pos: [i32; 3]) -> Option<u16> {
-        let g_pos = [r_pos[0] + self.offset[0], r_pos[1] + self.offset[1], r_pos[2] + self.offset[2]];
+        let g_pos = [
+            r_pos[0] + self.offset[0],
+            r_pos[1] + self.offset[1],
+            r_pos[2] + self.offset[2],
+        ];
         return self.source.first_block_index_at(g_pos);
     }
 
     fn block_at(&self, r_pos: [i32; 3]) -> Option<&Block> {
-        let g_pos = [r_pos[0] + self.offset[0], r_pos[1] + self.offset[1], r_pos[2] + self.offset[2]];
+        let g_pos = [
+            r_pos[0] + self.offset[0],
+            r_pos[1] + self.offset[1],
+            r_pos[2] + self.offset[2],
+        ];
         return self.source.first_block_at(g_pos);
     }
 
     fn block_entity_at(&self, r_pos: [i32; 3]) -> Option<&BlockEntity> {
-        let g_pos = [r_pos[0] + self.offset[0], r_pos[1] + self.offset[1], r_pos[2] + self.offset[2]];
+        let g_pos = [
+            r_pos[0] + self.offset[0],
+            r_pos[1] + self.offset[1],
+            r_pos[2] + self.offset[2],
+        ];
         return self.source.first_block_entity_at(g_pos);
     }
 
     fn pending_tick_at(&self, r_pos: [i32; 3]) -> &[PendingTick] {
-        let g_pos = [r_pos[0] + self.offset[0], r_pos[1] + self.offset[1], r_pos[2] + self.offset[2]];
+        let g_pos = [
+            r_pos[0] + self.offset[0],
+            r_pos[1] + self.offset[1],
+            r_pos[2] + self.offset[2],
+        ];
         self.source.first_pending_tick_at(g_pos)
     }
 }
@@ -86,6 +107,10 @@ impl Schematic {
             }
         }
 
-        Some(SchemSlice { source: self, offset, shape })
+        Some(SchemSlice {
+            source: self,
+            offset,
+            shape,
+        })
     }
 }

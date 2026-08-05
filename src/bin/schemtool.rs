@@ -29,7 +29,6 @@ struct Args {
     command: Commands,
 }
 
-
 #[derive(Subcommand, Debug)]
 enum Commands {
     /// Get information about a schematic
@@ -75,12 +74,15 @@ enum Commands {
     },
 }
 
-
 fn main() {
     let args = Args::parse();
 
     match args.command {
-        Commands::Convert { input, output, benchmark } => {
+        Commands::Convert {
+            input,
+            output,
+            benchmark,
+        } => {
             let begin_time = std::time::SystemTime::now();
             let schem = match Schematic::from_file(&input) {
                 Ok(s) => s.0,
@@ -102,16 +104,29 @@ fn main() {
 
             let finish_time = std::time::SystemTime::now();
             if benchmark {
-                let load_time = parsed_time.duration_since(begin_time).expect("Failed to compute time cost.");
-                let save_time = finish_time.duration_since(parsed_time).expect("Failed to compute time cost.");
-                let total_time = finish_time.duration_since(begin_time).expect("Failed to compute time cost.");
-                print!("Loading cost {} seconds, saving cost {} seconds, {} seconds in total.",
-                       load_time.as_secs_f64(),
-                       save_time.as_secs_f64(),
-                       total_time.as_secs_f64());
+                let load_time = parsed_time
+                    .duration_since(begin_time)
+                    .expect("Failed to compute time cost.");
+                let save_time = finish_time
+                    .duration_since(parsed_time)
+                    .expect("Failed to compute time cost.");
+                let total_time = finish_time
+                    .duration_since(begin_time)
+                    .expect("Failed to compute time cost.");
+                print!(
+                    "Loading cost {} seconds, saving cost {} seconds, {} seconds in total.",
+                    load_time.as_secs_f64(),
+                    save_time.as_secs_f64(),
+                    total_time.as_secs_f64()
+                );
             }
         }
-        Commands::See { file, mut all, size, metadata } => {
+        Commands::See {
+            file,
+            mut all,
+            size,
+            metadata,
+        } => {
             let (schematic, raw) = match Schematic::from_file(&file) {
                 Ok(s) => s,
                 Err(e) => {
@@ -124,7 +139,11 @@ fn main() {
             }
 
             if size || all {
-                println!("Size: {}, volume: {}", schem::common::format_size(&schematic.shape()), schematic.volume());
+                println!(
+                    "Size: {}, volume: {}",
+                    schem::common::format_size(&schematic.shape()),
+                    schematic.volume()
+                );
             }
 
             if metadata || all {
@@ -139,19 +158,34 @@ fn main() {
                             println!("\tSubVersion: {sv}");
                         }
                         //(schem::common::i64_ms_timestamp_to_date(raw.time_created))
-                        println!("\tTimeCreated: {} (aka {})", raw.time_created, DT::from(schem::common::i64_ms_timestamp_to_system_time(raw.time_created)));
-                        println!("\tTimeModified: {} (aka {})", raw.time_modified, DT::from(schem::common::i64_ms_timestamp_to_system_time(raw.time_modified)));
+                        println!(
+                            "\tTimeCreated: {} (aka {})",
+                            raw.time_created,
+                            DT::from(schem::common::i64_ms_timestamp_to_system_time(
+                                raw.time_created
+                            ))
+                        );
+                        println!(
+                            "\tTimeModified: {} (aka {})",
+                            raw.time_modified,
+                            DT::from(schem::common::i64_ms_timestamp_to_system_time(
+                                raw.time_modified
+                            ))
+                        );
                         println!("\tAuthor: {}", raw.author);
                         println!("\tName: {}", raw.name);
                         println!("\tDescription: {}", raw.description);
                         println!("\tRegionCount: {}", raw.region_count);
                         println!("\tTotalBlocks: {}", raw.total_blocks);
                         println!("\tTotalVolume: {}", raw.total_volume);
-                        println!("\tEnclosingSize: {}", schem::common::format_size(&raw.enclosing_size));
-                    },
+                        println!(
+                            "\tEnclosingSize: {}",
+                            schem::common::format_size(&raw.enclosing_size)
+                        );
+                    }
                     RawMetaData::VanillaStructure(raw) => {
                         println!("\tDataVersion: {}", raw.data_version);
-                    },
+                    }
                     RawMetaData::WE13(raw) => {
                         println!("\tDataVersion: {}", raw.data_version);
                         println!("\tVersion: {}", raw.version);
@@ -163,14 +197,18 @@ fn main() {
                         }
                         println!("\tOffset: {}", schem::common::format_size(&raw.offset));
                         if let Some(date) = raw.date {
-                            println!("\tDate: {} (aka {})", date, DT::from(schem::common::i64_ms_timestamp_to_system_time(date)));
+                            println!(
+                                "\tDate: {} (aka {})",
+                                date,
+                                DT::from(schem::common::i64_ms_timestamp_to_system_time(date))
+                            );
                         }
                         if let Some(extra) = raw.v3_extra {
                             println!("\tMetadata/WorldEdit/Version: {}", extra.world_edit_version);
                             println!("\tEditingPlatform: {}", extra.editing_platform);
                             println!("\tOrigin: {}", schem::common::format_size(&extra.origin));
                         }
-                    },
+                    }
                     RawMetaData::WE12(raw) => {
                         println!("\tMaterials: {}", raw.materials);
                         println!("\tWidth: {}", raw.width);
@@ -182,11 +220,15 @@ fn main() {
                         for dim in 0..3 {
                             println!("\tWEOrigin{}: {}", dim_letters[dim], raw.we_origin[dim]);
                         }
-                    },
+                    }
                 }
             }
         }
-        Commands::Print { supported_formats, loadable_formats, savable_formats } => {
+        Commands::Print {
+            supported_formats,
+            loadable_formats,
+            savable_formats,
+        } => {
             if supported_formats {
                 println!("Supported formats:");
                 for f in mc_schem::SchemFormat::supported_formats() {

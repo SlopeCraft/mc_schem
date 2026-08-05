@@ -1,9 +1,8 @@
-use ndarray::{ArrayView2, ArrayView3};
 use crate::biome::Biome;
 use crate::block::Block;
 use crate::region::{BlockEntity, HasPalette, Light, PendingTick, WorldSlice};
 use crate::world::SubChunk;
-
+use ndarray::{ArrayView2, ArrayView3};
 
 impl SubChunk {
     pub fn new() -> SubChunk {
@@ -16,39 +15,38 @@ impl SubChunk {
             // sky_block_light: Array3::default(shape_yzx),
             // biome: Array2::default(shape_zx),
         };
-        return result;
+        result
     }
 
     pub fn block_id(&self) -> ArrayView3<u16> {
-        return ArrayView3::from_shape([16, 16, 16], &self.block_id_array).unwrap();
+        ArrayView3::from_shape([16, 16, 16], &self.block_id_array).unwrap()
     }
 
     pub fn sky_block_light(&self) -> ArrayView3<Light> {
         // this will always succeed
-        return ArrayView3::from_shape([16, 16, 16], &self.sky_block_light_array).unwrap();
+        ArrayView3::from_shape([16, 16, 16], &self.sky_block_light_array).unwrap()
     }
 
     pub fn biome(&self) -> ArrayView2<Biome> {
         // this will always succeed
-        return ArrayView2::from_shape([8, 8], &self.biome_array).unwrap();
+        ArrayView2::from_shape([8, 8], &self.biome_array).unwrap()
     }
 
     pub fn biome_at(&self, r_pos: [i32; 3]) -> Biome {
-        return self.biome()[[(r_pos[2] / 2) as usize, (r_pos[0] / 2) as usize]];
+        self.biome()[[(r_pos[2] / 2) as usize, (r_pos[0] / 2) as usize]]
     }
 }
 
 impl HasPalette for SubChunk {
     fn palette(&self) -> &[Block] {
-        return &self.palette;
+        &self.palette
     }
 }
 
 impl WorldSlice for SubChunk {
     fn shape(&self) -> [i32; 3] {
-        return [16, 16, 16];
+        [16, 16, 16]
     }
-
 
     fn total_blocks(&self, include_air: bool) -> u64 {
         let air_index = self.block_index_of_air();
@@ -68,7 +66,7 @@ impl WorldSlice for SubChunk {
             }
             counter += 1;
         }
-        return counter;
+        counter
     }
 
     fn block_index_at(&self, r_pos: [i32; 3]) -> Option<u16> {
@@ -76,7 +74,7 @@ impl WorldSlice for SubChunk {
             let r_pos = [r_pos[0] as usize, r_pos[1] as usize, r_pos[2] as usize];
             return Some(self.block_id()[r_pos]);
         }
-        return None;
+        None
     }
 
     fn block_at(&self, r_pos: [i32; 3]) -> Option<&Block> {
@@ -85,14 +83,14 @@ impl WorldSlice for SubChunk {
             let id = self.block_id()[r_pos];
             return Some(&self.palette[id as usize]);
         }
-        return None;
+        None
     }
 
     fn block_entity_at(&self, _r_pos: [i32; 3]) -> Option<&BlockEntity> {
-        return None;
+        None
     }
 
     fn pending_tick_at(&self, _r_pos: [i32; 3]) -> &[PendingTick] {
-        return &[];
+        &[]
     }
 }

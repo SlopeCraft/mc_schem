@@ -23,21 +23,20 @@ use std::sync::Arc;
 
 use fastnbt::Value;
 
-use crate::{BlockEntity, Entity};
 use crate::biome::Biome;
 use crate::block::Block;
 use crate::error::Error;
 use crate::raid::RaidList;
 use crate::region::{Light, PendingTick};
+use crate::{BlockEntity, Entity};
 
-pub mod mca;
-mod files_reader;
 mod chunk;
-mod dimension;
-mod sub_chunk;
 mod chunk_ref;
+mod dimension;
+mod files_reader;
+pub mod mca;
+mod sub_chunk;
 mod world;
-
 
 #[derive(Debug, Eq, Hash, PartialEq)]
 pub struct XZCoordinate<T = i32> {
@@ -153,7 +152,6 @@ pub struct WorldLoadOption {
     parse_directly: bool,
 }
 
-
 #[derive(Debug, Clone)]
 pub struct FileInfo {
     pub name: String,
@@ -178,28 +176,28 @@ pub trait FilesRead {
     fn read_file(&self, filename: &str, dest: &mut Vec<u8>) -> Result<(), Error> {
         let mut src = self.open_file(filename)?;
         dest.clear();
-        return match src.read_to_end(dest) {
-            Ok(_) => { Ok(()) }
-            Err(e) => { Err(Error::IOReadError(e)) }
-        };
+        match src.read_to_end(dest) {
+            Ok(_) => Ok(()),
+            Err(e) => Err(Error::IOReadError(e)),
+        }
     }
 
     fn read_file_as_bytes(&self, filename: &str) -> Result<Vec<u8>, Error> {
         let mut result = Vec::new();
         self.read_file(filename, &mut result)?;
-        return Ok(result);
+        Ok(result)
     }
 
     fn read_file_nocopy(&self, filename: &str) -> Result<Option<ArcSlice>, Error> {
         let _ = self.open_file(filename)?;
-        return Ok(None);
+        Ok(None)
     }
     fn read_file_as_arc_slice(&self, filename: &str) -> Result<ArcSlice, Error> {
         if let Some(arc_slice) = self.read_file_nocopy(filename)? {
             return Ok(arc_slice);
         }
         let vec = self.read_file_as_bytes(filename)?;
-        return Ok(ArcSlice::from(Arc::new(vec)));
+        Ok(ArcSlice::from(Arc::new(vec)))
     }
 }
 
@@ -240,11 +238,11 @@ pub trait AbsolutePosIndexed<'this, 'dim: 'this> {
     /// Shape in x, y, z
     fn shape(&self) -> [i32; 3] {
         let r = self.pos_range();
-        return [r[0].len() as i32, r[1].len() as i32, r[2].len() as i32];
+        [r[0].len() as i32, r[1].len() as i32, r[2].len() as i32]
     }
     /// Returns the volume
     fn volume(&self) -> u64 {
-        return self.shape()[0] as u64 * self.shape()[1] as u64 * self.shape()[2] as u64;
+        self.shape()[0] as u64 * self.shape()[1] as u64 * self.shape()[2] as u64
     }
 
     fn pos_range(&self) -> [Range<i32>; 3];
@@ -256,7 +254,7 @@ pub trait AbsolutePosIndexed<'this, 'dim: 'this> {
                 return false;
             }
         }
-        return true;
+        true
     }
 
     ///Returns the count of blocks in region. Air will be counted if `include_air` is true, structure
@@ -264,12 +262,21 @@ pub trait AbsolutePosIndexed<'this, 'dim: 'this> {
     fn total_blocks(&self, include_air: bool) -> u64;
     /// Returns detailed block infos at `r_pos`, including block index, block, block entity and pending tick.
     /// Returns `None` if the block is outside the region
-    fn block_info_at(&'this self, a_pos: [i32; 3]) -> Option<(u16, &'dim Block, Option<&'dim BlockEntity>, &'dim [PendingTick])> {
-        return Some((self.block_index_at(a_pos)?,
-                     self.block_at(a_pos)?,
-                     self.block_entity_at(a_pos),
-                     self.pending_tick_at(a_pos),
-        ));
+    fn block_info_at(
+        &'this self,
+        a_pos: [i32; 3],
+    ) -> Option<(
+        u16,
+        &'dim Block,
+        Option<&'dim BlockEntity>,
+        &'dim [PendingTick],
+    )> {
+        Some((
+            self.block_index_at(a_pos)?,
+            self.block_at(a_pos)?,
+            self.block_entity_at(a_pos),
+            self.pending_tick_at(a_pos),
+        ))
     }
     /// Get block index at `r_pos`, returns `None` if the block is outside the region
     fn block_index_at(&self, a_pos: [i32; 3]) -> Option<u16>;

@@ -6,7 +6,7 @@ use crate::world::{AbsolutePosIndexed, ChunkRefAbsolutePos, ChunkRefRelativePos,
 impl ChunkRefRelativePos<'_> {
     fn y_pos_to_section_number(&self, y_r: i32) -> i8 {
         let y_a = y_r + self.chunk.y_offset();
-        return (y_a / 16) as i8;
+        (y_a / 16) as i8
     }
 
     fn to_sub_chunk_r_pos(&self, r_pos: [i32; 3]) -> (i8, &SubChunk, [i32; 3]) {
@@ -16,7 +16,7 @@ impl ChunkRefRelativePos<'_> {
         debug_assert!(r_pos[1] - y_offset >= 0);
         let pos = [r_pos[0], r_pos[1] - y_offset, r_pos[2]];
         debug_assert!(sect.contains_coord(pos));
-        return (y_sect_num, sect, pos);
+        (y_sect_num, sect, pos)
     }
 
     fn to_absolute_pos(&self, r_pos: [i32; 3]) -> [i32; 3] {
@@ -24,23 +24,23 @@ impl ChunkRefRelativePos<'_> {
         let lb = self.chunk_pos.block_pos_lower_bound();
         let x_a = r_pos[0] + lb[0];
         let z_a = r_pos[2] + lb[1];
-        return [x_a, y_a, z_a];
+        [x_a, y_a, z_a]
     }
 }
 
 impl HasOffset for ChunkRefRelativePos<'_> {
     fn offset(&self) -> [i32; 3] {
-        return [0, self.chunk.y_offset(), 0];
+        [0, self.chunk.y_offset(), 0]
     }
 }
 
 impl WorldSlice for ChunkRefRelativePos<'_> {
     fn shape(&self) -> [i32; 3] {
-        return self.chunk.shape();
+        self.chunk.shape()
     }
 
     fn total_blocks(&self, include_air: bool) -> u64 {
-        return self.chunk.total_blocks(include_air);
+        self.chunk.total_blocks(include_air)
     }
 
     fn block_index_at(&self, r_pos: [i32; 3]) -> Option<u16> {
@@ -48,7 +48,7 @@ impl WorldSlice for ChunkRefRelativePos<'_> {
             let (_, sect, pos) = self.to_sub_chunk_r_pos(r_pos);
             return sect.block_index_at(pos);
         }
-        return None;
+        None
     }
 
     fn block_at(&self, r_pos: [i32; 3]) -> Option<&'_ Block> {
@@ -56,14 +56,14 @@ impl WorldSlice for ChunkRefRelativePos<'_> {
             let (_, sect, pos) = self.to_sub_chunk_r_pos(r_pos);
             return sect.block_at(pos);
         }
-        return None;
+        None
     }
 
     fn block_entity_at(&self, r_pos: [i32; 3]) -> Option<&'_ BlockEntity> {
         if self.contains_coord(r_pos) {
             return self.chunk.block_entities.get(&self.to_absolute_pos(r_pos));
         }
-        return None;
+        None
     }
 
     fn pending_tick_at(&self, r_pos: [i32; 3]) -> &'_ [PendingTick] {
@@ -74,7 +74,7 @@ impl WorldSlice for ChunkRefRelativePos<'_> {
                 &[]
             }
         }
-        return &[];
+        &[]
     }
 }
 
@@ -86,30 +86,30 @@ impl<'s, 'chunk: 's> ChunkRefAbsolutePos<'chunk> {
         let o = self.offset();
         let r_pos = [a_pos[0] - o[0], a_pos[1] - sect_number as i32 * 16, a_pos[2] - o[2]];
         debug_assert!((0..16).contains(&r_pos[1]));
-        return (sect_number, sub_chunk, r_pos);
+        (sect_number, sub_chunk, r_pos)
     }
 }
 
 impl HasOffset for ChunkRefAbsolutePos<'_> {
     fn offset(&self) -> [i32; 3] {
-        return [self.chunk_pos.block_pos_lower_bound()[0],
+        [self.chunk_pos.block_pos_lower_bound()[0],
             self.chunk.y_offset(),
-            self.chunk_pos.block_pos_lower_bound()[1]];
+            self.chunk_pos.block_pos_lower_bound()[1]]
     }
 }
 
 impl<'s, 'chunk: 's> AbsolutePosIndexed<'s, 'chunk> for ChunkRefAbsolutePos<'chunk> {
     fn pos_range(&self) -> [Range<i32>; 3] {
         let o = self.offset();
-        return [
+        [
             o[0]..(o[0] + 16),
             self.chunk.y_range(),
             o[2]..(o[2] + 16),
-        ];
+        ]
     }
 
     fn total_blocks(&self, include_air: bool) -> u64 {
-        return self.chunk.total_blocks(include_air);
+        self.chunk.total_blocks(include_air)
     }
 
     fn block_index_at(&self, a_pos: [i32; 3]) -> Option<u16> {
@@ -118,7 +118,7 @@ impl<'s, 'chunk: 's> AbsolutePosIndexed<'s, 'chunk> for ChunkRefAbsolutePos<'chu
             debug_assert!(sect.contains_coord(r_pos));
             return sect.block_index_at(r_pos);
         }
-        return None;
+        None
     }
 
     fn block_at(&'s self, a_pos: [i32; 3]) -> Option<&'chunk Block> {
@@ -127,18 +127,18 @@ impl<'s, 'chunk: 's> AbsolutePosIndexed<'s, 'chunk> for ChunkRefAbsolutePos<'chu
             debug_assert!(sect.contains_coord(r_pos));
             return sect.block_at(r_pos);
         }
-        return None;
+        None
     }
 
     fn block_entity_at(&self, a_pos: [i32; 3]) -> Option<&'chunk BlockEntity> {
-        return self.chunk.block_entities.get(&a_pos);
+        self.chunk.block_entities.get(&a_pos)
     }
 
     fn pending_tick_at(&self, a_pos: [i32; 3]) -> &'chunk [PendingTick] {
-        return if let Some(pts) = self.chunk.pending_ticks.get(&a_pos) {
+        if let Some(pts) = self.chunk.pending_ticks.get(&a_pos) {
             pts
         } else {
             &[]
-        };
+        }
     }
 }

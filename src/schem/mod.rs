@@ -16,27 +16,27 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+pub mod litematica;
 pub mod world_edit12;
 pub mod world_edit13;
-pub mod litematica;
 
-pub mod vanilla_structure;
-pub mod mc_version;
 pub mod common;
+pub mod mc_version;
 pub mod schem_slice;
+pub mod vanilla_structure;
 
+use crate::block::{Block, CommonBlock};
+use crate::error::Error;
+use fastnbt;
+use flate2::Compression;
 
 use std::cmp::max;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
-use crate::block::{Block, CommonBlock};
-use fastnbt;
-use flate2::Compression;
-use crate::error::{Error};
 //use schem::mc_version;
-use crate::{PendingTick, schem};
 use crate::region::{BlockEntity, Region, WorldSlice};
+use crate::{schem, PendingTick};
 
 /// Minecraft data versions.
 pub type DataVersion = mc_version::DataVersion;
@@ -66,12 +66,12 @@ impl LitematicaMetaData {
     // }
 
     pub fn default() -> LitematicaMetaData {
-        return Self::from_data_version(DataVersion::Java_1_20_4).unwrap();
+        Self::from_data_version(DataVersion::Java_1_20_4).unwrap()
     }
 
     /// Guess litematica version from data version
     pub fn data_version_to_lite_version(data_version: i32) -> Option<i32> {
-        return if data_version < DataVersion::Java_1_12 as i32 {
+        if data_version < DataVersion::Java_1_12 as i32 {
             None
         } else if data_version < DataVersion::Java_1_13 as i32 {
             Some(4)
@@ -79,25 +79,30 @@ impl LitematicaMetaData {
             Some(5)
         } else {
             Some(6)
-        };
+        }
     }
 
     /// Guess litematica sub version from data version
     pub fn data_version_to_lite_subversion(data_version: i32) -> Option<i32> {
-        return if data_version < DataVersion::Java_1_18 as i32 {
+        if data_version < DataVersion::Java_1_18 as i32 {
             None
         } else {
             Some(1)
-        };
+        }
     }
 
     /// Get default metadata from data version in `i32`
     pub fn from_data_version_i32(data_version: i32) -> Result<LitematicaMetaData, Error> {
         use std::time::{SystemTime, UNIX_EPOCH};
         if data_version < DataVersion::Java_1_12 as i32 {
-            return Err(Error::UnsupportedVersion { data_version_i32: data_version });
+            return Err(Error::UnsupportedVersion {
+                data_version_i32: data_version,
+            });
         }
-        let time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
+        let time = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as i64;
         let result = LitematicaMetaData {
             data_version,
             version: Self::data_version_to_lite_version(data_version).unwrap_or(-1),
@@ -110,14 +115,14 @@ impl LitematicaMetaData {
             total_volume: 0,
             region_count: 0,
             total_blocks: 0,
-            enclosing_size: [0; 3]
+            enclosing_size: [0; 3],
         };
-        return Ok(result);
+        Ok(result)
     }
 
     /// Get default metadata from data version
     pub fn from_data_version(data_version: DataVersion) -> Result<LitematicaMetaData, Error> {
-        return Self::from_data_version_i32(data_version as i32);
+        Self::from_data_version_i32(data_version as i32)
     }
 }
 
@@ -136,14 +141,14 @@ pub struct WE12MetaData {
 #[allow(dead_code)]
 impl WE12MetaData {
     pub fn default() -> WE12MetaData {
-        return WE12MetaData {
+        WE12MetaData {
             materials: "Alpha".to_string(),
             we_offset: [0, 0, 0],
             we_origin: [0, 0, 0],
             width: 0,
             height: 0,
-            length: 0
-        };
+            length: 0,
+        }
     }
 }
 
@@ -175,7 +180,10 @@ pub struct WE13MetaDataV3Extra {
 impl Default for WE13MetaData {
     fn default() -> WE13MetaData {
         use std::time::{SystemTime, UNIX_EPOCH};
-        let time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
+        let time = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as i64;
         return WE13MetaData {
             data_version: DataVersion::new() as i32,
             version: 5,
@@ -196,7 +204,7 @@ impl Default for WE13MetaDataV3Extra {
             world_edit_version: "(unknown)".to_string(),
             editing_platform: "".to_string(),
             origin: [0, 0, 0],
-        }
+        };
     }
 }
 
@@ -210,7 +218,9 @@ impl WE13MetaData {
         let mut result = Self::default();
         result.data_version = dv;
         if dv < DataVersion::Java_1_13 as i32 {
-            return Err(Error::UnsupportedVersion { data_version_i32: dv });
+            return Err(Error::UnsupportedVersion {
+                data_version_i32: dv,
+            });
         }
         // 1.13.2 => 2
         // 1.14.4 => 2
@@ -242,15 +252,12 @@ impl VanillaStructureMetaData {
         };
     }
 
-
     pub fn from_data_version(dv: DataVersion) -> Result<VanillaStructureMetaData, Error> {
         return Self::from_data_version_i32(dv as i32);
     }
 
     pub fn from_data_version_i32(dv: i32) -> Result<VanillaStructureMetaData, Error> {
-        return Ok(VanillaStructureMetaData {
-            data_version: dv
-        });
+        return Ok(VanillaStructureMetaData { data_version: dv });
     }
 }
 
@@ -286,7 +293,6 @@ pub struct MetaDataIR {
     pub schem_we_offset: Option<[i32; 3]>,
 
     //pub date: Option<i64>,
-
     pub schem_world_edit_version: Option<String>,
     pub schem_editing_platform: Option<String>,
     pub schem_origin: Option<[i32; 3]>,
@@ -307,7 +313,10 @@ impl MetaDataIR {
 
     pub fn from_data_version_i32(version: i32) -> Result<MetaDataIR, Error> {
         use std::time::{SystemTime, UNIX_EPOCH};
-        let time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
+        let time = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as i64;
 
         let result = MetaDataIR {
             mc_data_version: version,
@@ -339,9 +348,7 @@ pub struct Schematic {
     /// A list of regions. A schematic can have multiple regions.
     pub regions: Vec<Region>,
     //pub enclosing_size: [i64; 3],
-
 }
-
 
 // enum SchemFormat {
 //     Litematica,
@@ -357,7 +364,6 @@ impl Schematic {
             metadata: MetaDataIR::default(),
             regions: Vec::new(),
             //enclosing_size: [1, 1, 1],
-
         };
     }
 
@@ -470,7 +476,10 @@ impl Schematic {
     }
 
     /// Get detailed info of the first block at `pos`
-    pub fn first_block_info_at(&self, pos: [i32; 3]) -> Option<(u16, &Block, Option<&BlockEntity>, &[PendingTick])> {
+    pub fn first_block_info_at(
+        &self,
+        pos: [i32; 3],
+    ) -> Option<(u16, &Block, Option<&BlockEntity>, &[PendingTick])> {
         for reg in &self.regions {
             let r_pos = reg.global_pos_to_relative_pos(pos);
             if !reg.contains_coord(r_pos) {
@@ -519,9 +528,8 @@ impl Schematic {
         for reg in &self.regions {
             counter += reg.total_blocks(include_air);
         }
-        return counter;
+        counter
     }
-
 
     /// Returns `(Vec<(block, hash)>, Vec<LUT-cur-block-index-to-global-block-index>)`, this will
     /// be useful when merging multiple regions
@@ -570,27 +578,34 @@ impl Schematic {
     /// Load schematic from file.
     pub fn from_file(filename: &str) -> Result<(Schematic, RawMetaData), Error> {
         if filename.ends_with(".litematic") {
-            let (schem, raw) = Self::from_litematica_file(filename, &LitematicaLoadOption::default())?;
+            let (schem, raw) =
+                Self::from_litematica_file(filename, &LitematicaLoadOption::default())?;
             return Ok((schem, RawMetaData::Litematica(raw)));
         }
         if filename.ends_with(".nbt") {
-            let (schem, raw) = Self::from_vanilla_structure_file(filename, &VanillaStructureLoadOption::default())?;
+            let (schem, raw) = Self::from_vanilla_structure_file(
+                filename,
+                &VanillaStructureLoadOption::default(),
+            )?;
             return Ok((schem, RawMetaData::VanillaStructure(raw)));
         }
         if filename.ends_with(".schem") {
-            let (schem, raw) = Self::from_world_edit_13_file(filename, &WorldEdit13LoadOption::default())?;
+            let (schem, raw) =
+                Self::from_world_edit_13_file(filename, &WorldEdit13LoadOption::default())?;
             return Ok((schem, RawMetaData::WE13(raw)));
         }
         if filename.ends_with(".schematic") {
-            let (schem, raw, ..) = Self::from_world_edit_12_file(filename, &WorldEdit12LoadOption::default())?;
+            let (schem, raw, ..) =
+                Self::from_world_edit_12_file(filename, &WorldEdit12LoadOption::default())?;
             return Ok((schem, RawMetaData::WE12(raw)));
         }
 
         let split = filename.split(".");
         let extension = split.last().unwrap_or_else(|| "");
 
-
-        return Err(Error::UnrecognisedExtension { extension: extension.to_string() });
+        return Err(Error::UnrecognisedExtension {
+            extension: extension.to_string(),
+        });
     }
 
     /// Save schematic to file.
@@ -599,7 +614,8 @@ impl Schematic {
             return self.save_litematica_file(filename, &LitematicaSaveOption::default());
         }
         if filename.ends_with(".nbt") {
-            return self.save_vanilla_structure_file(filename, &VanillaStructureSaveOption::default());
+            return self
+                .save_vanilla_structure_file(filename, &VanillaStructureSaveOption::default());
         }
         if filename.ends_with(".schem") {
             return self.save_world_edit_13_file(filename, &WorldEdit13SaveOption::default());
@@ -608,8 +624,9 @@ impl Schematic {
         let split = filename.split(".");
         let extension = split.last().unwrap_or_else(|| "");
 
-
-        return Err(Error::UnrecognisedExtension { extension: extension.to_string() });
+        return Err(Error::UnrecognisedExtension {
+            extension: extension.to_string(),
+        });
     }
 
     /// Count duplicated blocks.
@@ -745,7 +762,7 @@ pub fn id_of_nbt_tag(tag: &fastnbt::Value) -> u8 {
         fastnbt::Value::Compound(_) => 10,
         fastnbt::Value::IntArray(_) => 11,
         fastnbt::Value::LongArray(_) => 12,
-    }
+    };
 }
 
 /// Options to load vanilla structure
@@ -758,8 +775,8 @@ pub struct VanillaStructureLoadOption {
 impl VanillaStructureLoadOption {
     pub fn default() -> VanillaStructureLoadOption {
         return VanillaStructureLoadOption {
-            background_block: CommonBlock::StructureVoid
-        }
+            background_block: CommonBlock::StructureVoid,
+        };
     }
 }
 
@@ -777,19 +794,17 @@ impl Default for VanillaStructureSaveOption {
         return VanillaStructureSaveOption {
             keep_air: true,
             compress_level: Compression::best(),
-        }
+        };
     }
 }
 
 //#[derive(Debug)]
 /// Options to load litematica
-pub struct LitematicaLoadOption {
-}
+pub struct LitematicaLoadOption {}
 
 impl LitematicaLoadOption {
     pub fn default() -> LitematicaLoadOption {
-        return LitematicaLoadOption {
-        };
+        return LitematicaLoadOption {};
     }
 }
 
@@ -811,7 +826,6 @@ impl Default for LitematicaSaveOption {
         };
     }
 }
-
 
 /// Options to load litematica
 #[derive(Debug)]
@@ -856,7 +870,6 @@ impl Default for WorldEdit12LoadOption {
     fn default() -> Self {
         return WorldEdit12LoadOption {
             data_version: DataVersion::Java_1_12_2,
-        }
+        };
     }
 }
-

@@ -16,19 +16,19 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+use fastnbt::{ByteArray, IntArray, LongArray, Value};
+use serde::de::StdError;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::ops::Range;
-use fastnbt::{ByteArray, IntArray, LongArray, Value};
-use serde::de::{StdError};
 // use serde::Deserializer;
-use strum::Display;
 use crate::block::{Block, BlockIdParseError};
 use crate::item::Item;
 use crate::old_block::OldBlockParseError;
 use crate::region::Region;
 use crate::schem::common::{format_range, format_size};
 use crate::schem::id_of_nbt_tag;
+use strum::Display;
 
 /// Errors when loading and saving schematic
 #[derive(Debug)]
@@ -54,7 +54,7 @@ pub enum Error {
         error: String,
     },
     PaletteIsEmpty {
-        tag_path: String
+        tag_path: String,
     },
     PaletteTooLong(usize),
     BlockIndexOutOfRange {
@@ -97,12 +97,26 @@ pub enum Error {
     },
     //write error
     NBTWriteError(fastnbt::error::Error),
-    NegativeSize { size: [i32; 3], region_name: String },
-    BlockIndexOutOfRangeWriting { r_pos: [i32; 3], block_index: u16, max_index: u16 },
+    NegativeSize {
+        size: [i32; 3],
+        region_name: String,
+    },
+    BlockIndexOutOfRangeWriting {
+        r_pos: [i32; 3],
+        block_index: u16,
+        max_index: u16,
+    },
     FileCreateError(std::io::Error),
-    DuplicatedRegionName { name: String },
-    SizeTooLarge { size: [u64; 3], max_size: [u64; 3] },
-    UnsupportedVersion { data_version_i32: i32 },
+    DuplicatedRegionName {
+        name: String,
+    },
+    SizeTooLarge {
+        size: [u64; 3],
+        max_size: [u64; 3],
+    },
+    UnsupportedVersion {
+        data_version_i32: i32,
+    },
     UnsupportedWorldEdit13Version {
         version: i32,
         supported_versions: Vec<i32>,
@@ -165,7 +179,7 @@ pub enum Error {
 
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        return match self {
+        match self {
             Error::NBTReadError(nbterr)
             => write!(f, "NBT format broken. Detail: {}", nbterr),
             Error::TagMissing(tag_path) => write!(f, "Missing tag: {}", tag_path),
@@ -251,8 +265,11 @@ impl Display for Error {
 impl StdError for Error {}
 
 impl serde::de::Error for Error {
-    fn custom<T>(msg: T) -> Self where T: Display {
-        return Self::CustomError(msg.to_string());
+    fn custom<T>(msg: T) -> Self
+    where
+        T: Display,
+    {
+        Self::CustomError(msg.to_string())
     }
 }
 
@@ -279,7 +296,6 @@ macro_rules! unwrap_opt_tag {
         };
     }
 
-
 /// Unwrap a `Value` as some type, otherwise return `Err(Error::TagTypeMismatch)`.
 #[macro_export]
 macro_rules! unwrap_tag {
@@ -298,105 +314,312 @@ macro_rules! unwrap_tag {
     }
 
 pub fn unwrap_opt_i8(nbt: &HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<i8, Error> {
-    Ok(*unwrap_opt_tag!(nbt.get(key),Byte,0,format!("{nbt_path}/{key}")))
+    Ok(*unwrap_opt_tag!(
+        nbt.get(key),
+        Byte,
+        0,
+        format!("{nbt_path}/{key}")
+    ))
 }
 
-pub fn unwrap_opt_i16(nbt: &HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<i16, Error> {
-    Ok(*unwrap_opt_tag!(nbt.get(key),Short,0,format!("{nbt_path}/{key}")))
+pub fn unwrap_opt_i16(
+    nbt: &HashMap<String, Value>,
+    key: &str,
+    nbt_path: &str,
+) -> Result<i16, Error> {
+    Ok(*unwrap_opt_tag!(
+        nbt.get(key),
+        Short,
+        0,
+        format!("{nbt_path}/{key}")
+    ))
 }
 
-pub fn unwrap_opt_i32(nbt: &HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<i32, Error> {
-    Ok(*unwrap_opt_tag!(nbt.get(key),Int,0,format!("{nbt_path}/{key}")))
+pub fn unwrap_opt_i32(
+    nbt: &HashMap<String, Value>,
+    key: &str,
+    nbt_path: &str,
+) -> Result<i32, Error> {
+    Ok(*unwrap_opt_tag!(
+        nbt.get(key),
+        Int,
+        0,
+        format!("{nbt_path}/{key}")
+    ))
 }
 
-pub fn unwrap_opt_i64(nbt: &HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<i64, Error> {
-    Ok(*unwrap_opt_tag!(nbt.get(key),Long,0,format!("{nbt_path}/{key}")))
+pub fn unwrap_opt_i64(
+    nbt: &HashMap<String, Value>,
+    key: &str,
+    nbt_path: &str,
+) -> Result<i64, Error> {
+    Ok(*unwrap_opt_tag!(
+        nbt.get(key),
+        Long,
+        0,
+        format!("{nbt_path}/{key}")
+    ))
 }
 
-pub fn unwrap_opt_f32(nbt: &HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<f32, Error> {
-    Ok(*unwrap_opt_tag!(nbt.get(key),Float,0.0,format!("{nbt_path}/{key}")))
+pub fn unwrap_opt_f32(
+    nbt: &HashMap<String, Value>,
+    key: &str,
+    nbt_path: &str,
+) -> Result<f32, Error> {
+    Ok(*unwrap_opt_tag!(
+        nbt.get(key),
+        Float,
+        0.0,
+        format!("{nbt_path}/{key}")
+    ))
 }
 
-pub fn unwrap_opt_f64(nbt: &HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<f64, Error> {
-    Ok(*unwrap_opt_tag!(nbt.get(key),Double,0.0,format!("{nbt_path}/{key}")))
+pub fn unwrap_opt_f64(
+    nbt: &HashMap<String, Value>,
+    key: &str,
+    nbt_path: &str,
+) -> Result<f64, Error> {
+    Ok(*unwrap_opt_tag!(
+        nbt.get(key),
+        Double,
+        0.0,
+        format!("{nbt_path}/{key}")
+    ))
 }
 
-pub fn unwrap_opt_string<'a>(nbt: &'a HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<&'a String, Error> {
-    Ok(unwrap_opt_tag!(nbt.get(key),String,"".to_string(),format!("{nbt_path}/{key}")))
+pub fn unwrap_opt_string<'a>(
+    nbt: &'a HashMap<String, Value>,
+    key: &str,
+    nbt_path: &str,
+) -> Result<&'a String, Error> {
+    Ok(unwrap_opt_tag!(
+        nbt.get(key),
+        String,
+        "".to_string(),
+        format!("{nbt_path}/{key}")
+    ))
 }
 
-pub fn unwrap_opt_string_mut<'a>(nbt: &'a mut HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<&'a mut String, Error> {
-    Ok(unwrap_opt_tag!(nbt.get_mut(key),String,"".to_string(),format!("{nbt_path}/{key}")))
+pub fn unwrap_opt_string_mut<'a>(
+    nbt: &'a mut HashMap<String, Value>,
+    key: &str,
+    nbt_path: &str,
+) -> Result<&'a mut String, Error> {
+    Ok(unwrap_opt_tag!(
+        nbt.get_mut(key),
+        String,
+        "".to_string(),
+        format!("{nbt_path}/{key}")
+    ))
 }
 
-pub fn unwrap_opt_string_remove(nbt: &mut HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<String, Error> {
-    Ok(unwrap_opt_tag!(nbt.remove(key),String,"".to_string(),format!("{nbt_path}/{key}")))
+pub fn unwrap_opt_string_remove(
+    nbt: &mut HashMap<String, Value>,
+    key: &str,
+    nbt_path: &str,
+) -> Result<String, Error> {
+    Ok(unwrap_opt_tag!(
+        nbt.remove(key),
+        String,
+        "".to_string(),
+        format!("{nbt_path}/{key}")
+    ))
 }
 
-
-pub fn unwrap_opt_compound<'a>(nbt: &'a HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<&'a HashMap<String, Value>, Error> {
-    Ok(unwrap_opt_tag!(nbt.get(key),Compound,HashMap::new(),format!("{nbt_path}/{key}")))
+pub fn unwrap_opt_compound<'a>(
+    nbt: &'a HashMap<String, Value>,
+    key: &str,
+    nbt_path: &str,
+) -> Result<&'a HashMap<String, Value>, Error> {
+    Ok(unwrap_opt_tag!(
+        nbt.get(key),
+        Compound,
+        HashMap::new(),
+        format!("{nbt_path}/{key}")
+    ))
 }
 
-pub fn unwrap_opt_compound_mut<'a>(nbt: &'a mut HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<&'a mut HashMap<String, Value>, Error> {
-    Ok(unwrap_opt_tag!(nbt.get_mut(key),Compound,HashMap::new(),format!("{nbt_path}/{key}")))
+pub fn unwrap_opt_compound_mut<'a>(
+    nbt: &'a mut HashMap<String, Value>,
+    key: &str,
+    nbt_path: &str,
+) -> Result<&'a mut HashMap<String, Value>, Error> {
+    Ok(unwrap_opt_tag!(
+        nbt.get_mut(key),
+        Compound,
+        HashMap::new(),
+        format!("{nbt_path}/{key}")
+    ))
 }
 
-pub fn unwrap_opt_compound_remove(nbt: &mut HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<HashMap<String, Value>, Error> {
-    Ok(unwrap_opt_tag!(nbt.remove(key),Compound,HashMap::new(),format!("{nbt_path}/{key}")))
+pub fn unwrap_opt_compound_remove(
+    nbt: &mut HashMap<String, Value>,
+    key: &str,
+    nbt_path: &str,
+) -> Result<HashMap<String, Value>, Error> {
+    Ok(unwrap_opt_tag!(
+        nbt.remove(key),
+        Compound,
+        HashMap::new(),
+        format!("{nbt_path}/{key}")
+    ))
 }
 
-pub fn unwrap_opt_list<'a>(nbt: &'a HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<&'a [Value], Error> {
-    Ok(unwrap_opt_tag!(nbt.get(key),List,vec![],format!("{nbt_path}/{key}")))
+pub fn unwrap_opt_list<'a>(
+    nbt: &'a HashMap<String, Value>,
+    key: &str,
+    nbt_path: &str,
+) -> Result<&'a [Value], Error> {
+    Ok(unwrap_opt_tag!(
+        nbt.get(key),
+        List,
+        vec![],
+        format!("{nbt_path}/{key}")
+    ))
 }
 
-
-pub fn unwrap_opt_list_mut<'a>(nbt: &'a mut HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<&'a mut Vec<Value>, Error> {
-    Ok(unwrap_opt_tag!(nbt.get_mut(key),List,vec![],format!("{nbt_path}/{key}")))
+pub fn unwrap_opt_list_mut<'a>(
+    nbt: &'a mut HashMap<String, Value>,
+    key: &str,
+    nbt_path: &str,
+) -> Result<&'a mut Vec<Value>, Error> {
+    Ok(unwrap_opt_tag!(
+        nbt.get_mut(key),
+        List,
+        vec![],
+        format!("{nbt_path}/{key}")
+    ))
 }
 
-pub fn unwrap_opt_list_remove(nbt: &mut HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<Vec<Value>, Error> {
-    Ok(unwrap_opt_tag!(nbt.remove(key),List,vec![],format!("{nbt_path}/{key}")))
+pub fn unwrap_opt_list_remove(
+    nbt: &mut HashMap<String, Value>,
+    key: &str,
+    nbt_path: &str,
+) -> Result<Vec<Value>, Error> {
+    Ok(unwrap_opt_tag!(
+        nbt.remove(key),
+        List,
+        vec![],
+        format!("{nbt_path}/{key}")
+    ))
 }
 
-pub fn unwrap_opt_byte_array<'a>(nbt: &'a HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<&'a [i8], Error> {
-    Ok(unwrap_opt_tag!(nbt.get(key),ByteArray,ByteArray::new(vec![]),format!("{nbt_path}/{key}")))
+pub fn unwrap_opt_byte_array<'a>(
+    nbt: &'a HashMap<String, Value>,
+    key: &str,
+    nbt_path: &str,
+) -> Result<&'a [i8], Error> {
+    Ok(unwrap_opt_tag!(
+        nbt.get(key),
+        ByteArray,
+        ByteArray::new(vec![]),
+        format!("{nbt_path}/{key}")
+    ))
 }
 
-
-pub fn unwrap_opt_byte_array_mut<'a>(nbt: &'a mut HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<&'a mut ByteArray, Error> {
-    Ok(unwrap_opt_tag!(nbt.get_mut(key),ByteArray,ByteArray::new(vec![]),format!("{nbt_path}/{key}")))
+pub fn unwrap_opt_byte_array_mut<'a>(
+    nbt: &'a mut HashMap<String, Value>,
+    key: &str,
+    nbt_path: &str,
+) -> Result<&'a mut ByteArray, Error> {
+    Ok(unwrap_opt_tag!(
+        nbt.get_mut(key),
+        ByteArray,
+        ByteArray::new(vec![]),
+        format!("{nbt_path}/{key}")
+    ))
 }
 
-
-pub fn unwrap_opt_byte_array_remove(nbt: &mut HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<ByteArray, Error> {
-    Ok(unwrap_opt_tag!(nbt.remove(key),ByteArray,ByteArray::new(vec![]),format!("{nbt_path}/{key}")))
+pub fn unwrap_opt_byte_array_remove(
+    nbt: &mut HashMap<String, Value>,
+    key: &str,
+    nbt_path: &str,
+) -> Result<ByteArray, Error> {
+    Ok(unwrap_opt_tag!(
+        nbt.remove(key),
+        ByteArray,
+        ByteArray::new(vec![]),
+        format!("{nbt_path}/{key}")
+    ))
 }
 
-pub fn unwrap_opt_int_array<'a>(nbt: &'a HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<&'a [i32], Error> {
-    Ok(unwrap_opt_tag!(nbt.get(key),IntArray,IntArray::new(vec![]),format!("{nbt_path}/{key}")))
+pub fn unwrap_opt_int_array<'a>(
+    nbt: &'a HashMap<String, Value>,
+    key: &str,
+    nbt_path: &str,
+) -> Result<&'a [i32], Error> {
+    Ok(unwrap_opt_tag!(
+        nbt.get(key),
+        IntArray,
+        IntArray::new(vec![]),
+        format!("{nbt_path}/{key}")
+    ))
 }
 
-pub fn unwrap_opt_int_array_mut<'a>(nbt: &'a mut HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<&'a mut IntArray, Error> {
-    Ok(unwrap_opt_tag!(nbt.get_mut(key),IntArray,IntArray::new(vec![]),format!("{nbt_path}/{key}")))
+pub fn unwrap_opt_int_array_mut<'a>(
+    nbt: &'a mut HashMap<String, Value>,
+    key: &str,
+    nbt_path: &str,
+) -> Result<&'a mut IntArray, Error> {
+    Ok(unwrap_opt_tag!(
+        nbt.get_mut(key),
+        IntArray,
+        IntArray::new(vec![]),
+        format!("{nbt_path}/{key}")
+    ))
 }
 
-pub fn unwrap_opt_int_array_remove(nbt: &mut HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<IntArray, Error> {
-    Ok(unwrap_opt_tag!(nbt.remove(key),IntArray,IntArray::new(vec![]),format!("{nbt_path}/{key}")))
+pub fn unwrap_opt_int_array_remove(
+    nbt: &mut HashMap<String, Value>,
+    key: &str,
+    nbt_path: &str,
+) -> Result<IntArray, Error> {
+    Ok(unwrap_opt_tag!(
+        nbt.remove(key),
+        IntArray,
+        IntArray::new(vec![]),
+        format!("{nbt_path}/{key}")
+    ))
 }
 
-pub fn unwrap_opt_long_array<'a>(nbt: &'a HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<&'a [i64], Error> {
-    Ok(unwrap_opt_tag!(nbt.get(key),LongArray,LongArray::new(vec![]),format!("{nbt_path}/{key}")))
+pub fn unwrap_opt_long_array<'a>(
+    nbt: &'a HashMap<String, Value>,
+    key: &str,
+    nbt_path: &str,
+) -> Result<&'a [i64], Error> {
+    Ok(unwrap_opt_tag!(
+        nbt.get(key),
+        LongArray,
+        LongArray::new(vec![]),
+        format!("{nbt_path}/{key}")
+    ))
 }
 
-pub fn unwrap_opt_long_array_mut<'a>(nbt: &'a mut HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<&'a mut LongArray, Error> {
-    Ok(unwrap_opt_tag!(nbt.get_mut(key),LongArray,LongArray::new(vec![]),format!("{nbt_path}/{key}")))
+pub fn unwrap_opt_long_array_mut<'a>(
+    nbt: &'a mut HashMap<String, Value>,
+    key: &str,
+    nbt_path: &str,
+) -> Result<&'a mut LongArray, Error> {
+    Ok(unwrap_opt_tag!(
+        nbt.get_mut(key),
+        LongArray,
+        LongArray::new(vec![]),
+        format!("{nbt_path}/{key}")
+    ))
 }
 
-pub fn unwrap_opt_long_array_remove(nbt: &mut HashMap<String, Value>, key: &str, nbt_path: &str) -> Result<LongArray, Error> {
-    Ok(unwrap_opt_tag!(nbt.remove(key),LongArray,LongArray::new(vec![]),format!("{nbt_path}/{key}")))
+pub fn unwrap_opt_long_array_remove(
+    nbt: &mut HashMap<String, Value>,
+    key: &str,
+    nbt_path: &str,
+) -> Result<LongArray, Error> {
+    Ok(unwrap_opt_tag!(
+        nbt.remove(key),
+        LongArray,
+        LongArray::new(vec![]),
+        format!("{nbt_path}/{key}")
+    ))
 }
-
 
 // pub struct NBTWithPath<'nbt> {
 //     pub nbt: Option<&'nbt Value>,
@@ -565,7 +788,6 @@ pub fn unwrap_opt_long_array_remove(nbt: &mut HashMap<String, Value>, key: &str,
 //     }
 // }
 
-
 /// Not used now.
 #[repr(u8)]
 #[derive(Debug, Display)]
@@ -579,19 +801,23 @@ pub enum ErrorHandleResult<T> {
 #[allow(dead_code)]
 impl<T> ErrorHandleResult<T> {
     pub fn has_value(&self) -> bool {
-        return if let ErrorHandleResult::NotHandled = self {
+        if let ErrorHandleResult::NotHandled = self {
             false
-        } else { true };
+        } else {
+            true
+        }
     }
 
     pub fn has_warning(&self) -> bool {
-        return if let ErrorHandleResult::HandledWithWarning(_) = self {
+        if let ErrorHandleResult::HandledWithWarning(_) = self {
             true
-        } else { false };
+        } else {
+            false
+        }
     }
 
     pub fn to_option(self) -> Option<T> {
-        return match self {
+        match self {
             ErrorHandleResult::NotHandled => None,
             ErrorHandleResult::HandledWithWarning(val) => Some(val),
             ErrorHandleResult::HandledWithoutWarning(val) => Some(val),
@@ -611,17 +837,20 @@ pub trait ErrorHandler {
     // returns the fixed block index
     fn fix_block_index_out_of_range(
         _region: &mut Region,
-        _error: &Error) -> ErrorHandleResult<u16> {
-
-        return ErrorHandleResult::NotHandled;
+        _error: &Error,
+    ) -> ErrorHandleResult<u16> {
+        ErrorHandleResult::NotHandled
     }
 
-    fn fix_block_pos_out_of_range(_region: &mut Region, _error: &Error) -> ErrorHandleResult<BlockPosOutOfRangeFixMethod> {
-        return ErrorHandleResult::NotHandled;
+    fn fix_block_pos_out_of_range(
+        _region: &mut Region,
+        _error: &Error,
+    ) -> ErrorHandleResult<BlockPosOutOfRangeFixMethod> {
+        ErrorHandleResult::NotHandled
     }
 
     fn fix_invalid_block_id(_region: &mut Region, _error: &Error) -> ErrorHandleResult<Block> {
-        return ErrorHandleResult::NotHandled;
+        ErrorHandleResult::NotHandled
     }
 }
 
@@ -634,18 +863,19 @@ impl ErrorHandler for StrictErrorHandler {}
 pub struct DefaultErrorHandler {}
 
 impl ErrorHandler for DefaultErrorHandler {
-    fn fix_block_index_out_of_range(
-        region: &mut Region,
-        error: &Error) -> ErrorHandleResult<u16> {
+    fn fix_block_index_out_of_range(region: &mut Region, error: &Error) -> ErrorHandleResult<u16> {
         if let Error::BlockIndexOutOfRange { .. } = error {
             let air_id = region.find_or_append_to_palette(&Block::air());
             return ErrorHandleResult::HandledWithWarning(air_id);
         }
-        return ErrorHandleResult::NotHandled;
+        ErrorHandleResult::NotHandled
     }
 
-    fn fix_block_pos_out_of_range(_region: &mut Region, _error: &Error) -> ErrorHandleResult<BlockPosOutOfRangeFixMethod> {
-        return ErrorHandleResult::HandledWithWarning(BlockPosOutOfRangeFixMethod::IgnoreThisBlock);
+    fn fix_block_pos_out_of_range(
+        _region: &mut Region,
+        _error: &Error,
+    ) -> ErrorHandleResult<BlockPosOutOfRangeFixMethod> {
+        ErrorHandleResult::HandledWithWarning(BlockPosOutOfRangeFixMethod::IgnoreThisBlock)
     }
 
     // fn fix_invalid_block_id(_region: &mut Region, _error: &LoadError) -> ErrorHandleResult<Block> {

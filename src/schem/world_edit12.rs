@@ -16,18 +16,20 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-use std::collections::HashMap;
-use std::fs::File;
-use std::mem;
-use fastnbt::Value;
-use flate2::read::GzDecoder;
-use ndarray::Array3;
 use crate::block::Block;
 use crate::error::Error;
 use crate::old_block::OldBlockParseError;
 use crate::region::{BlockEntity, Region};
-use crate::schem::{common, id_of_nbt_tag, MetaDataIR, Schematic, WE12MetaData, WorldEdit12LoadOption};
+use crate::schem::{
+    common, id_of_nbt_tag, MetaDataIR, Schematic, WE12MetaData, WorldEdit12LoadOption,
+};
 use crate::{unwrap_opt_tag, unwrap_tag};
+use fastnbt::Value;
+use flate2::read::GzDecoder;
+use ndarray::Array3;
+use std::collections::HashMap;
+use std::fs::File;
+use std::mem;
 
 
 fn i8_to_u8(a: i8) -> u8 {
@@ -35,19 +37,21 @@ fn i8_to_u8(a: i8) -> u8 {
         a as u8
     } else {
         (256 + a as i16) as u8
-    }
+    };
 }
 
 fn parse_shape(nbt: &HashMap<String, Value>) -> Result<[i16; 3], Error> {
-    let x_size = *unwrap_opt_tag!(nbt.get("Width"),Short,0,"/Width".to_string());
-    let y_size = *unwrap_opt_tag!(nbt.get("Height"),Short,0,"/Height".to_string());
-    let z_size = *unwrap_opt_tag!(nbt.get("Length"),Short,0,"/Length".to_string());
+    let x_size = *unwrap_opt_tag!(nbt.get("Width"), Short, 0, "/Width".to_string());
+    let y_size = *unwrap_opt_tag!(nbt.get("Height"), Short, 0, "/Height".to_string());
+    let z_size = *unwrap_opt_tag!(nbt.get("Length"), Short, 0, "/Length".to_string());
     return Ok([x_size, y_size, z_size]);
 }
 
 impl Schematic {
     /// Parse number id
-    pub fn parse_number_id_from_we12(nbt: &HashMap<String, Value>) -> Result<Array3<(u8, u8)>, Error> {
+    pub fn parse_number_id_from_we12(
+        nbt: &HashMap<String, Value>,
+    ) -> Result<Array3<(u8, u8)>, Error> {
         let x_size;
         let y_size;
         let z_size;
@@ -60,21 +64,37 @@ impl Schematic {
 
         let mut array = Array3::default([y_size, z_size, x_size]);
 
-        let blocks = unwrap_opt_tag!(nbt.get("Blocks"),ByteArray,fastnbt::ByteArray::new(vec![]),"/Blocks".to_string());
-        let data = unwrap_opt_tag!(nbt.get("Data"),ByteArray,fastnbt::ByteArray::new(vec![]),"/Data".to_string());
+        let blocks = unwrap_opt_tag!(
+            nbt.get("Blocks"),
+            ByteArray,
+            fastnbt::ByteArray::new(vec![]),
+            "/Blocks".to_string()
+        );
+        let data = unwrap_opt_tag!(
+            nbt.get("Data"),
+            ByteArray,
+            fastnbt::ByteArray::new(vec![]),
+            "/Data".to_string()
+        );
 
         {
             let expected_elements = x_size * y_size * z_size;
             if blocks.len() != expected_elements {
                 return Err(Error::InvalidValue {
                     tag_path: "/Blocks".to_string(),
-                    error: format!("Expected to contain {expected_elements} elements but found {}.", blocks.len()),
+                    error: format!(
+                        "Expected to contain {expected_elements} elements but found {}.",
+                        blocks.len()
+                    ),
                 });
             }
             if data.len() != blocks.len() {
                 return Err(Error::InvalidValue {
                     tag_path: "/Data".to_string(),
-                    error: format!("Expected to contain {expected_elements} elements but found {}.", data.len()),
+                    error: format!(
+                        "Expected to contain {expected_elements} elements but found {}.",
+                        data.len()
+                    ),
                 });
             }
         }
@@ -92,25 +112,36 @@ impl Schematic {
             }
         }
 
-
         return Ok(array);
     }
 
-    fn parse_metadata(nbt: &mut HashMap<String, Value>, option: &WorldEdit12LoadOption) -> Result<(MetaDataIR, WE12MetaData), Error> {
+    fn parse_metadata(
+        nbt: &mut HashMap<String, Value>,
+        option: &WorldEdit12LoadOption,
+    ) -> Result<(MetaDataIR, WE12MetaData), Error> {
         let mut raw = WE12MetaData::default();
 
-        mem::swap(&mut raw.materials, unwrap_opt_tag!(nbt.get_mut("Materials"),String,"".to_string(),"/Materials"));
+        mem::swap(
+            &mut raw.materials,
+            unwrap_opt_tag!(
+                nbt.get_mut("Materials"),
+                String,
+                "".to_string(),
+                "/Materials"
+            ),
+        );
 
         for (dim, letter) in ['X', 'Y', 'Z'].iter().enumerate() {
             let key_offset = format!("WEOffset{}", letter);
             let key_origin = format!("WEOrigin{}", letter);
-            raw.we_offset[dim] = *unwrap_opt_tag!(nbt.get(&key_offset),Int,0,format!("/{key_offset}"));
-            raw.we_origin[dim] = *unwrap_opt_tag!(nbt.get(&key_origin),Int,0,format!("/{key_origin}"));
+            raw.we_offset[dim] =
+                *unwrap_opt_tag!(nbt.get(&key_offset), Int, 0, format!("/{key_offset}"));
+            raw.we_origin[dim] =
+                *unwrap_opt_tag!(nbt.get(&key_origin), Int, 0, format!("/{key_origin}"));
         }
 
         let shape = parse_shape(nbt)?;
         [raw.width, raw.height, raw.width] = shape;
-
 
         let mut md = MetaDataIR::default();
         md.mc_data_version = option.data_version as i32;
@@ -122,7 +153,10 @@ impl Schematic {
     }
 
     /// Load `.schematic` from file
-    pub fn from_world_edit_12_file(filename: &str, option: &WorldEdit12LoadOption) -> Result<(Schematic, WE12MetaData, Array3<(u8, u8)>), Error> {
+    pub fn from_world_edit_12_file(
+        filename: &str,
+        option: &WorldEdit12LoadOption,
+    ) -> Result<(Schematic, WE12MetaData, Array3<(u8, u8)>), Error> {
         let file = match File::open(filename) {
             Ok(f) => f,
             Err(e) => return Err(Error::FileOpenError(e)),
@@ -136,7 +170,10 @@ impl Schematic {
     }
 
     /// Load `.schematic` from reader
-    pub fn from_world_edit_12_reader(src: &mut dyn std::io::Read, option: &WorldEdit12LoadOption) -> Result<(Schematic, WE12MetaData, Array3<(u8, u8)>), Error> {
+    pub fn from_world_edit_12_reader(
+        src: &mut dyn std::io::Read,
+        option: &WorldEdit12LoadOption,
+    ) -> Result<(Schematic, WE12MetaData, Array3<(u8, u8)>), Error> {
         let nbt: HashMap<String, Value> = match fastnbt::from_reader(src) {
             Ok(n) => n,
             Err(e) => return Err(Error::NBTReadError(e)),
@@ -145,13 +182,15 @@ impl Schematic {
     }
 
     /// Load `.schematic` from nbt
-    pub fn from_world_edit_12_nbt(mut nbt: HashMap<String, Value>, option: &WorldEdit12LoadOption) -> Result<(Schematic, WE12MetaData, Array3<(u8, u8)>), Error> {
+    pub fn from_world_edit_12_nbt(
+        mut nbt: HashMap<String, Value>,
+        option: &WorldEdit12LoadOption,
+    ) -> Result<(Schematic, WE12MetaData, Array3<(u8, u8)>), Error> {
         let mut schem = Schematic::new();
         // metadata
 
         let (md, raw) = Self::parse_metadata(&mut nbt, option)?;
         schem.metadata = md;
-
 
         let (region, number_id) = Region::from_world_edit_12(&mut nbt, option)?;
         schem.regions.push(region);
@@ -179,8 +218,10 @@ impl Default for BlockStats {
 
 impl Region {
     /// Load region from nbt
-    pub fn from_world_edit_12(nbt: &mut HashMap<String, Value>, option: &WorldEdit12LoadOption)
-        -> Result<(Region, Array3<(u8, u8)>), Error> {
+    pub fn from_world_edit_12(
+        nbt: &mut HashMap<String, Value>,
+        option: &WorldEdit12LoadOption,
+    ) -> Result<(Region, Array3<(u8, u8)>), Error> {
         let data_version = option.data_version;
         let id_damage_array = Schematic::parse_number_id_from_we12(&nbt)?;
         let mut region = Region::new();
@@ -210,10 +251,12 @@ impl Region {
                 }
                 let block = match Block::from_old(id as u8, damage, data_version) {
                     Ok(b) => b,
-                    Err(detail) => return Err(Error::InvalidBlockNumberId {
-                        tag_path: format!("/Data[{}]", stat.first_occur_index),
-                        detail,
-                    }),
+                    Err(detail) => {
+                        return Err(Error::InvalidBlockNumberId {
+                            tag_path: format!("/Data[{}]", stat.first_occur_index),
+                            detail,
+                        })
+                    }
                 };
                 stat.id = region.palette.len() as u16;
                 region.palette.push(block);
@@ -221,7 +264,11 @@ impl Region {
         }
 
         let shape_usize = id_damage_array.shape();
-        let shape_yzx: [i32; 3] = [shape_usize[0] as i32, shape_usize[1] as i32, shape_usize[2] as i32];
+        let shape_yzx: [i32; 3] = [
+            shape_usize[0] as i32,
+            shape_usize[1] as i32,
+            shape_usize[2] as i32,
+        ];
         let shape_xyz = Region::pos_yzx_to_xyz(&shape_yzx);
         region.reshape(&shape_xyz);
 
@@ -239,11 +286,12 @@ impl Region {
         }
 
         //tile entities
-        let tile_entities = unwrap_opt_tag!(nbt.get_mut("TileEntities"),List,vec![],"/TileEntities");
+        let tile_entities =
+            unwrap_opt_tag!(nbt.get_mut("TileEntities"), List, vec![], "/TileEntities");
         region.block_entities.reserve(tile_entities.len());
         for (idx, te) in tile_entities.iter_mut().enumerate() {
             let tag_path = format!("/TileEntities[{idx}]");
-            let te = unwrap_tag!(te,Compound,HashMap::new(),&tag_path);
+            let te = unwrap_tag!(te, Compound, HashMap::new(), &tag_path);
             let pos_xyz = common::parse_size_compound(te, &tag_path, false)?;
             //check pos
             for dim in 0..3 {

@@ -16,10 +16,10 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-use std::collections::{BTreeMap, HashMap};
-use ndarray::{Array3};
 use crate::block::Block;
 use crate::error::Error;
+use ndarray::Array3;
+use std::collections::{BTreeMap, HashMap};
 
 /// Sky light and block light
 #[derive(Debug, Copy, Clone)]
@@ -42,7 +42,6 @@ pub struct BlockEntity {
     /// nbt tags of block entity
     pub tags: HashMap<String, fastnbt::Value>,
 }
-
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 #[allow(dead_code)]
@@ -71,9 +70,8 @@ pub trait HasPalette {
                 return Some(idx as u16);
             }
         }
-        return None;
+        None
     }
-
 
     /// Returns the block index of air in this region
     fn block_index_of_air(&self) -> Option<u16> {
@@ -82,7 +80,7 @@ pub trait HasPalette {
                 return Some(idx as u16);
             }
         }
-        return None;
+        None
     }
 
     /// Returns the block index of structure void in this region
@@ -92,10 +90,9 @@ pub trait HasPalette {
                 return Some(idx as u16);
             }
         }
-        return None;
+        None
     }
 }
-
 
 /// Part of a Minecraft world
 pub trait WorldSlice {
@@ -109,23 +106,27 @@ pub trait WorldSlice {
             }
             return false;
         }
-        return true;
+        true
     }
     /// Returns the volume
     fn volume(&self) -> u64 {
-        return self.shape()[0] as u64 * self.shape()[1] as u64 * self.shape()[2] as u64;
+        self.shape()[0] as u64 * self.shape()[1] as u64 * self.shape()[2] as u64
     }
     ///Returns the count of blocks in region. Air will be counted if `include_air` is true, structure
     /// void is never counted.
     fn total_blocks(&self, include_air: bool) -> u64;
     /// Returns detailed block infos at `r_pos`, including block index, block, block entity and pending tick.
     /// Returns `None` if the block is outside the region
-    fn block_info_at(&self, r_pos: [i32; 3]) -> Option<(u16, &Block, Option<&BlockEntity>, &[PendingTick])> {
-        return Some((self.block_index_at(r_pos)?,
-                     self.block_at(r_pos)?,
-                     self.block_entity_at(r_pos),
-                     self.pending_tick_at(r_pos),
-        ));
+    fn block_info_at(
+        &self,
+        r_pos: [i32; 3],
+    ) -> Option<(u16, &Block, Option<&BlockEntity>, &[PendingTick])> {
+        Some((
+            self.block_index_at(r_pos)?,
+            self.block_at(r_pos)?,
+            self.block_entity_at(r_pos),
+            self.pending_tick_at(r_pos),
+        ))
     }
     /// Get block index at `r_pos`, returns `None` if the block is outside the region
     fn block_index_at(&self, r_pos: [i32; 3]) -> Option<u16>;
@@ -141,7 +142,6 @@ pub trait HasOffset {
     /// Offset of this region
     fn offset(&self) -> [i32; 3];
 }
-
 
 #[derive(Debug, Clone)]
 pub struct Sparse3DArray {
@@ -260,11 +260,11 @@ impl Sparse3DArray {
         }
     }
 
-    pub fn into_dense(&self) -> Array3<u16> {
+    pub fn to_dense(&self) -> Array3<u16> {
         let mut ret = Array3::zeros(self.shape);
-        self.visit_non_zero(
-            &mut |_, pos, val| { ret[*pos] = val; }
-        );
+        self.visit_non_zero(&mut |_, pos, val| {
+            ret[*pos] = val;
+        });
 
         ret
     }
@@ -294,10 +294,8 @@ impl Array3DVariant {
                 let sh = arr.shape();
                 debug_assert!(sh.len() == 3);
                 [sh[0], sh[1], sh[2]]
-            },
-            Array3DVariant::Sparse(arr) => {
-                arr.shape.clone()
             }
+            Array3DVariant::Sparse(arr) => arr.shape.clone(),
         }
     }
 
@@ -312,24 +310,24 @@ impl Array3DVariant {
         match self {
             Array3DVariant::Dense(arr) => {
                 *arr = Array3::zeros(*new_shape);
-            },
+            }
             Array3DVariant::Sparse(arr) => {
                 arr.reshape(new_shape);
-            },
+            }
         }
     }
 
     pub fn get_3d(&self, pos: &[usize; 3]) -> u16 {
         match self {
             Array3DVariant::Dense(arr) => arr[*pos],
-            Array3DVariant::Sparse(arr) => arr.get_3d(pos)
+            Array3DVariant::Sparse(arr) => arr.get_3d(pos),
         }
     }
 
     pub fn set_3d(&mut self, pos: &[usize; 3], value: u16) {
         match self {
             Array3DVariant::Dense(arr) => arr[*pos] = value,
-            Array3DVariant::Sparse(arr) => arr.set_3d(pos, value)
+            Array3DVariant::Sparse(arr) => arr.set_3d(pos, value),
         }
     }
 
@@ -340,10 +338,10 @@ impl Array3DVariant {
                     let pos = Sparse3DArray::coordinate_1d_to_3d(idx_1d, &self.shape());
                     func(idx_1d, &pos, arr[pos]);
                 }
-            },
+            }
             Array3DVariant::Sparse(arr) => {
                 arr.visit_non_zero(func);
-            },
+            }
         }
     }
 
@@ -355,10 +353,10 @@ impl Array3DVariant {
                     let pos = Sparse3DArray::coordinate_1d_to_3d(idx_1d, &shape);
                     func(idx_1d, &pos, &mut arr[pos]);
                 }
-            },
+            }
             Array3DVariant::Sparse(arr) => {
                 arr.visit_non_zero_mut(func);
-            },
+            }
         }
     }
 
@@ -367,7 +365,7 @@ impl Array3DVariant {
             Array3DVariant::Dense(arr) => {
                 arr.fill(value);
                 return;
-            },
+            }
             Array3DVariant::Sparse(arr) => {
                 if value == 0 {
                     arr.elements.clear();
@@ -389,10 +387,10 @@ impl Array3DVariant {
                     let pos = Sparse3DArray::coordinate_1d_to_3d(idx_1d, &self.shape());
                     func(idx_1d, &pos, arr[pos]);
                 }
-            },
+            }
             Array3DVariant::Sparse(arr) => {
                 arr.visit_dense(func);
-            },
+            }
         }
     }
 
@@ -401,7 +399,7 @@ impl Array3DVariant {
             return;
         }
         if let Array3DVariant::Sparse(arr) = self {
-            *self = Array3DVariant::Dense(arr.into_dense());
+            *self = Array3DVariant::Dense(arr.to_dense());
         }
     }
 
@@ -447,37 +445,35 @@ pub struct Region {
     pub entities: Vec<Entity>,
     /// Offset of this region
     pub offset: [i32; 3],
-
-
     //pub array_number_id_damage: Option<Array3<(u8, u8)>>
 }
 
 impl Default for Light {
     fn default() -> Self {
-        return Self(0xFF);
+        Self(0xFF)
     }
 }
 
 impl Light {
     pub fn new(sky_light: u8, block_light: u8) -> Self {
-        return Self(sky_light << 4 | block_light);
+        Self(sky_light << 4 | block_light)
     }
 
     pub fn sky_light(&self) -> u8 {
-        return (self.0 & 0xF0) >> 4;
+        (self.0 & 0xF0) >> 4
     }
     pub fn block_light(&self) -> u8 {
-        return self.0 & 0x0F;
+        self.0 & 0x0F
     }
 }
 
 impl Entity {
     pub fn new() -> Entity {
-        return Entity {
+        Entity {
             tags: HashMap::new(),
             position: [0.0, 0.0, 0.0],
             block_pos: [0, 0, 0],
-        };
+        }
     }
 
     /// Add adder to position and block_pos
@@ -491,16 +487,15 @@ impl Entity {
 
 impl BlockEntity {
     pub fn new() -> BlockEntity {
-        return BlockEntity {
+        BlockEntity {
             tags: HashMap::new(),
-        };
+        }
     }
 }
 
-
 impl PendingTickInfo {
     pub fn default() -> PendingTickInfo {
-        return PendingTickInfo::Block { id: "".to_string() };
+        PendingTickInfo::Block { id: "".to_string() }
     }
 }
 
@@ -517,14 +512,16 @@ impl HasOffset for Region {
 }
 
 impl WorldSlice for Region {
-
     /// Shape in x, y, z
     fn shape(&self) -> [i32; 3] {
         let shape = self.array_yzx.shape();
         if shape.len() != 3 {
-            panic!("Invalid array dimensions: should be 3 but now it is {}", shape.len());
+            panic!(
+                "Invalid array dimensions: should be 3 but now it is {}",
+                shape.len()
+            );
         }
-        return Self::pos_yzx_to_xyz(&[shape[0] as i32, shape[1] as i32, shape[2] as i32]);
+        Self::pos_yzx_to_xyz(&[shape[0] as i32, shape[1] as i32, shape[2] as i32])
     }
     ///Returns the count of blocks in region. Air will be counted if `include_air` is true, structure
     /// void is never counted.
@@ -533,8 +530,8 @@ impl WorldSlice for Region {
         let air_idx_opt = self.block_index_of_air();
         let sv_idx_opt = self.block_index_of_structure_void();
 
-        self.array_yzx.visit_dense(
-            &mut |_idx_1d: usize, _pos: &[usize; 3], blk_id: u16| {
+        self.array_yzx
+            .visit_dense(&mut |_idx_1d: usize, _pos: &[usize; 3], blk_id: u16| {
                 if let Some(air_idx) = air_idx_opt {
                     if blk_id == air_idx {
                         if include_air {
@@ -552,21 +549,26 @@ impl WorldSlice for Region {
                 }
 
                 counter += 1;
-            }
-        );
+            });
         counter
     }
 
     /// Returns detailed block infos at `r_pos`, including block index, block, block entity and pending tick.
     /// Returns `None` if the block is outside the region
-    fn block_info_at(&self, r_pos: [i32; 3]) -> Option<(u16, &Block, Option<&BlockEntity>, &[PendingTick])> {
-        return if let Some(pid) = self.block_index_at(r_pos) {
-            Some((pid, &self.palette[pid as usize],
-                  self.block_entities.get(&r_pos),
-                  self.pending_tick_at(r_pos)))
+    fn block_info_at(
+        &self,
+        r_pos: [i32; 3],
+    ) -> Option<(u16, &Block, Option<&BlockEntity>, &[PendingTick])> {
+        if let Some(pid) = self.block_index_at(r_pos) {
+            Some((
+                pid,
+                &self.palette[pid as usize],
+                self.block_entities.get(&r_pos),
+                self.pending_tick_at(r_pos),
+            ))
         } else {
             None
-        };
+        }
     }
     /// Get block index at `r_pos`, returns `None` if the block is outside the region
     fn block_index_at(&self, r_pos: [i32; 3]) -> Option<u16> {
@@ -583,15 +585,15 @@ impl WorldSlice for Region {
     }
     /// Get block at `r_pos`, returns `None` if the block is outside the region
     fn block_at(&self, r_pos: [i32; 3]) -> Option<&Block> {
-        return if let Some(pid) = self.block_index_at(r_pos) {
+        if let Some(pid) = self.block_index_at(r_pos) {
             Some(&self.palette[pid as usize])
         } else {
             None
-        };
+        }
     }
     /// Get block entity at `r_pos`
     fn block_entity_at(&self, r_pos: [i32; 3]) -> Option<&BlockEntity> {
-        return self.block_entities.get(&r_pos);
+        self.block_entities.get(&r_pos)
     }
 
     /// Get pending tick at `r_pos`
@@ -603,18 +605,21 @@ impl WorldSlice for Region {
     }
 }
 
-
 #[allow(dead_code)]
 impl Region {
     /// Convert pos from xyz to yzx
     pub fn pos_xyz_to_yzx<T>(pos: &[T; 3]) -> [T; 3]
-        where T: Copy {
+    where
+        T: Copy,
+    {
         [pos[1], pos[2], pos[0]]
     }
 
     /// Convert pos from yzx to xyz
     pub fn pos_yzx_to_xyz<T>(yzx: &[T; 3]) -> [T; 3]
-        where T: Copy {
+    where
+        T: Copy,
+    {
         [yzx[2], yzx[0], yzx[1]]
     }
 
@@ -624,7 +629,11 @@ impl Region {
     }
 
     pub fn with_shape(shape_xyz: [i32; 3]) -> Region {
-        let shape_yzx = [shape_xyz[1] as usize, shape_xyz[2] as usize, shape_xyz[0] as usize];
+        let shape_yzx = [
+            shape_xyz[1] as usize,
+            shape_xyz[2] as usize,
+            shape_xyz[0] as usize,
+        ];
         //let shape_zx = [shape_xyz[2], shape_xyz[1]];
         let mut result = Region {
             name: String::from("NewRegion"),
@@ -636,7 +645,7 @@ impl Region {
             offset: [0, 0, 0],
         };
         result.find_or_append_to_palette(&Block::air());
-        return result;
+        result
     }
 
     /// Convert pos in `[i32;3]` to `[usize;3]`
@@ -672,9 +681,10 @@ impl Region {
         let blkid = blkid as u16;
 
         let pos_usize = Self::i32_to_usize(&r_pos);
-        self.array_yzx.set_3d(&Self::pos_xyz_to_yzx(&pos_usize), blkid);
+        self.array_yzx
+            .set_3d(&Self::pos_xyz_to_yzx(&pos_usize), blkid);
 
-        return Ok(());
+        Ok(())
     }
 
     /// Set block index as `r_pos`. If `block_id` >= length of palette, returns `Err(())`
@@ -686,8 +696,9 @@ impl Region {
             return Err(());
         }
         let pos_usize = Self::i32_to_usize(&r_pos);
-        self.array_yzx.set_3d(&Self::pos_xyz_to_yzx(&pos_usize), block_id);
-        return Ok(());
+        self.array_yzx
+            .set_3d(&Self::pos_xyz_to_yzx(&pos_usize), block_id);
+        Ok(())
     }
 
     /// Reshape the region and fill `array_yzx` with 0
@@ -696,7 +707,10 @@ impl Region {
         for idx in 0..3 {
             let sz = shape_xyz[idx];
             if sz < 0 {
-                panic!("Try resizing with negative size [{},{},{}]", shape_xyz[0], shape_xyz[1], shape_xyz[2]);
+                panic!(
+                    "Try resizing with negative size [{},{},{}]",
+                    shape_xyz[0], shape_xyz[1], shape_xyz[2]
+                );
             }
             usz[idx] = sz as usize;
         }
@@ -712,7 +726,10 @@ impl Region {
     pub fn shape_yzx(&self) -> [i32; 3] {
         let shape = self.array_yzx.shape();
         if shape.len() != 3 {
-            panic!("Invalid array dimensions: should be 3 but now it is {}", shape.len());
+            panic!(
+                "Invalid array dimensions: should be 3 but now it is {}",
+                shape.len()
+            );
         }
         [shape[0] as i32, shape[1] as i32, shape[2] as i32]
     }
@@ -741,27 +758,23 @@ impl Region {
         block_counter.resize(self.palette.len(), 0);
 
         let mut ret: Result<(), Error> = Ok(());
-        self.array_yzx.visit_dense(
-            &mut |_, pos, blk_idx| {
-                if let Err(_) = &ret {
-                    return;
-                }
-                if blk_idx as usize >= self.palette.len()
-                {
-                    let [y, z, x] = *pos;
-                    ret = Err(Error::BlockIndexOutOfRangeWriting {
-                        r_pos: [x as i32, y as i32, z as i32],
-                        block_index: blk_idx,
-                        max_index: self.palette.len() as u16 - 1,
-                    });
-                }
-                block_counter[blk_idx as usize] += 1;
+        self.array_yzx.visit_dense(&mut |_, pos, blk_idx| {
+            if let Err(_) = &ret {
+                return;
             }
-        );
+            if blk_idx as usize >= self.palette.len() {
+                let [y, z, x] = *pos;
+                ret = Err(Error::BlockIndexOutOfRangeWriting {
+                    r_pos: [x as i32, y as i32, z as i32],
+                    block_index: blk_idx,
+                    max_index: self.palette.len() as u16 - 1,
+                });
+            }
+            block_counter[blk_idx as usize] += 1;
+        });
         if ret.is_err() {
             return ret;
         }
-
 
         let mut id_map: Vec<u16> = Vec::new();
         id_map.resize(self.palette.len(), 65535);
@@ -781,13 +794,11 @@ impl Region {
             }
         }
 
-        self.array_yzx.visit_non_zero_mut(
-            &mut |_, _, blkid| {
-                let new_id = id_map[*blkid as usize];
-                assert!((new_id as usize) < self.palette.len());
-                *blkid = new_id;
-            }
-        );
+        self.array_yzx.visit_non_zero_mut(&mut |_, _, blkid| {
+            let new_id = id_map[*blkid as usize];
+            assert!((new_id as usize) < self.palette.len());
+            *blkid = new_id;
+        });
 
         Ok(())
     }
@@ -799,12 +810,12 @@ impl Region {
                 return Some(idx as u16);
             }
         }
-        return None;
+        None
     }
 
     /// Find the block in palette, if not exist, append it to the palette.
     pub fn find_or_append_to_palette(&mut self, block: &Block) -> u16 {
-        return match self.find_in_palette(block) {
+        match self.find_in_palette(block) {
             Some(idx) => idx,
             None => {
                 self.palette.push(block.clone());
@@ -820,37 +831,50 @@ impl Region {
 
     /// Set block entity at `r_pos`
     pub fn set_block_entity_at(&mut self, r_pos: [i32; 3], be: BlockEntity) -> Option<BlockEntity> {
-        return self.block_entities.insert(r_pos, be);
+        self.block_entities.insert(r_pos, be)
     }
     /// Set pending tick at `r_pos`
-    pub fn set_pending_tick_at(&mut self, r_pos: [i32; 3], value: Vec<PendingTick>) -> Option<Vec<PendingTick>> {
-        return self.pending_ticks.insert(r_pos, value);
+    pub fn set_pending_tick_at(
+        &mut self,
+        r_pos: [i32; 3],
+        value: Vec<PendingTick>,
+    ) -> Option<Vec<PendingTick>> {
+        self.pending_ticks.insert(r_pos, value)
     }
 
     /// Returns detailed block infos at `r_pos`, including block index, block, block entity(mutable) and pending tick(mutable).
     /// Returns `None` if the block is outside the region
-    pub fn block_info_at_mut(&mut self, r_pos: [i32; 3]) -> Option<(u16, &Block, Option<&mut BlockEntity>, &mut [PendingTick])> {
-        return if let Some(pid) = self.block_index_at(r_pos) {
-            Some((pid, &self.palette[pid as usize],
-                  self.block_entities.get_mut(&r_pos),
-                  if let Some(pts) = self.pending_ticks.get_mut(&r_pos) { pts.as_mut_slice() } else { &mut [] }
+    pub fn block_info_at_mut(
+        &mut self,
+        r_pos: [i32; 3],
+    ) -> Option<(u16, &Block, Option<&mut BlockEntity>, &mut [PendingTick])> {
+        if let Some(pid) = self.block_index_at(r_pos) {
+            Some((
+                pid,
+                &self.palette[pid as usize],
+                self.block_entities.get_mut(&r_pos),
+                if let Some(pts) = self.pending_ticks.get_mut(&r_pos) {
+                    pts.as_mut_slice()
+                } else {
+                    &mut []
+                },
             ))
         } else {
             None
-        };
+        }
     }
     /// Get mutable block entity at `r_pos`
     pub fn block_entity_at_mut(&mut self, r_pos: [i32; 3]) -> Option<&mut BlockEntity> {
-        return self.block_entities.get_mut(&r_pos);
+        self.block_entities.get_mut(&r_pos)
     }
 
     /// Get mutable pending tick at `r_pos`
     pub fn pending_tick_at_mut(&mut self, r_pos: [i32; 3]) -> &mut [PendingTick] {
-        return if let Some(pts) = self.pending_ticks.get_mut(&r_pos) {
+        if let Some(pts) = self.pending_ticks.get_mut(&r_pos) {
             pts.as_mut_slice()
         } else {
             &mut []
-        };
+        }
     }
 
     pub fn convert_to_dense(&mut self) {

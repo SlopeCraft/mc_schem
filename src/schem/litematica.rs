@@ -16,19 +16,22 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+use crate::error::Error;
+use crate::region::{PendingTick, PendingTickInfo, WorldSlice};
+use crate::schem::common;
+use crate::schem::common::size_i32_abs;
+use crate::schem::{
+    id_of_nbt_tag, BlockEntity, LitematicaLoadOption, LitematicaMetaData, LitematicaSaveOption,
+    MetaDataIR, Region, Schematic,
+};
+use crate::{unwrap_opt_tag, unwrap_tag};
+use fastnbt::{LongArray, Value};
+use flate2::read::GzDecoder;
+use flate2::GzBuilder;
 use std::cmp::max;
 use std::collections::HashMap;
 use std::convert::From;
 use std::fs::File;
-use fastnbt::{LongArray, Value};
-use flate2::{GzBuilder};
-use flate2::read::GzDecoder;
-use crate::schem::{LitematicaMetaData, Schematic, id_of_nbt_tag, MetaDataIR, Region, LitematicaLoadOption, BlockEntity, LitematicaSaveOption};
-use crate::error::{Error};
-use crate::{unwrap_opt_tag, unwrap_tag};
-use crate::schem::common;
-use crate::region::{PendingTick, PendingTickInfo, WorldSlice};
-use crate::schem::common::size_i32_abs;
 
 impl MetaDataIR {
     pub fn from_litematica(src: &LitematicaMetaData) -> Self {
@@ -48,10 +51,12 @@ impl MetaDataIR {
     }
 }
 
-
 impl Schematic {
     /// Load litematica from file.
-    pub fn from_litematica_file(filename: &str, option: &LitematicaLoadOption) -> Result<(Schematic, LitematicaMetaData), Error> {
+    pub fn from_litematica_file(
+        filename: &str,
+        option: &LitematicaLoadOption,
+    ) -> Result<(Schematic, LitematicaMetaData), Error> {
         let file_res = File::open(filename);
         let mut file;
         match file_res {
@@ -63,8 +68,12 @@ impl Schematic {
         return Self::from_litematica_reader(&mut decoder, option);
     }
     /// Load litematica from a reader
-    pub fn from_litematica_reader(src: &mut dyn std::io::Read, option: &LitematicaLoadOption) -> Result<(Schematic, LitematicaMetaData), Error> {
-        let parse_res: Result<HashMap<String, Value>, fastnbt::error::Error> = fastnbt::from_reader(src);
+    pub fn from_litematica_reader(
+        src: &mut dyn std::io::Read,
+        option: &LitematicaLoadOption,
+    ) -> Result<(Schematic, LitematicaMetaData), Error> {
+        let parse_res: Result<HashMap<String, Value>, fastnbt::error::Error> =
+            fastnbt::from_reader(src);
         let parsed;
         match parse_res {
             Ok(nbt) => parsed = nbt,
@@ -73,7 +82,10 @@ impl Schematic {
         return Self::from_litematica_nbt(parsed, option);
     }
 
-    pub fn from_litematica_nbt(mut nbt: HashMap<String, Value>, _option: &LitematicaLoadOption) -> Result<(Schematic, LitematicaMetaData), Error> {
+    pub fn from_litematica_nbt(
+        mut nbt: HashMap<String, Value>,
+        _option: &LitematicaLoadOption,
+    ) -> Result<(Schematic, LitematicaMetaData), Error> {
         let mut schem = Schematic::new();
         let raw_metadata;
         match parse_metadata(&nbt) {
@@ -81,49 +93,80 @@ impl Schematic {
                 schem.metadata = MetaDataIR::from_litematica(&md);
                 raw_metadata = md;
             }
-            Err(e) => return Err(e)
+            Err(e) => return Err(e),
         }
 
-        let regions = unwrap_opt_tag!(nbt.get_mut("Regions"),Compound,HashMap::new(),"/Regions".to_string());
+        let regions = unwrap_opt_tag!(
+            nbt.get_mut("Regions"),
+            Compound,
+            HashMap::new(),
+            "/Regions".to_string()
+        );
         schem.regions.reserve(regions.len());
         for (key, val) in regions {
-            let reg = unwrap_tag!(val,Compound,HashMap::new(),format!("/Regions/{}",key));
+            let reg = unwrap_tag!(val, Compound, HashMap::new(), format!("/Regions/{}", key));
             match Region::from_nbt_litematica(reg, &*format!("/Regions/{}", key)) {
                 Ok(mut reg) => {
                     reg.name = key.clone();
                     schem.regions.push(reg);
-                },
+                }
                 Err(e) => return Err(e),
             }
         }
-
 
         return Ok((schem, raw_metadata));
     }
 }
 
-
 fn parse_metadata(root: &HashMap<String, Value>) -> Result<LitematicaMetaData, Error> {
     let mut result = LitematicaMetaData::default();
 
-    result.data_version = *unwrap_opt_tag!(root.get("MinecraftDataVersion"),Int,0,"/MinecraftDataVersion");
-    result.version = *unwrap_opt_tag!(root.get("Version"),Int,0,"/Version");
+    result.data_version = *unwrap_opt_tag!(
+        root.get("MinecraftDataVersion"),
+        Int,
+        0,
+        "/MinecraftDataVersion"
+    );
+    result.version = *unwrap_opt_tag!(root.get("Version"), Int, 0, "/Version");
 
-    let md = unwrap_opt_tag!(root.get("Metadata"),Compound,HashMap::new(),"/Metadata".to_string());
+    let md = unwrap_opt_tag!(
+        root.get("Metadata"),
+        Compound,
+        HashMap::new(),
+        "/Metadata".to_string()
+    );
 
-    result.time_created = *unwrap_opt_tag!(md.get("TimeCreated"),Long,0,"/Metadata/TimeCreated".to_string());
-    result.time_modified = *unwrap_opt_tag!(md.get("TimeModified"),Long,0,"/Metadata/TimeModified".to_string());
+    result.time_created = *unwrap_opt_tag!(
+        md.get("TimeCreated"),
+        Long,
+        0,
+        "/Metadata/TimeCreated".to_string()
+    );
+    result.time_modified = *unwrap_opt_tag!(
+        md.get("TimeModified"),
+        Long,
+        0,
+        "/Metadata/TimeModified".to_string()
+    );
     {
-        let enclosing_size = unwrap_opt_tag!(md.get("EnclosingSize"),Compound,HashMap::new(),"/Metadata/EnclosingSize".to_string());
+        let enclosing_size = unwrap_opt_tag!(
+            md.get("EnclosingSize"),
+            Compound,
+            HashMap::new(),
+            "/Metadata/EnclosingSize".to_string()
+        );
         if enclosing_size.len() != 3 {
             return Err(Error::InvalidValue {
                 tag_path: "/Metadata/EnclosingSize".to_string(),
-                error: format!("Expected a compound containing 3 elements, but found {}", enclosing_size.len()),
+                error: format!(
+                    "Expected a compound containing 3 elements, but found {}",
+                    enclosing_size.len()
+                ),
             });
         }
 
         match common::parse_size_compound(enclosing_size, "/Metadata/EnclosingSize", false) {
-            Ok(_size) => {},
+            Ok(_size) => {}
             Err(e) => return Err(e),
         }
 
@@ -139,26 +182,64 @@ fn parse_metadata(root: &HashMap<String, Value>) -> Result<LitematicaMetaData, E
         // }
     }
 
-    result.description
-        = unwrap_opt_tag!(md.get("Description"),String,"".to_string(),"/Metadata/Description".to_string()).clone();
+    result.description = unwrap_opt_tag!(
+        md.get("Description"),
+        String,
+        "".to_string(),
+        "/Metadata/Description".to_string()
+    )
+        .clone();
     //result.total_volume = *unwrap_opt_tag!(md.get("TotalVolume"),Int,0,"/Metadata/TotalVolume".to_string()) as i64;
-    result.author = unwrap_opt_tag!(md.get("Author"),String,"".to_string(),"/Metadata/Author".to_string()).clone();
-    result.name = unwrap_opt_tag!(md.get("Name"),String,"".to_string(),"/Metadata/Name".to_string()).clone();
+    result.author = unwrap_opt_tag!(
+        md.get("Author"),
+        String,
+        "".to_string(),
+        "/Metadata/Author".to_string()
+    )
+        .clone();
+    result.name = unwrap_opt_tag!(
+        md.get("Name"),
+        String,
+        "".to_string(),
+        "/Metadata/Name".to_string()
+    )
+        .clone();
 
-    result.total_volume = *unwrap_opt_tag!(md.get("TotalVolume"),Int,0,"/Metadata/TotalVolume".to_string());
-    result.region_count = *unwrap_opt_tag!(md.get("RegionCount"),Int,0,"/Metadata/RegionCount".to_string());
-    result.total_blocks = *unwrap_opt_tag!(md.get("TotalBlocks"),Int,0,"/Metadata/TotalBlocks".to_string());
+    result.total_volume = *unwrap_opt_tag!(
+        md.get("TotalVolume"),
+        Int,
+        0,
+        "/Metadata/TotalVolume".to_string()
+    );
+    result.region_count = *unwrap_opt_tag!(
+        md.get("RegionCount"),
+        Int,
+        0,
+        "/Metadata/RegionCount".to_string()
+    );
+    result.total_blocks = *unwrap_opt_tag!(
+        md.get("TotalBlocks"),
+        Int,
+        0,
+        "/Metadata/TotalBlocks".to_string()
+    );
     result.enclosing_size = common::parse_size_compound(
-        unwrap_opt_tag!(md.get("EnclosingSize"),Compound,HashMap::new(),"/Metadata/EnclosingSize".to_string()),
-        "/Metadata/EnclosingSize", false)?;
+        unwrap_opt_tag!(
+            md.get("EnclosingSize"),
+            Compound,
+            HashMap::new(),
+            "/Metadata/EnclosingSize".to_string()
+        ),
+        "/Metadata/EnclosingSize",
+        false,
+    )?;
 
     if let Some(value) = root.get("SubVersion") {
-        result.sub_version = Some(*unwrap_tag!(value,Int,0,"/SubVersion"));
+        result.sub_version = Some(*unwrap_tag!(value, Int, 0, "/SubVersion"));
     }
 
     return Ok(result);
 }
-
 
 pub fn block_required_bits(palette_size: usize) -> usize {
     let palette_size = max(palette_size, 1);
@@ -171,13 +252,17 @@ pub fn block_required_bits(palette_size: usize) -> usize {
 
 impl Region {
     /// Load a region from nbt
-    pub fn from_nbt_litematica(nbt: &mut HashMap<String, Value>, tag_path: &str) -> Result<Region, Error> {
+    pub fn from_nbt_litematica(
+        nbt: &mut HashMap<String, Value>,
+        tag_path: &str,
+    ) -> Result<Region, Error> {
         let mut region = Region::new();
 
         // parse position(offset)
         {
             let cur_tag_path = format!("{}/Position", tag_path);
-            let position = unwrap_opt_tag!(nbt.get("Position"),Compound,HashMap::new(),cur_tag_path);
+            let position =
+                unwrap_opt_tag!(nbt.get("Position"), Compound, HashMap::new(), cur_tag_path);
             match common::parse_size_compound(position, &cur_tag_path, true) {
                 Ok(pos) => region.offset = size_i32_abs(pos),
                 Err(e) => return Err(e),
@@ -186,12 +271,17 @@ impl Region {
 
         // parse palette
         {
-            let palette = unwrap_opt_tag!(nbt.get("BlockStatePalette"),List,vec![],format!("{}/BlockStatePalette",tag_path));
+            let palette = unwrap_opt_tag!(
+                nbt.get("BlockStatePalette"),
+                List,
+                vec![],
+                format!("{}/BlockStatePalette", tag_path)
+            );
             region.palette.reserve(palette.len());
             region.palette.clear();
             for (idx, blk_nbt) in palette.iter().enumerate() {
                 let cur_tag_path = format!("{}/BlockStatePalette[{}]", tag_path, idx);
-                let blk_nbt = unwrap_tag!(blk_nbt,Compound,HashMap::new(),&cur_tag_path);
+                let blk_nbt = unwrap_tag!(blk_nbt, Compound, HashMap::new(), &cur_tag_path);
                 let block = common::parse_block(blk_nbt, &cur_tag_path);
                 match block {
                     Ok(blk) => region.palette.push(blk),
@@ -204,30 +294,38 @@ impl Region {
         let region_size;
         {
             let cur_tag_path = format!("{}/Size", tag_path);
-            let size = unwrap_opt_tag!(nbt.get("Size"),Compound,HashMap::new(),cur_tag_path);
+            let size = unwrap_opt_tag!(nbt.get("Size"), Compound, HashMap::new(), cur_tag_path);
             match common::parse_size_compound(size, &cur_tag_path, true) {
                 Ok(size) => {
                     let size = size_i32_abs(size);
                     region.reshape(&size);
                     region_size = size;
-                },
+                }
                 Err(e) => return Err(e),
             }
         }
 
-
-        let total_blocks = region_size[0] as isize * region_size[1] as isize * region_size[2] as isize;
+        let total_blocks =
+            region_size[0] as isize * region_size[1] as isize * region_size[2] as isize;
 
         //parse 3d
         {
             let palette_len = region.palette.len();
-            let array =
-                unwrap_opt_tag!(nbt.get("BlockStates"),LongArray,LongArray::new(vec![]),format!("{}/BlockStates",tag_path));
+            let array = unwrap_opt_tag!(
+                nbt.get("BlockStates"),
+                LongArray,
+                LongArray::new(vec![]),
+                format!("{}/BlockStates", tag_path)
+            );
             let mut array_u8_be: Vec<u64> = Vec::with_capacity(array.len());
             for val in array.iter() {
                 array_u8_be.push(u64::from_ne_bytes(val.to_le_bytes()));
             }
-            let mbs = MultiBitSet::from_data_vec(array_u8_be, total_blocks as usize, block_required_bits(palette_len) as u8);
+            let mbs = MultiBitSet::from_data_vec(
+                array_u8_be,
+                total_blocks as usize,
+                block_required_bits(palette_len) as u8,
+            );
             assert!(mbs.is_some());
             let mbs = mbs.unwrap();
             let mut idx = 0;
@@ -240,10 +338,12 @@ impl Region {
                                 tag_path: format!("{}/BlockStates", tag_path),
                                 index: blk_id as i32,
                                 range: [0, palette_len as i32],
-                            })
+                            });
                         }
                         idx += 1;
-                        region.array_yzx.set_3d(&[y as usize, z as usize, x as usize], blk_id as u16);
+                        region
+                            .array_yzx
+                            .set_3d(&[y as usize, z as usize, x as usize], blk_id as u16);
                         // region.array_yzx[] = blk_id as u16;
                     }
                 }
@@ -253,11 +353,11 @@ impl Region {
         //parse entities
         {
             let cur_tag_path = format!("{}/Entities", tag_path);
-            let mut entities_list = unwrap_opt_tag!(nbt.remove("Entities"),List,vec![],cur_tag_path);
+            let mut entities_list =
+                unwrap_opt_tag!(nbt.remove("Entities"), List, vec![], cur_tag_path);
             for (idx, entity_comp) in entities_list.iter_mut().enumerate() {
                 let cur_tag_path = format!("{}/[{}]", cur_tag_path, idx);
-                let entity_comp =
-                    unwrap_tag!(entity_comp,Compound,HashMap::new(),cur_tag_path);
+                let entity_comp = unwrap_tag!(entity_comp, Compound, HashMap::new(), cur_tag_path);
                 let mut temp = HashMap::new();
                 std::mem::swap(&mut temp, entity_comp);
                 let parse_res = common::parse_entity_litematica(temp, &cur_tag_path);
@@ -271,10 +371,10 @@ impl Region {
         //parse tile entities
         {
             let cur_tag_path = format!("{}/TileEntities", tag_path);
-            let te_list = unwrap_opt_tag!(nbt.get_mut("TileEntities"),List,vec![],cur_tag_path);
+            let te_list = unwrap_opt_tag!(nbt.get_mut("TileEntities"), List, vec![], cur_tag_path);
             for (idx, te_comp) in te_list.iter_mut().enumerate() {
                 let cur_tag_path = format!("{}[{}]", tag_path, idx);
-                let te_comp = unwrap_tag!(te_comp,Compound,HashMap::new(),cur_tag_path);
+                let te_comp = unwrap_tag!(te_comp, Compound, HashMap::new(), cur_tag_path);
                 let mut temp = HashMap::new();
                 std::mem::swap(&mut temp, te_comp);
                 let te_res = parse_tile_entity(temp, tag_path, &region_size);
@@ -309,19 +409,22 @@ impl Region {
             //let mut tick_tag_record = HashMap::new();
 
             for (is_block, (tag, path)) in
-            [(block_ticks, pbt_tag_path), (fluid_ticks, pft_tag_path)].iter().enumerate() {
+                [(block_ticks, pbt_tag_path), (fluid_ticks, pft_tag_path)]
+                    .iter()
+                    .enumerate()
+            {
                 let is_block = is_block == 0;
                 // PendingBlockTicks and PendingFluidTicks may be empty. If empty, skip it
                 let ticks = match tag {
                     Some(t) => t,
-                    None => continue
+                    None => continue,
                 };
-                let ticks = unwrap_tag!(ticks,List,vec![],path);
+                let ticks = unwrap_tag!(ticks, List, vec![], path);
                 //tick_tag_record.reserve(ticks.len());
 
                 for (idx, tick) in ticks.iter().enumerate() {
                     let path = format!("{path}/[{idx}]");
-                    let tick = unwrap_tag!(tick,Compound,HashMap::new(),path);
+                    let tick = unwrap_tag!(tick, Compound, HashMap::new(), path);
                     let (pos, tick) = parse_pending_tick(tick, &path, &region.shape(), is_block)?;
 
                     // if region.pending_ticks.contains_key(&pos) {
@@ -347,14 +450,12 @@ impl Region {
     }
 }
 
-
 /// Bit-packed vector of unsigned integers. Used to encode and decode litematica
 #[derive(Debug)]
 pub struct MultiBitSet {
     arr: Vec<u64>,
     length: usize,
     element_bits: u8,
-
 }
 
 #[allow(dead_code)]
@@ -364,7 +465,7 @@ impl MultiBitSet {
             arr: Vec::new(),
             length: 0,
             element_bits: 1,
-        }
+        };
     }
 
     pub fn from_data(data: &[u64], length: usize, ele_bits: u8) -> Option<MultiBitSet> {
@@ -396,7 +497,7 @@ impl MultiBitSet {
             arr: data,
             length,
             element_bits: ele_bits,
-        })
+        });
     }
 
     pub fn as_u64_slice(&self) -> &[u64] {
@@ -426,7 +527,6 @@ impl MultiBitSet {
         self.element_bits = element_bits;
         self.arr.resize(self.required_u64_num(), 0);
     }
-
 
     fn global_bit_index_to_u64_index(&self, gbit_index: usize) -> usize {
         return gbit_index / 64;
@@ -469,7 +569,6 @@ impl MultiBitSet {
         return Self::logic_bit_index_to_global_bit_index(logic_bit_index);
     }
 
-
     fn is_element_on_single_block(&self, ele_index: usize) -> bool {
         let fgbi = self.first_global_bit_index_of(ele_index);
         let lgbi = self.last_global_bit_index_of(ele_index);
@@ -487,13 +586,13 @@ impl MultiBitSet {
     pub fn get(&self, ele_index: usize) -> u64 {
         assert!(ele_index < self.length);
 
-        let fgbi = self.first_global_bit_index_of(ele_index);//first global bit index
-        let lgbi = self.last_global_bit_index_of(ele_index);//last global bit index
+        let fgbi = self.first_global_bit_index_of(ele_index); //first global bit index
+        let lgbi = self.last_global_bit_index_of(ele_index); //last global bit index
 
         return if self.is_element_on_single_block(ele_index) {
             let u64_idx = self.global_bit_index_to_u64_index(fgbi);
             assert_eq!(u64_idx, self.global_bit_index_to_u64_index(lgbi));
-            let llbi = self.global_bit_index_to_local_bit_index(lgbi);//last local bit index
+            let llbi = self.global_bit_index_to_local_bit_index(lgbi); //last local bit index
             assert!(llbi < 64);
             let shifts = 63 - (llbi as isize);
             assert!(shifts >= 0);
@@ -522,7 +621,7 @@ impl MultiBitSet {
             let result = l_part | f_part;
 
             result
-        }
+        };
     }
 
     pub fn set(&mut self, ele_index: usize, value: u64) -> Result<(), ()> {
@@ -535,12 +634,12 @@ impl MultiBitSet {
         let value_mask = self.basic_mask();
         let value = value & value_mask;
 
-        let fgbi = self.first_global_bit_index_of(ele_index);//first global bit index
-        let lgbi = self.last_global_bit_index_of(ele_index);//last global bit index
+        let fgbi = self.first_global_bit_index_of(ele_index); //first global bit index
+        let lgbi = self.last_global_bit_index_of(ele_index); //last global bit index
         if self.is_element_on_single_block(ele_index) {
             let u64_idx = self.global_bit_index_to_u64_index(fgbi);
             assert_eq!(u64_idx, self.global_bit_index_to_u64_index(lgbi));
-            let llbi = self.global_bit_index_to_local_bit_index(lgbi);//last local bit index
+            let llbi = self.global_bit_index_to_local_bit_index(lgbi); //last local bit index
             assert!(llbi < 64);
             let shifts = 63 - (llbi as isize);
             assert!(shifts >= 0);
@@ -549,7 +648,6 @@ impl MultiBitSet {
 
             let inv_mask = !mask;
             self.arr[u64_idx] &= inv_mask;
-
 
             self.arr[u64_idx] ^= value << shifts;
         } else {
@@ -576,14 +674,15 @@ impl MultiBitSet {
             self.arr[u64idx_l] ^= l_write_mask;
         }
 
-
         return Ok(());
     }
 }
 
-
-fn parse_tile_entity(nbt: HashMap<String, Value>, tag_path: &str, region_size: &[i32; 3])
-    -> Result<([i32; 3], BlockEntity), Error> {
+fn parse_tile_entity(
+    nbt: HashMap<String, Value>,
+    tag_path: &str,
+    region_size: &[i32; 3],
+) -> Result<([i32; 3], BlockEntity), Error> {
     let (pos, be) = common::parse_block_entity_nocheck(nbt, tag_path, false)?;
 
     let tag_names = ['x', 'y', 'z'];
@@ -600,9 +699,12 @@ fn parse_tile_entity(nbt: HashMap<String, Value>, tag_path: &str, region_size: &
     return Ok((pos, be));
 }
 
-
-fn parse_pending_tick(nbt: &HashMap<String, Value>, tag_path: &str, region_size: &[i32; 3], is_block: bool)
-    -> Result<([i32; 3], PendingTick), Error> {
+fn parse_pending_tick(
+    nbt: &HashMap<String, Value>,
+    tag_path: &str,
+    region_size: &[i32; 3],
+    is_block: bool,
+) -> Result<([i32; 3], PendingTick), Error> {
     let pos;
     match common::parse_size_compound(nbt, tag_path, false) {
         Ok(p) => pos = p,
@@ -621,19 +723,36 @@ fn parse_pending_tick(nbt: &HashMap<String, Value>, tag_path: &str, region_size:
     }
 
     let mut pending_tick = PendingTick {
-        priority: *unwrap_opt_tag!(nbt.get("Priority"),Int,0,format!("{}/Priority",tag_path)),
-        time: *unwrap_opt_tag!(nbt.get("Time"),Int,0,format!("{}/Time",tag_path)),
-        sub_tick: *unwrap_opt_tag!(nbt.get("SubTick"),Long,0,format!("{}/SubTick",tag_path)),
+        priority: *unwrap_opt_tag!(
+            nbt.get("Priority"),
+            Int,
+            0,
+            format!("{}/Priority", tag_path)
+        ),
+        time: *unwrap_opt_tag!(nbt.get("Time"), Int, 0, format!("{}/Time", tag_path)),
+        sub_tick: *unwrap_opt_tag!(nbt.get("SubTick"), Long, 0, format!("{}/SubTick", tag_path)),
         info: PendingTickInfo::default(),
     };
 
     if is_block {
         pending_tick.info = PendingTickInfo::Block {
-            id: unwrap_opt_tag!(nbt.get("Block"),String,"".to_string(),format!("{}/Block",tag_path)).clone(),
+            id: unwrap_opt_tag!(
+                nbt.get("Block"),
+                String,
+                "".to_string(),
+                format!("{}/Block", tag_path)
+            )
+                .clone(),
         };
     } else {
         pending_tick.info = PendingTickInfo::Fluid {
-            id: unwrap_opt_tag!(nbt.get("Fluid"),String,"".to_string(),format!("{}/Fluid",tag_path)).clone(),
+            id: unwrap_opt_tag!(
+                nbt.get("Fluid"),
+                String,
+                "".to_string(),
+                format!("{}/Fluid", tag_path)
+            )
+                .clone(),
         };
     }
 
@@ -644,8 +763,7 @@ fn parse_pending_tick(nbt: &HashMap<String, Value>, tag_path: &str, region_size:
 impl Schematic {
     /// Returns litematica metadata
     pub fn metadata_litematica(&self) -> Result<LitematicaMetaData, Error> {
-        let mut md =
-            LitematicaMetaData::from_data_version_i32(self.metadata.mc_data_version)?;
+        let mut md = LitematicaMetaData::from_data_version_i32(self.metadata.mc_data_version)?;
 
         md.data_version = self.metadata.mc_data_version;
         md.author = self.metadata.author.clone();
@@ -672,7 +790,10 @@ impl Schematic {
         }
     }
     /// Save into nbt format
-    pub fn to_nbt_litematica(&self, option: &LitematicaSaveOption) -> Result<HashMap<String, Value>, Error> {
+    pub fn to_nbt_litematica(
+        &self,
+        option: &LitematicaSaveOption,
+    ) -> Result<HashMap<String, Value>, Error> {
         let mut nbt: HashMap<String, Value> = HashMap::new();
 
         //Regions
@@ -691,7 +812,9 @@ impl Schematic {
                         regions.insert(new_name, Value::Compound(nbt_region));
                         continue;
                     }
-                    return Err(Error::DuplicatedRegionName { name: reg.name.clone() });
+                    return Err(Error::DuplicatedRegionName {
+                        name: reg.name.clone(),
+                    });
                 }
                 regions.insert(reg.name.clone(), Value::Compound(nbt_region));
             }
@@ -704,7 +827,10 @@ impl Schematic {
                 Ok(md_) => md_,
                 Err(e) => return Err(e),
             };
-            nbt.insert("MinecraftDataVersion".to_string(), Value::Int(md.data_version));
+            nbt.insert(
+                "MinecraftDataVersion".to_string(),
+                Value::Int(md.data_version),
+            );
             nbt.insert("Version".to_string(), Value::Int(md.version));
             if let Some(sv) = md.sub_version {
                 nbt.insert("SubVersion".to_string(), Value::Int(sv));
@@ -717,9 +843,18 @@ impl Schematic {
                 md_nbt.insert("TimeCreated".to_string(), Value::Long(md.time_created));
                 md_nbt.insert("TimeModified".to_string(), Value::Long(md.time_modified));
                 md_nbt.insert("TotalVolume".to_string(), Value::Int(self.volume() as i32));
-                md_nbt.insert("TotalBlocks".to_string(), Value::Int(self.total_blocks(false) as i32));
-                md_nbt.insert("RegionCount".to_string(), Value::Int(self.regions.len() as i32));
-                md_nbt.insert("EnclosingSize".to_string(), Value::Compound(common::size_to_compound(&self.shape())));
+                md_nbt.insert(
+                    "TotalBlocks".to_string(),
+                    Value::Int(self.total_blocks(false) as i32),
+                );
+                md_nbt.insert(
+                    "RegionCount".to_string(),
+                    Value::Int(self.regions.len() as i32),
+                );
+                md_nbt.insert(
+                    "EnclosingSize".to_string(),
+                    Value::Compound(common::size_to_compound(&self.shape())),
+                );
 
                 nbt.insert("Metadata".to_string(), Value::Compound(md_nbt));
             }
@@ -728,12 +863,18 @@ impl Schematic {
     }
 
     /// Save to writer
-    pub fn save_litematica_writer(&self, dest: &mut dyn std::io::Write, option: &LitematicaSaveOption) -> Result<(), Error> {
+    pub fn save_litematica_writer(
+        &self,
+        dest: &mut dyn std::io::Write,
+        option: &LitematicaSaveOption,
+    ) -> Result<(), Error> {
         let nbt = match self.to_nbt_litematica(option) {
             Ok(nbt_) => nbt_,
             Err(e) => return Err(e),
         };
-        let mut encoder = GzBuilder::new().comment("Generated by mc_schem").write(dest, option.compress_level);
+        let mut encoder = GzBuilder::new()
+            .comment("Generated by mc_schem")
+            .write(dest, option.compress_level);
 
         let res: Result<(), fastnbt::error::Error> = fastnbt::to_writer(&mut encoder, &nbt);
         if let Err(e) = res {
@@ -747,7 +888,11 @@ impl Schematic {
     }
 
     /// Save to file
-    pub fn save_litematica_file(&self, filename: &str, option: &LitematicaSaveOption) -> Result<(), Error> {
+    pub fn save_litematica_file(
+        &self,
+        filename: &str,
+        option: &LitematicaSaveOption,
+    ) -> Result<(), Error> {
         let nbt = match self.to_nbt_litematica(option) {
             Ok(nbt_) => nbt_,
             Err(e) => return Err(e),
@@ -763,7 +908,6 @@ impl Schematic {
             .comment("Generated by mc_schem")
             .write(file, option.compress_level);
 
-
         let res: Result<(), fastnbt::error::Error> = fastnbt::to_writer(&mut encoder, &nbt);
         if let Err(e) = res {
             return Err(Error::NBTWriteError(e));
@@ -776,15 +920,20 @@ impl Schematic {
     }
 }
 
-
 impl Region {
     /// Save region to nbt
     pub fn to_nbt_litematica(&self) -> Result<HashMap<String, Value>, Error> {
         let mut nbt = HashMap::new();
         //Size
-        nbt.insert("Size".to_string(), Value::Compound(common::size_to_compound(&self.shape())));
+        nbt.insert(
+            "Size".to_string(),
+            Value::Compound(common::size_to_compound(&self.shape())),
+        );
         //Position
-        nbt.insert("Position".to_string(), Value::Compound(common::size_to_compound(&self.offset)));
+        nbt.insert(
+            "Position".to_string(),
+            Value::Compound(common::size_to_compound(&self.offset)),
+        );
         // BlockStatePalette
         {
             let mut palette_vec = Vec::with_capacity(self.palette.len());
@@ -798,7 +947,10 @@ impl Region {
             let mut entities = Vec::with_capacity(self.entities.len());
             for entity in &self.entities {
                 let mut e_nbt = entity.tags.clone();
-                e_nbt.insert("Pos".to_string(), Value::List(common::size_to_list(&entity.position)));
+                e_nbt.insert(
+                    "Pos".to_string(),
+                    Value::List(common::size_to_list(&entity.position)),
+                );
                 entities.push(Value::Compound(e_nbt));
             }
             nbt.insert("Entities".to_string(), Value::List(entities));
@@ -806,21 +958,25 @@ impl Region {
         // BlockStates
         {
             let mut mbs = MultiBitSet::new();
-            mbs.reset(block_required_bits(self.palette.len()) as u8, self.volume() as usize);
-
-            self.array_yzx.visit_dense(
-                &mut |idx, _, blkid| {
-                    let res = mbs.set(idx, blkid as u64);
-                    assert!(res.is_ok());
-                }
+            mbs.reset(
+                block_required_bits(self.palette.len()) as u8,
+                self.volume() as usize,
             );
+
+            self.array_yzx.visit_dense(&mut |idx, _, blkid| {
+                let res = mbs.set(idx, blkid as u64);
+                assert!(res.is_ok());
+            });
 
             let u64_slice = mbs.as_u64_slice();
             let mut i64_rep = Vec::with_capacity(u64_slice.len());
             for u_val in u64_slice {
                 i64_rep.push(i64::from_le_bytes(u_val.to_ne_bytes()));
             }
-            nbt.insert("BlockStates".to_string(), Value::LongArray(LongArray::new(i64_rep)));
+            nbt.insert(
+                "BlockStates".to_string(),
+                Value::LongArray(LongArray::new(i64_rep)),
+            );
         }
         //TileEntities
         {
@@ -856,7 +1012,6 @@ impl Region {
     }
 }
 
-
 impl PendingTick {
     /// Save a pending tick to nbt, in litematica format
     pub fn to_nbt(&self, pos: &[i32; 3]) -> HashMap<String, Value> {
@@ -866,8 +1021,12 @@ impl PendingTick {
         res.insert("SubTick".to_string(), Value::Long(self.sub_tick));
 
         match &self.info {
-            PendingTickInfo::Block { id } => res.insert("Block".to_string(), Value::String(id.clone())),
-            PendingTickInfo::Fluid { id } => res.insert("Fluid".to_string(), Value::String(id.clone())),
+            PendingTickInfo::Block { id } => {
+                res.insert("Block".to_string(), Value::String(id.clone()))
+            }
+            PendingTickInfo::Fluid { id } => {
+                res.insert("Fluid".to_string(), Value::String(id.clone()))
+            }
         };
 
         return res;

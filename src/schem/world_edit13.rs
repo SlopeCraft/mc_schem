@@ -16,23 +16,29 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+use crate::block::Block;
+use crate::error::Error;
+use crate::region::{Array3DVariant, BlockEntity, Region, WorldSlice};
+use crate::schem::id_of_nbt_tag;
+use crate::schem::{
+    common, MetaDataIR, Schematic, WE13MetaData, WE13MetaDataV3Extra, WorldEdit13LoadOption,
+    WorldEdit13SaveOption,
+};
+use crate::{unwrap_opt_tag, unwrap_tag};
+use fastnbt::Value;
+use flate2::read::GzDecoder;
+use flate2::GzBuilder;
+use ndarray::Array3;
 use std::collections::HashMap;
 use std::fs::File;
-use fastnbt::Value;
-use flate2::{GzBuilder};
-use flate2::read::GzDecoder;
-use ndarray::Array3;
-use crate::block::Block;
-use crate::error::{Error};
-use crate::region::{Array3DVariant, BlockEntity, Region, WorldSlice};
-use crate::schem::{common, MetaDataIR, Schematic, WE13MetaData, WE13MetaDataV3Extra, WorldEdit13LoadOption, WorldEdit13SaveOption};
-use crate::{unwrap_opt_tag, unwrap_tag};
-use crate::schem::id_of_nbt_tag;
 
 #[allow(dead_code)]
 impl Schematic {
     /// Load `.schem` from file
-    pub fn from_world_edit_13_file(filename: &str, option: &WorldEdit13LoadOption) -> Result<(Schematic, WE13MetaData), Error> {
+    pub fn from_world_edit_13_file(
+        filename: &str,
+        option: &WorldEdit13LoadOption,
+    ) -> Result<(Schematic, WE13MetaData), Error> {
         let mut file;
         match File::open(filename) {
             Ok(f) => file = f,
@@ -40,15 +46,17 @@ impl Schematic {
         }
 
         let decoder = GzDecoder::new(&mut file);
-        let nbt =
-            match fastnbt::from_reader(decoder) {
-                Ok(nbt_) => nbt_,
-                Err(e) => return Err(Error::NBTReadError(e)),
-            };
+        let nbt = match fastnbt::from_reader(decoder) {
+            Ok(nbt_) => nbt_,
+            Err(e) => return Err(Error::NBTReadError(e)),
+        };
         return Self::from_world_edit_13_nbt(nbt, option);
     }
 
-    fn parse_v2(root: HashMap<String, Value>, option: &WorldEdit13LoadOption) -> Result<(Schematic, WE13MetaData), Error> {
+    fn parse_v2(
+        root: HashMap<String, Value>,
+        option: &WorldEdit13LoadOption,
+    ) -> Result<(Schematic, WE13MetaData), Error> {
         let mut schem = Schematic::new();
         // metadata
         let we13 = parse_metadata(&root, "", option)?;
@@ -60,8 +68,16 @@ impl Schematic {
         return Ok((schem, we13));
     }
 
-    fn parse_v3(mut root: HashMap<String, Value>, option: &WorldEdit13LoadOption) -> Result<(Schematic, WE13MetaData), Error> {
-        let tag_schem = unwrap_opt_tag!(root.remove("Schematic"),Compound,HashMap::new(),"/Schematic");
+    fn parse_v3(
+        mut root: HashMap<String, Value>,
+        option: &WorldEdit13LoadOption,
+    ) -> Result<(Schematic, WE13MetaData), Error> {
+        let tag_schem = unwrap_opt_tag!(
+            root.remove("Schematic"),
+            Compound,
+            HashMap::new(),
+            "/Schematic"
+        );
         let mut schem = Schematic::new();
         // metadata
 
@@ -74,16 +90,24 @@ impl Schematic {
         return Ok((schem, we13));
     }
     /// Load `.schem` from nbt
-    pub fn from_world_edit_13_nbt(root: HashMap<String, Value>, option: &WorldEdit13LoadOption) -> Result<(Schematic, WE13MetaData), Error> {
-        return if root.contains_key("Schematic") {//v3
+    pub fn from_world_edit_13_nbt(
+        root: HashMap<String, Value>,
+        option: &WorldEdit13LoadOption,
+    ) -> Result<(Schematic, WE13MetaData), Error> {
+        return if root.contains_key("Schematic") {
+            //v3
             Self::parse_v3(root, option)
         } else {
             Self::parse_v2(root, option)
-        }
+        };
     }
     /// Load `.schem` from reader
-    pub fn from_world_edit_13_reader(src: &mut dyn std::io::Read, option: &WorldEdit13LoadOption) -> Result<(Schematic, WE13MetaData), Error> {
-        let root_opt: Result<HashMap<String, Value>, fastnbt::error::Error> = fastnbt::from_reader(src);
+    pub fn from_world_edit_13_reader(
+        src: &mut dyn std::io::Read,
+        option: &WorldEdit13LoadOption,
+    ) -> Result<(Schematic, WE13MetaData), Error> {
+        let root_opt: Result<HashMap<String, Value>, fastnbt::error::Error> =
+            fastnbt::from_reader(src);
         let root = match root_opt {
             Ok(nbt_) => nbt_,
             Err(e) => return Err(Error::NBTReadError(e)),
@@ -91,7 +115,6 @@ impl Schematic {
         return Self::from_world_edit_13_nbt(root, option);
     }
 }
-
 
 impl MetaDataIR {
     pub fn from_world_edit13(src: &WE13MetaData) -> MetaDataIR {
@@ -116,34 +139,56 @@ impl MetaDataIR {
     }
 }
 
-fn parse_metadata(nbt: &HashMap<String, Value>, tag_path: &str, _option: &WorldEdit13LoadOption)
-    -> Result<WE13MetaData, Error> {
+fn parse_metadata(
+    nbt: &HashMap<String, Value>,
+    tag_path: &str,
+    _option: &WorldEdit13LoadOption,
+) -> Result<WE13MetaData, Error> {
     let mut we13 = WE13MetaData::default();
 
     we13.date = None;
     we13.v3_extra = None;
 
-    we13.version = *unwrap_opt_tag!(nbt.get("Version"),Int,0,format!("{tag_path}/Version"));
-    we13.data_version = *unwrap_opt_tag!(nbt.get("DataVersion"),Int,0,format!("{tag_path}/DataVersion"));
+    we13.version = *unwrap_opt_tag!(nbt.get("Version"), Int, 0, format!("{tag_path}/Version"));
+    we13.data_version = *unwrap_opt_tag!(
+        nbt.get("DataVersion"),
+        Int,
+        0,
+        format!("{tag_path}/DataVersion")
+    );
     let schem_version = we13.version;
 
     // offset
     {
-        let offset_list =
-            unwrap_opt_tag!(nbt.get("Offset"),IntArray,fastnbt::IntArray::new(vec![]),format!("{tag_path}/Offset"));
+        let offset_list = unwrap_opt_tag!(
+            nbt.get("Offset"),
+            IntArray,
+            fastnbt::IntArray::new(vec![]),
+            format!("{tag_path}/Offset")
+        );
         match common::parse_size_list(offset_list.as_ref(), "Offset", true) {
             Ok(offset) => we13.offset = offset,
             Err(e) => return Err(e),
         }
     }
 
-    let tag_md = unwrap_opt_tag!(nbt.get("Metadata"),Compound,HashMap::new(),format!("{tag_path}/Metadata"));
+    let tag_md = unwrap_opt_tag!(
+        nbt.get("Metadata"),
+        Compound,
+        HashMap::new(),
+        format!("{tag_path}/Metadata")
+    );
     if schem_version == 2 {
         // we offset
         {
             let keys = ["WEOffsetX", "WEOffsetY", "WEOffsetZ"];
             for dim in 0..3 {
-                we13.we_offset[dim] = *unwrap_opt_tag!(tag_md.get(keys[dim]),Int,0,format!("{tag_path}/Metadata/{}",keys[dim]));
+                we13.we_offset[dim] = *unwrap_opt_tag!(
+                    tag_md.get(keys[dim]),
+                    Int,
+                    0,
+                    format!("{tag_path}/Metadata/{}", keys[dim])
+                );
             }
         }
         let shape = Region::parse_size_v2(&nbt, "/", _option)?;
@@ -154,17 +199,37 @@ fn parse_metadata(nbt: &HashMap<String, Value>, tag_path: &str, _option: &WorldE
     }
     if schem_version == 3 {
         if let Some(tag_date) = tag_md.get("Date") {
-            we13.date = Some(*unwrap_tag!(tag_date,Long,0,format!("{tag_path}/Metadata/Date")));
+            we13.date = Some(*unwrap_tag!(
+                tag_date,
+                Long,
+                0,
+                format!("{tag_path}/Metadata/Date")
+            ));
         } else {
             we13.date = None;
         }
         if let Some(tag_we) = tag_md.get("WorldEdit") {
-            let we_tag = unwrap_tag!(tag_we,Compound,HashMap::new(),format!("{tag_path}/Metadata/WorldEdit"));
+            let we_tag = unwrap_tag!(
+                tag_we,
+                Compound,
+                HashMap::new(),
+                format!("{tag_path}/Metadata/WorldEdit")
+            );
             let mut v3extra = WE13MetaDataV3Extra::default();
-            v3extra.world_edit_version =
-                unwrap_opt_tag!(we_tag.get("Version"),String,"".to_string(),format!("{tag_path}/Metadata/WorldEdit/Version")).to_string();
-            v3extra.editing_platform =
-                unwrap_opt_tag!(we_tag.get("EditingPlatform"),String,"".to_string(),format!("{tag_path}/Metadata/WorldEdit/EditingPlatform")).to_string();
+            v3extra.world_edit_version = unwrap_opt_tag!(
+                we_tag.get("Version"),
+                String,
+                "".to_string(),
+                format!("{tag_path}/Metadata/WorldEdit/Version")
+            )
+                .to_string();
+            v3extra.editing_platform = unwrap_opt_tag!(
+                we_tag.get("EditingPlatform"),
+                String,
+                "".to_string(),
+                format!("{tag_path}/Metadata/WorldEdit/EditingPlatform")
+            )
+                .to_string();
             we13.v3_extra = Some(v3extra);
         } else {
             we13.v3_extra = None;
@@ -208,25 +273,47 @@ fn parse_single_block(src: &[i8]) -> i32 {
 
 #[allow(dead_code)]
 impl Region {
-    fn parse_palette_v2(nbt: &HashMap<String, Value, >, tag_path: &str, _option: &WorldEdit13LoadOption) -> Result<Vec<Block>, Error> {
-        let palette_max = *unwrap_opt_tag!(nbt.get("PaletteMax"),Int,0,format!("{tag_path}/PaletteMax"));
-        let palette_comp = unwrap_opt_tag!(nbt.get("Palette"),Compound,HashMap::new(),format!("{tag_path}/Palette"));
+    fn parse_palette_v2(
+        nbt: &HashMap<String, Value>,
+        tag_path: &str,
+        _option: &WorldEdit13LoadOption,
+    ) -> Result<Vec<Block>, Error> {
+        let palette_max = *unwrap_opt_tag!(
+            nbt.get("PaletteMax"),
+            Int,
+            0,
+            format!("{tag_path}/PaletteMax")
+        );
+        let palette_comp = unwrap_opt_tag!(
+            nbt.get("Palette"),
+            Compound,
+            HashMap::new(),
+            format!("{tag_path}/Palette")
+        );
         if palette_max != palette_comp.len() as i32 {
             return Err(Error::InvalidValue {
                 tag_path: format!("{tag_path}/Palette"),
-                error: format!("PaletteMax should equal to the size of Palette ({}), but found {}", palette_comp.len(), palette_max),
+                error: format!(
+                    "PaletteMax should equal to the size of Palette ({}), but found {}",
+                    palette_comp.len(),
+                    palette_max
+                ),
             });
         }
 
         return parse_palette(palette_comp, tag_path);
     }
 
-    fn parse_size_v2(nbt: &HashMap<String, Value, >, tag_path: &str, _option: &WorldEdit13LoadOption) -> Result<[i32; 3], Error> {
+    fn parse_size_v2(
+        nbt: &HashMap<String, Value>,
+        tag_path: &str,
+        _option: &WorldEdit13LoadOption,
+    ) -> Result<[i32; 3], Error> {
         let mut sz = [0, 0, 0];
         let keys = ["Width", "Height", "Length"];
         for dim in 0..3 {
             let tag_path = format!("{tag_path}/{}", keys[dim]);
-            let val = *unwrap_opt_tag!(nbt.get(keys[dim]),Short,0,tag_path);
+            let val = *unwrap_opt_tag!(nbt.get(keys[dim]), Short, 0, tag_path);
             if val < 0 {
                 return Err(Error::InvalidValue {
                     tag_path,
@@ -238,8 +325,15 @@ impl Region {
         return Ok(sz);
     }
 
-    fn parse_3d_array_v2(block_data: &[i8], tag_path: &str, _option: &WorldEdit13LoadOption, size: [i32; 3], palette: &[Block]) -> Result<Array3<u16>, Error> {
-        let mut array: Array3<u16> = Array3::default([size[1] as usize, size[2] as usize, size[0] as usize]);
+    fn parse_3d_array_v2(
+        block_data: &[i8],
+        tag_path: &str,
+        _option: &WorldEdit13LoadOption,
+        size: [i32; 3],
+        palette: &[Block],
+    ) -> Result<Array3<u16>, Error> {
+        let mut array: Array3<u16> =
+            Array3::default([size[1] as usize, size[2] as usize, size[0] as usize]);
 
         let total_blocks = size[1] as usize * size[2] as usize * size[0] as usize;
         let mut decoded_blocks = 0;
@@ -251,7 +345,12 @@ impl Region {
                         return Err(Error::BlockDataIncomplete {
                             tag_path: tag_path.to_string(),
                             index: idx,
-                            detail: format!("{} blocks decoded, {} blocks missing, {} blocks in total.", decoded_blocks, total_blocks - decoded_blocks, total_blocks),
+                            detail: format!(
+                                "{} blocks decoded, {} blocks missing, {} blocks in total.",
+                                decoded_blocks,
+                                total_blocks - decoded_blocks,
+                                total_blocks
+                            ),
                         });
                     }
 
@@ -273,7 +372,10 @@ impl Region {
                         });
                     }
                     idx += cur_block_bytes;
-                    let decoded_block_index = parse_single_block(&block_data[cur_block_first_byte_index..(cur_block_first_byte_index + cur_block_bytes)]);
+                    let decoded_block_index = parse_single_block(
+                        &block_data[cur_block_first_byte_index
+                            ..(cur_block_first_byte_index + cur_block_bytes)],
+                    );
 
                     assert!(decoded_block_index >= 0);
                     if decoded_block_index as usize >= palette.len() {
@@ -292,12 +394,16 @@ impl Region {
         return Ok(array);
     }
 
-    fn parse_block_entities_v2(block_entities: &mut [Value], tag_path: &str, _option: &WorldEdit13LoadOption, size: [i32; 3])
-        -> Result<HashMap<[i32; 3], BlockEntity>, Error> {
+    fn parse_block_entities_v2(
+        block_entities: &mut [Value],
+        tag_path: &str,
+        _option: &WorldEdit13LoadOption,
+        size: [i32; 3],
+    ) -> Result<HashMap<[i32; 3], BlockEntity>, Error> {
         let mut result = HashMap::with_capacity(block_entities.len());
         for (idx, nbt) in block_entities.iter_mut().enumerate() {
             let cur_tag_path = format!("{tag_path}[{}]", idx);
-            let nbt = unwrap_tag!(nbt,Compound,HashMap::new(),cur_tag_path);
+            let nbt = unwrap_tag!(nbt, Compound, HashMap::new(), cur_tag_path);
             let mut nbt_temp = HashMap::new();
             std::mem::swap(&mut nbt_temp, nbt);
             let (be, pos) = parse_block_entity(nbt_temp, &cur_tag_path, &size)?;
@@ -314,7 +420,10 @@ impl Region {
     }
 
     /// Load region from nbt, for `.schem` v2
-    pub fn from_world_edit_13_v2(mut root: HashMap<String, Value>, option: &WorldEdit13LoadOption) -> Result<Region, Error> {
+    pub fn from_world_edit_13_v2(
+        mut root: HashMap<String, Value>,
+        option: &WorldEdit13LoadOption,
+    ) -> Result<Region, Error> {
         let mut region = Region::new();
         let tag_path = "";
         // palette
@@ -328,54 +437,93 @@ impl Region {
         // parse 3d array
         {
             let block_data_tag_path = format!("{tag_path}/BlockData");
-            let block_data = unwrap_opt_tag!(root.get("BlockData"),ByteArray,fastnbt::ByteArray::new(vec![]),block_data_tag_path);
-            region.array_yzx = Array3DVariant::Dense(Self::parse_3d_array_v2(block_data.as_ref(), &block_data_tag_path, option, size, &region.palette)?);
+            let block_data = unwrap_opt_tag!(
+                root.get("BlockData"),
+                ByteArray,
+                fastnbt::ByteArray::new(vec![]),
+                block_data_tag_path
+            );
+            region.array_yzx = Array3DVariant::Dense(Self::parse_3d_array_v2(
+                block_data.as_ref(),
+                &block_data_tag_path,
+                option,
+                size,
+                &region.palette,
+            )?);
         }
-
 
         // parse block entities
         {
             let be_tag_path = format!("{tag_path}/BlockEntities");
-            let block_entities = unwrap_opt_tag!(root.get_mut("BlockEntities"),List,vec![],be_tag_path);
-            region.block_entities = Self::parse_block_entities_v2(block_entities, &be_tag_path, option, size)?;
+            let block_entities =
+                unwrap_opt_tag!(root.get_mut("BlockEntities"), List, vec![], be_tag_path);
+            region.block_entities =
+                Self::parse_block_entities_v2(block_entities, &be_tag_path, option, size)?;
         }
         Ok(region)
     }
 
     /// Load region from nbt, for `.schem` v3
-    pub fn from_world_edit_13_v3(mut tag_schem: HashMap<String, Value>, option: &WorldEdit13LoadOption) -> Result<Region, Error> {
+    pub fn from_world_edit_13_v3(
+        mut tag_schem: HashMap<String, Value>,
+        option: &WorldEdit13LoadOption,
+    ) -> Result<Region, Error> {
         let tag_schem_path = "/Schematic";
         let mut region = Region::new();
         //size
         let size = Self::parse_size_v2(&tag_schem, tag_schem_path, option)?;
 
         let tag_blocks_path = "/Schematic/Blocks";
-        let tag_blocks = unwrap_opt_tag!(tag_schem.get_mut("Blocks"),Compound,HashMap::new(),tag_blocks_path);
+        let tag_blocks = unwrap_opt_tag!(
+            tag_schem.get_mut("Blocks"),
+            Compound,
+            HashMap::new(),
+            tag_blocks_path
+        );
         //palette
         {
             let tag_palette_path = "/Schematic/Blocks/Palette";
-            let tag_palette = unwrap_opt_tag!(tag_blocks.get("Palette"),Compound,HashMap::new(),tag_palette_path);
+            let tag_palette = unwrap_opt_tag!(
+                tag_blocks.get("Palette"),
+                Compound,
+                HashMap::new(),
+                tag_palette_path
+            );
             region.palette = parse_palette(tag_palette, tag_palette_path)?;
         }
         //3d array
         {
             let tag_data_path = "/Schematic/Blocks/Data";
-            let tag_data = unwrap_opt_tag!(tag_blocks.get("Data"),ByteArray,fastnbt::ByteArray::new(vec![]),tag_data_path);
-            region.array_yzx = Array3DVariant::Dense(Self::parse_3d_array_v2(&tag_data, tag_data_path, option, size, &region.palette)?);
+            let tag_data = unwrap_opt_tag!(
+                tag_blocks.get("Data"),
+                ByteArray,
+                fastnbt::ByteArray::new(vec![]),
+                tag_data_path
+            );
+            region.array_yzx = Array3DVariant::Dense(Self::parse_3d_array_v2(
+                &tag_data,
+                tag_data_path,
+                option,
+                size,
+                &region.palette,
+            )?);
         }
         //block entities
         {
             let tag_be_path = "/Schematic/Blocks/BlockEntities";
-            let tag_be = unwrap_opt_tag!(tag_blocks.get_mut("BlockEntities"),List,vec![],tag_be_path);
-            region.block_entities = Self::parse_block_entities_v2(tag_be, tag_be_path, option, size)?;
+            let tag_be = unwrap_opt_tag!(
+                tag_blocks.get_mut("BlockEntities"),
+                List,
+                vec![],
+                tag_be_path
+            );
+            region.block_entities =
+                Self::parse_block_entities_v2(tag_be, tag_be_path, option, size)?;
         }
-
 
         return Ok(region);
     }
-
 }
-
 
 fn parse_palette(pal: &HashMap<String, Value>, tag_path: &str) -> Result<Vec<Block>, Error> {
     if pal.len() >= 65536 {
@@ -391,15 +539,24 @@ fn parse_palette(pal: &HashMap<String, Value>, tag_path: &str) -> Result<Vec<Blo
         let block;
         match Block::from_id(key) {
             Ok(blk) => block = blk,
-            Err(e) => return Err(Error::InvalidBlockId { id: key.clone(), reason: e }),
+            Err(e) => {
+                return Err(Error::InvalidBlockId {
+                    id: key.clone(),
+                    reason: e,
+                })
+            }
         }
 
         let cur_tag_path = format!("{tag_path}/Palette/{}", key);
-        let idx = *unwrap_tag!(val,Int,0,cur_tag_path);
+        let idx = *unwrap_tag!(val, Int, 0, cur_tag_path);
         if idx < 0 || idx >= pal.len() as i32 {
             return Err(Error::InvalidValue {
                 tag_path: cur_tag_path,
-                error: format!("Block index {} in palette is out of range [0,{})", idx, pal.len()),
+                error: format!(
+                    "Block index {} in palette is out of range [0,{})",
+                    idx,
+                    pal.len()
+                ),
             });
         }
         if let Some(prev_blk_id) = is_set[idx as usize] {
@@ -416,13 +573,21 @@ fn parse_palette(pal: &HashMap<String, Value>, tag_path: &str) -> Result<Vec<Blo
     return Ok(result);
 }
 
-fn parse_block_entity(mut nbt: HashMap<String, Value>, tag_path: &str, region_size: &[i32; 3])
-    -> Result<(BlockEntity, [i32; 3]), Error> {
+fn parse_block_entity(
+    mut nbt: HashMap<String, Value>,
+    tag_path: &str,
+    region_size: &[i32; 3],
+) -> Result<(BlockEntity, [i32; 3]), Error> {
     let pos;
     let pos_tag_path = format!("{}/Pos", tag_path);
     // parse pos
     {
-        let pos_tag = unwrap_opt_tag!(nbt.get("Pos"),IntArray,fastnbt::IntArray::new(vec![]),pos_tag_path);
+        let pos_tag = unwrap_opt_tag!(
+            nbt.get("Pos"),
+            IntArray,
+            fastnbt::IntArray::new(vec![]),
+            pos_tag_path
+        );
         match common::parse_size_list(pos_tag.as_ref(), &pos_tag_path, false) {
             Ok(pos_) => pos = pos_,
             Err(e) => return Err(e),
@@ -462,11 +627,14 @@ impl Schematic {
 
         result.data_version = self.metadata.mc_data_version;
         result.offset = self.metadata.schem_offset;
-        result.we_offset = self.metadata.schem_we_offset.unwrap_or(self.metadata.schem_offset);
+        result.we_offset = self
+            .metadata
+            .schem_we_offset
+            .unwrap_or(self.metadata.schem_offset);
         result.date = Some(self.metadata.time_modified);
-        result.width = self.shape()[0] as i16;//x
-        result.height = self.shape()[1] as i16;//y
-        result.length = self.shape()[2] as i16;//z
+        result.width = self.shape()[0] as i16; //x
+        result.height = self.shape()[1] as i16; //y
+        result.length = self.shape()[2] as i16; //z
 
         return Ok(result);
     }
@@ -475,17 +643,26 @@ impl Schematic {
         let mut md_nbt = HashMap::new();
         let pos_letter = ['X', 'Y', 'Z'];
         for dim in 0..3 {
-            md_nbt.insert(format!("WEOffset{}", pos_letter[dim]), Value::Int(md.we_offset[dim]));
+            md_nbt.insert(
+                format!("WEOffset{}", pos_letter[dim]),
+                Value::Int(md.we_offset[dim]),
+            );
         }
         dest.insert("Metadata".to_string(), Value::Compound(md_nbt));
-        dest.insert("Offset".to_string(), Value::IntArray(fastnbt::IntArray::new(Vec::from(&md.offset))));
+        dest.insert(
+            "Offset".to_string(),
+            Value::IntArray(fastnbt::IntArray::new(Vec::from(&md.offset))),
+        );
         dest.insert("DataVersion".to_string(), Value::Int(md.data_version));
         dest.insert("Version".to_string(), Value::Int(md.version));
         //dest.insert("Width".to_string(),Value::Short(md.width));
     }
 
     fn write_metadata_v3(dest: &mut HashMap<String, Value>, md: &WE13MetaData) {
-        dest.insert("Offset".to_string(), Value::IntArray(fastnbt::IntArray::new(Vec::from(&md.offset))));
+        dest.insert(
+            "Offset".to_string(),
+            Value::IntArray(fastnbt::IntArray::new(Vec::from(&md.offset))),
+        );
         dest.insert("DataVersion".to_string(), Value::Int(md.data_version));
         dest.insert("Version".to_string(), Value::Int(md.version));
 
@@ -495,9 +672,18 @@ impl Schematic {
         }
         if let Some(extra) = &md.v3_extra {
             let mut we = HashMap::new();
-            we.insert("Version".to_string(), Value::String(extra.world_edit_version.to_string()));
-            we.insert("EditingPlatform".to_string(), Value::String(extra.editing_platform.to_string()));
-            we.insert("Origin".to_string(), Value::IntArray(fastnbt::IntArray::new(extra.origin.to_vec())));
+            we.insert(
+                "Version".to_string(),
+                Value::String(extra.world_edit_version.to_string()),
+            );
+            we.insert(
+                "EditingPlatform".to_string(),
+                Value::String(extra.editing_platform.to_string()),
+            );
+            we.insert(
+                "Origin".to_string(),
+                Value::IntArray(fastnbt::IntArray::new(extra.origin.to_vec())),
+            );
             md_nbt.insert("WorldEdit".to_string(), Value::Compound(we));
         }
         dest.insert("Metadata".to_string(), Value::Compound(md_nbt));
@@ -506,7 +692,10 @@ impl Schematic {
     fn write_shape_v2(dest: &mut HashMap<String, Value>, shape: [i32; 3]) -> Result<(), Error> {
         for sz in shape {
             if sz < 0 {
-                return Err(Error::NegativeSize { size: shape, region_name: "all regions".to_string() });
+                return Err(Error::NegativeSize {
+                    size: shape,
+                    region_name: "all regions".to_string(),
+                });
             }
             if sz >= 16384 {
                 return Err(Error::SizeTooLarge {
@@ -521,7 +710,10 @@ impl Schematic {
         }
         return Ok(());
     }
-    fn save_palette_v2(full_palette: &Vec<(&Block, u64)>, option: &WorldEdit13SaveOption) -> Result<(HashMap<String, Value>, u16), Error> {
+    fn save_palette_v2(
+        full_palette: &Vec<(&Block, u64)>,
+        option: &WorldEdit13SaveOption,
+    ) -> Result<(HashMap<String, Value>, u16), Error> {
         let mut pal = HashMap::with_capacity(full_palette.len());
         for (index, (blk, _)) in full_palette.iter().enumerate() {
             let id = blk.full_id();
@@ -548,7 +740,12 @@ impl Schematic {
         return Ok((pal, background_blk_index));
     }
 
-    fn save_block_data_v2(&self, shape: [i32; 3], luts_of_block_idx: &[Vec<usize>], background_blk_index: u16) -> Result<Vec<i8>, Error> {
+    fn save_block_data_v2(
+        &self,
+        shape: [i32; 3],
+        luts_of_block_idx: &[Vec<usize>],
+        background_blk_index: u16,
+    ) -> Result<Vec<i8>, Error> {
         let mut block_data = Vec::with_capacity(self.volume() as usize * 2);
         for y in 0..shape[1] {
             for z in 0..shape[2] {
@@ -557,10 +754,11 @@ impl Schematic {
                     for (reg_idx, reg) in self.regions.iter().enumerate() {
                         match reg.block_index_at([x, y, z]) {
                             Some(cur_idx) => {
-                                cur_block_gindex = Some(luts_of_block_idx[reg_idx][cur_idx as usize] as u16);
+                                cur_block_gindex =
+                                    Some(luts_of_block_idx[reg_idx][cur_idx as usize] as u16);
                                 break;
                             }
-                            None => {},
+                            None => {}
                         }
                     }
                     let cur_block_gindex = cur_block_gindex.unwrap_or_else(|| background_blk_index);
@@ -600,8 +798,10 @@ impl Schematic {
                     }
 
                     let mut nbt = HashMap::new();
-                    nbt.insert("Pos".to_string(), Value::IntArray(fastnbt::IntArray::new(
-                        vec![x, y, z])));
+                    nbt.insert(
+                        "Pos".to_string(),
+                        Value::IntArray(fastnbt::IntArray::new(vec![x, y, z])),
+                    );
                     for (key, val) in &be.tags {
                         if key == "Pos" {
                             continue;
@@ -616,11 +816,14 @@ impl Schematic {
     }
 
     /// Save `.schem` v2 to nbt
-    pub fn to_nbt_world_edit_13_v2(&self, md: WE13MetaData, option: &WorldEdit13SaveOption) -> Result<HashMap<String, Value>, Error> {
+    pub fn to_nbt_world_edit_13_v2(
+        &self,
+        md: WE13MetaData,
+        option: &WorldEdit13SaveOption,
+    ) -> Result<HashMap<String, Value>, Error> {
         let mut root = HashMap::new();
         // metadata
         Self::write_metadata_v2(&mut root, &md);
-
 
         let (full_palette, luts_of_block_idx) = self.full_palette();
         let background_blk_index: u16;
@@ -632,15 +835,18 @@ impl Schematic {
             root.insert("Palette".to_string(), Value::Compound(pal));
         }
 
-
         // shape
         let shape = self.shape();
         Self::write_shape_v2(&mut root, shape)?;
 
         // block data
         {
-            let block_data = self.save_block_data_v2(shape, &luts_of_block_idx, background_blk_index)?;
-            root.insert("BlockData".to_string(), Value::ByteArray(fastnbt::ByteArray::new(block_data)));
+            let block_data =
+                self.save_block_data_v2(shape, &luts_of_block_idx, background_blk_index)?;
+            root.insert(
+                "BlockData".to_string(),
+                Value::ByteArray(fastnbt::ByteArray::new(block_data)),
+            );
         }
 
         // block entities
@@ -653,7 +859,11 @@ impl Schematic {
     }
 
     /// Save `.schem` v3 to nbt
-    pub fn to_nbt_world_edit_13_v3(&self, md: WE13MetaData, option: &WorldEdit13SaveOption) -> Result<HashMap<String, Value>, Error> {
+    pub fn to_nbt_world_edit_13_v3(
+        &self,
+        md: WE13MetaData,
+        option: &WorldEdit13SaveOption,
+    ) -> Result<HashMap<String, Value>, Error> {
         let mut tag_schem = HashMap::new();
         // metadata
         Self::write_metadata_v3(&mut tag_schem, &md);
@@ -668,15 +878,18 @@ impl Schematic {
             tag_blocks.insert("Palette".to_string(), Value::Compound(pal));
         }
 
-
         // shape
         let shape = self.shape();
         Self::write_shape_v2(&mut tag_schem, shape)?;
 
         // block data
         {
-            let block_data = self.save_block_data_v2(shape, &luts_of_block_idx, background_blk_index)?;
-            tag_blocks.insert("Data".to_string(), Value::ByteArray(fastnbt::ByteArray::new(block_data)));
+            let block_data =
+                self.save_block_data_v2(shape, &luts_of_block_idx, background_blk_index)?;
+            tag_blocks.insert(
+                "Data".to_string(),
+                Value::ByteArray(fastnbt::ByteArray::new(block_data)),
+            );
         }
 
         // block entities
@@ -692,7 +905,10 @@ impl Schematic {
     }
 
     /// Save `.schem` to nbt
-    pub fn to_nbt_world_edit_13(&self, option: &WorldEdit13SaveOption) -> Result<HashMap<String, Value>, Error> {
+    pub fn to_nbt_world_edit_13(
+        &self,
+        option: &WorldEdit13SaveOption,
+    ) -> Result<HashMap<String, Value>, Error> {
         let md = self.metadata_world_edit_13()?;
         let schem_version = md.version;
 
@@ -702,15 +918,18 @@ impl Schematic {
             _ => Err(Error::UnsupportedWorldEdit13Version {
                 version: schem_version,
                 supported_versions: Self::supported_world_edit_13_versions(),
-            })
-            ,
-        }
+            }),
+        };
 
         //Self::write_metadata_v3(&mut root, &md)
     }
 
     /// Save `.schem` to writer
-    pub fn save_world_edit_13_writer(&self, dest: &mut dyn std::io::Write, option: &WorldEdit13SaveOption) -> Result<(), Error> {
+    pub fn save_world_edit_13_writer(
+        &self,
+        dest: &mut dyn std::io::Write,
+        option: &WorldEdit13SaveOption,
+    ) -> Result<(), Error> {
         let nbt = match self.to_nbt_world_edit_13(option) {
             Ok(n) => n,
             Err(e) => return Err(e),
@@ -729,9 +948,13 @@ impl Schematic {
 
         return Ok(());
     }
-    
+
     /// Save `.schem` to file
-    pub fn save_world_edit_13_file(&self, filename: &str, option: &WorldEdit13SaveOption) -> Result<(), Error> {
+    pub fn save_world_edit_13_file(
+        &self,
+        filename: &str,
+        option: &WorldEdit13SaveOption,
+    ) -> Result<(), Error> {
         let nbt = match self.to_nbt_world_edit_13(option) {
             Ok(n) => n,
             Err(e) => return Err(e),
@@ -759,7 +982,6 @@ impl Schematic {
     }
 }
 
-
 fn encode_single_block(value: u16) -> [i8; 8] {
     // let index = index as i32;
     //
@@ -781,10 +1003,12 @@ fn encode_single_block(value: u16) -> [i8; 8] {
         let cur_byte_val = value % 128;
         value = value / 128;
         let encoded_byte: i8;
-        if value > 0 {// not the last byte
+        if value > 0 {
+            // not the last byte
             encoded_byte = (cur_byte_val - 128) as i8;
             debug_assert!(encoded_byte < 0);
-        } else {// the last byte of this block
+        } else {
+            // the last byte of this block
             encoded_byte = cur_byte_val as i8;
             debug_assert!(encoded_byte > 0);
         }

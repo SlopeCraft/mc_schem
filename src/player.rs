@@ -1,28 +1,28 @@
+use crate::item::{Inventory, Item};
 use std::any::Any;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Debug, Formatter};
 use strum::FromRepr;
-use crate::item::{Inventory, Item};
 
 #[derive(Debug, Clone)]
 pub struct DimensionId(String);
 
 impl Default for DimensionId {
     fn default() -> Self {
-        return Self::overworld();
+        Self::overworld()
     }
 }
 
 #[allow(dead_code)]
 impl DimensionId {
     pub fn overworld() -> Self {
-        return DimensionId("minecraft:overworld".to_string());
+        DimensionId("minecraft:overworld".to_string())
     }
     pub fn nether() -> Self {
-        return DimensionId("minecraft:nether".to_string());
+        DimensionId("minecraft:nether".to_string())
     }
     pub fn the_end() -> Self {
-        return DimensionId("minecraft:the_end".to_string());
+        DimensionId("minecraft:the_end".to_string())
     }
 }
 
@@ -80,7 +80,7 @@ pub struct ScoreboardTag {
 
 impl Default for EntityFields {
     fn default() -> Self {
-        return Self {
+        Self {
             air: 0,
             custom_name: None,
             custom_name_visible: false,
@@ -100,7 +100,7 @@ impl Default for EntityFields {
             tags: Default::default(),
             ticks_frozen: 0,
             uuid: [0; 4],
-        };
+        }
     }
 }
 
@@ -119,7 +119,7 @@ pub struct MobFields {
 
 impl Default for MobFields {
     fn default() -> Self {
-        return Self {
+        Self {
             absorption_amount: 0.0,
             active_effects: vec![],
             attributes: Default::default(),
@@ -129,7 +129,7 @@ impl Default for MobFields {
             hurt_by_time_stamp: 0,
             hurt_time: 0,
             sleeping_pos: [0, 0, 0],
-        };
+        }
     }
 }
 
@@ -158,7 +158,7 @@ pub enum MemoryValue {
 
 impl Default for MemoryValue {
     fn default() -> Self {
-        return MemoryValue::Unit;
+        MemoryValue::Unit
     }
 }
 
@@ -187,7 +187,6 @@ pub struct PotionEffectFactorCalculationData {
     pub padding_duration: i32,
 }
 
-
 #[derive(Debug, Clone)]
 pub struct PlayerAbilities {
     pub flying: bool,
@@ -201,7 +200,7 @@ pub struct PlayerAbilities {
 
 impl Default for PlayerAbilities {
     fn default() -> Self {
-        return Self {
+        Self {
             flying: false,
             instant_build: false,
             invulnerable: false,
@@ -209,7 +208,7 @@ impl Default for PlayerAbilities {
             may_fly: false,
             walk_speed: 1.0,
             fly_speed: 1.0,
-        };
+        }
     }
 }
 
@@ -223,7 +222,6 @@ pub enum PlayerGameType {
     Spectator = 3,
 }
 
-
 #[derive(Debug, Clone)]
 pub struct WardenSpawnTracker {
     pub cooldown_ticks: i32,
@@ -233,11 +231,11 @@ pub struct WardenSpawnTracker {
 
 impl Default for WardenSpawnTracker {
     fn default() -> Self {
-        return Self {
+        Self {
             cooldown_ticks: 0,
             ticks_since_last_warning: 0,
             warning_level: 0,
-        };
+        }
     }
 }
 
@@ -251,12 +249,12 @@ pub struct XpInfo {
 
 impl Default for XpInfo {
     fn default() -> Self {
-        return Self {
+        Self {
             level: 0,
             xp_p: 0.0,
             speed: 0,
             total: 0,
-        };
+        }
     }
 }
 
@@ -293,7 +291,7 @@ pub struct PlayerFields {
 
 impl Default for PlayerFields {
     fn default() -> Self {
-        return Self {
+        Self {
             abilities: Default::default(),
             dimension: DimensionId::default(),
             ender_items: Default::default(),
@@ -319,7 +317,7 @@ impl Default for PlayerFields {
             spawn_pos: None,
             warden_spawn_tracker: Default::default(),
             xp_info: Default::default(),
-        };
+        }
     }
 }
 
@@ -327,24 +325,24 @@ impl Default for PlayerFields {
 impl PlayerFields {
     fn selected_item(&self) -> Option<&Item> {
         let slot = self.selected_item_slot as i8;
-        return self.inventory.0.get(&slot);
+        self.inventory.0.get(&slot)
     }
     fn selected_item_mut(&mut self) -> Option<&mut Item> {
         let slot = self.selected_item_slot as i8;
-        return self.inventory.0.get_mut(&slot);
+        self.inventory.0.get_mut(&slot)
     }
 }
 
 pub trait GetEntity {
     fn entity_fields(&self) -> &EntityFields;
     fn pos(&self) -> [f64; 3] {
-        return self.entity_fields().pos;
+        self.entity_fields().pos
     }
     fn to_mob_fields(&self) -> Option<&dyn GetMob> {
-        return None;
+        None
     }
     fn is_living_body(&self) -> bool {
-        return self.to_mob_fields().is_some();
+        self.to_mob_fields().is_some()
     }
 
     fn clone_as_entity(&self) -> Box<dyn GetEntityMut>;
@@ -353,7 +351,7 @@ pub trait GetEntity {
 pub trait GetEntityMut: GetEntity {
     fn entity_fields_mut(&mut self) -> &mut EntityFields;
     fn to_mob_mut(&mut self) -> Option<&mut dyn GetMobMut> {
-        return None;
+        None
     }
 }
 
@@ -363,7 +361,7 @@ pub trait GetMob: GetEntity {
     fn to_player(&self) -> Option<&dyn GetPlayer>;
 
     fn is_player(&self) -> bool {
-        return self.to_player().is_some();
+        self.to_player().is_some()
     }
 
     fn clone_as_living_body(&self) -> Box<dyn GetMobMut>;
@@ -393,57 +391,57 @@ pub struct Player {
 
 impl GetEntity for Player {
     fn entity_fields(&self) -> &EntityFields {
-        return &self.entity_fields;
+        &self.entity_fields
     }
 
     fn clone_as_entity(&self) -> Box<dyn GetEntityMut> {
-        return Box::new(self.clone());
+        Box::new(self.clone())
     }
 }
 
 impl GetEntityMut for Player {
     fn entity_fields_mut(&mut self) -> &mut EntityFields {
-        return &mut self.entity_fields;
+        &mut self.entity_fields
     }
 }
 
 impl GetMob for Player {
     fn mob_fields(&self) -> &MobFields {
-        return &self.mob_fields;
+        &self.mob_fields
     }
 
     fn to_player(&self) -> Option<&dyn GetPlayer> {
-        return Some(self);
+        Some(self)
     }
 
     fn clone_as_living_body(&self) -> Box<dyn GetMobMut> {
-        return Box::new(self.clone());
+        Box::new(self.clone())
     }
 }
 
 impl GetMobMut for Player {
     fn mob_fields_mut(&mut self) -> &mut MobFields {
-        return &mut self.mob_fields;
+        &mut self.mob_fields
     }
 
     fn to_player_mut(&mut self) -> Option<&mut dyn GetPlayerMut> {
-        return Some(self);
+        Some(self)
     }
 }
 
 impl GetPlayer for Player {
     fn player_fields(&self) -> &PlayerFields {
-        return &self.player_fields;
+        &self.player_fields
     }
 
     fn clone_as_player(&self) -> Box<dyn GetPlayerMut> {
-        return Box::new(self.clone());
+        Box::new(self.clone())
     }
 }
 
 impl GetPlayerMut for Player {
     fn player_fields_mut(&mut self) -> &mut PlayerFields {
-        return &mut self.player_fields;
+        &mut self.player_fields
     }
 }
 
@@ -452,12 +450,17 @@ pub struct EntityBox(Box<dyn GetEntityMut>);
 impl Debug for EntityBox {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let ptr = self.0.as_ref() as *const dyn GetEntityMut;
-        return write!(f, "EntityBox, type: {:?}, address: {:?}", self.0.type_id(), ptr);
+        write!(
+            f,
+            "EntityBox, type: {:?}, address: {:?}",
+            self.0.type_id(),
+            ptr
+        )
     }
 }
 
 impl Clone for EntityBox {
     fn clone(&self) -> Self {
-        return EntityBox(self.0.clone_as_entity());
+        EntityBox(self.0.clone_as_entity())
     }
 }

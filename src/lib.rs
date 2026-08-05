@@ -38,15 +38,14 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!    An executable to do various manipulations on schematics
 //!
 
-
 use strum::Display;
 
 /// Implement minecraft block and string id parsing
 pub mod block;
-/// Number id parsing
-pub mod old_block;
 /// Errors in loading, saving and manipulating
 pub mod error;
+/// Number id parsing
+pub mod old_block;
 /// Implement region, entity, block entity and pending ticks
 pub mod region;
 /// Implement metadata, schematics and loading/saving
@@ -54,11 +53,11 @@ pub mod schem;
 
 pub mod world;
 
-mod c_ffi;
 mod biome;
-mod raid;
-mod player;
+mod c_ffi;
 mod item;
+mod player;
+mod raid;
 
 /// `Block` is a type of block with namespace and properties(aka attributes) in MC.
 pub type Block = block::Block;
@@ -112,7 +111,7 @@ pub enum SchemFormat {
 impl SchemFormat {
     /// Filename extension with `.`
     pub fn extension(&self) -> &'static str {
-        return match self {
+        match self {
             SchemFormat::Litematica => ".litematic",
             SchemFormat::VanillaStructure => ".nbt",
             SchemFormat::WorldEdit13 => ".schem",
@@ -122,24 +121,24 @@ impl SchemFormat {
 
     /// Return all supported formats
     pub fn supported_formats() -> &'static [SchemFormat] {
-        return Self::loadable_formats();
+        Self::loadable_formats()
     }
     /// Return all loadable formats
     pub fn loadable_formats() -> &'static [SchemFormat] {
         use SchemFormat::*;
-        return &[Litematica, VanillaStructure, WorldEdit13, WorldEdit12];
+        &[Litematica, VanillaStructure, WorldEdit13, WorldEdit12]
     }
     /// Return all savable formats
     pub fn savable_formats() -> &'static [SchemFormat] {
         use SchemFormat::*;
-        return &[Litematica, VanillaStructure, WorldEdit13];
+        &[Litematica, VanillaStructure, WorldEdit13]
     }
     /// Return if the format can be loaded
     pub fn loadable(&self) -> bool {
-        return Self::loadable_formats().contains(self);
+        Self::loadable_formats().contains(self)
     }
     /// Return if the format can be saved
     pub fn savable(&self) -> bool {
-        return Self::savable_formats().contains(self);
+        Self::savable_formats().contains(self)
     }
 }

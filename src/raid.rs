@@ -1,10 +1,10 @@
+use crate::error::{unwrap_opt_f32, unwrap_opt_i32, unwrap_opt_i64, unwrap_opt_i8, Error};
+use crate::schem::id_of_nbt_tag;
+use crate::{unwrap_opt_tag, unwrap_tag};
+use fastnbt::Value;
 use std::collections::HashMap;
 use std::str::FromStr;
-use fastnbt::Value;
 use strum::{Display, EnumString};
-use crate::error::{Error, unwrap_opt_f32, unwrap_opt_i8, unwrap_opt_i32, unwrap_opt_i64};
-use crate::{unwrap_opt_tag, unwrap_tag};
-use crate::schem::id_of_nbt_tag;
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Copy, Clone, Display, EnumString)]
@@ -45,7 +45,8 @@ impl Raid {
         let status;
         {
             let status_path = format!("{tag_path}/Status");
-            let status_str = unwrap_opt_tag!(nbt.get("Status"),String,"".to_string(),status_path);
+            let status_str =
+                unwrap_opt_tag!(nbt.get("Status"), String, "".to_string(), status_path);
             if let Ok(s) = RaidStatus::from_str(&status_str) {
                 status = s;
             } else {
@@ -64,11 +65,11 @@ impl Raid {
         let heroes_of_the_village;
         {
             let tag_path = format!("{tag_path}/HeroesOfTheVillage");
-            let list = unwrap_opt_tag!(nbt.get("HeroesOfTheVillage"),List,vec![],tag_path);
+            let list = unwrap_opt_tag!(nbt.get("HeroesOfTheVillage"), List, vec![], tag_path);
             let mut hov = Vec::with_capacity(list.len());
             for (idx, tag) in list.iter().enumerate() {
                 let tag_path = format!("{tag_path}/[{idx}]");
-                let tag = unwrap_tag!(tag,IntArray,fastnbt::IntArray::new(vec![]),tag_path);
+                let tag = unwrap_tag!(tag, IntArray, fastnbt::IntArray::new(vec![]), tag_path);
                 if tag.len() != 4 {
                     return Err(Error::InvalidValue {
                         tag_path,
@@ -98,7 +99,6 @@ impl Raid {
         let id = unwrap_opt_i32(nbt, "Id", tag_path)?;
         let pre_raid_ticks = unwrap_opt_i32(nbt, "PreRaidTicks", tag_path)?;
 
-
         let raid = Raid {
             status,
             started,
@@ -113,16 +113,16 @@ impl Raid {
             id,
             pre_raid_ticks,
         };
-        return Ok(raid);
+        Ok(raid)
     }
 }
 
 impl Default for RaidList {
     fn default() -> Self {
-        return Self {
+        Self {
             raids: vec![],
             next_available_id: 0,
             tick: 0,
-        };
+        }
     }
 }

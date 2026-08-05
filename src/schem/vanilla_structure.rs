@@ -16,20 +16,21 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+use crate::schem::{
+    common, id_of_nbt_tag, MetaDataIR, VanillaStructureLoadOption, VanillaStructureSaveOption,
+};
 use std::collections::HashMap;
 use std::fs::File;
-use crate::schem::{common, id_of_nbt_tag, MetaDataIR, VanillaStructureLoadOption, VanillaStructureSaveOption};
 //use compress::zlib;
-use crate::schem::schem::{BlockEntity, Schematic, VanillaStructureMetaData};
-use crate::region::{Entity, Region, WorldSlice};
-use fastnbt;
-use fastnbt::{Value};
-use flate2::{GzBuilder};
-use flate2::read::GzDecoder;
-use crate::error::{Error};
-use crate::{unwrap_tag, unwrap_opt_tag};
+use crate::error::Error;
 use crate::error::Error::FileOpenError;
-
+use crate::region::{Entity, Region, WorldSlice};
+use crate::schem::schem::{BlockEntity, Schematic, VanillaStructureMetaData};
+use crate::{unwrap_opt_tag, unwrap_tag};
+use fastnbt;
+use fastnbt::Value;
+use flate2::read::GzDecoder;
+use flate2::GzBuilder;
 
 #[allow(dead_code)]
 impl MetaDataIR {
@@ -47,36 +48,38 @@ impl MetaDataIR {
 }
 
 fn parse_size_tag(nbt: &HashMap<String, Value>) -> Result<[i32; 3], Error> {
-    let size_list = unwrap_opt_tag!(nbt.get("size"),List,vec![],"/size");
+    let size_list = unwrap_opt_tag!(nbt.get("size"), List, vec![], "/size");
 
     if size_list.len() != 3 {
         return Err(Error::InvalidValue {
             tag_path: "/size".to_string(),
             error: format!("The length should be 3, but found {}", size_list.len()),
-        }
-        );
+        });
     }
     let mut size: [i32; 3] = [0, 0, 0];
     for idx in 0..3 {
-        let sz = *unwrap_tag!(&size_list[idx],Int,0,&*format!("/size[{}]", idx));
+        let sz = *unwrap_tag!(&size_list[idx], Int, 0, &*format!("/size[{}]", idx));
         if sz <= 0 {
             return Err(Error::InvalidValue {
                 tag_path: format!("/size[{}]", idx),
                 error: format!("Expected non-negative number, but found {}", sz),
-            }
-            );
+            });
         }
         size[idx] = sz;
     }
     return Ok(size);
 }
 
-
-fn parse_array_item(item: &Value, tag_path: &str, palette_size: i32, region_size: [i32; 3]) -> Result<(i32, [i32; 3], Option<BlockEntity>), Error> {
-    let map = unwrap_tag!(item,Compound,HashMap::new(),tag_path);
+fn parse_array_item(
+    item: &Value,
+    tag_path: &str,
+    palette_size: i32,
+    region_size: [i32; 3],
+) -> Result<(i32, [i32; 3], Option<BlockEntity>), Error> {
+    let map = unwrap_tag!(item, Compound, HashMap::new(), tag_path);
 
     // parse state
-    let state: i32 = *unwrap_opt_tag!(map.get("state"),Int,0,&*format!("{}/state", tag_path));
+    let state: i32 = *unwrap_opt_tag!(map.get("state"), Int, 0, &*format!("{}/state", tag_path));
     if state < 0 || state >= palette_size {
         return Err(Error::BlockIndexOutOfRange {
             tag_path: format!("{}/state", tag_path),
@@ -85,18 +88,26 @@ fn parse_array_item(item: &Value, tag_path: &str, palette_size: i32, region_size
         });
     }
 
-    let pos_list = unwrap_opt_tag!(map.get("pos"),List,vec![],&*format!("{}/pos", tag_path));
+    let pos_list = unwrap_opt_tag!(map.get("pos"), List, vec![], &*format!("{}/pos", tag_path));
 
     if pos_list.len() != 3 {
         return Err(Error::InvalidValue {
             tag_path: format!("{}/pos", tag_path),
-            error: format!("The length of pos should be 3, but found {}", pos_list.len()),
+            error: format!(
+                "The length of pos should be 3, but found {}",
+                pos_list.len()
+            ),
         });
     }
 
     let mut pos: [i32; 3] = [0, 0, 0];
     for idx in 0..3 {
-        pos[idx] = *unwrap_tag!(&pos_list[idx],Int,0,&*format!("{}/pos[{}]", tag_path, idx));
+        pos[idx] = *unwrap_tag!(
+            &pos_list[idx],
+            Int,
+            0,
+            &*format!("{}/pos[{}]", tag_path, idx)
+        );
     }
     for idx in 0..3 {
         if pos[idx] < 0 || pos[idx] >= region_size[idx] {
@@ -115,7 +126,12 @@ fn parse_array_item(item: &Value, tag_path: &str, palette_size: i32, region_size
         None => return Ok((state, pos, None)),
     }
 
-    let nbt_comp = unwrap_tag!(nbt_comp,Compound,HashMap::new(),&*format!("{}/nbt",tag_path));
+    let nbt_comp = unwrap_tag!(
+        nbt_comp,
+        Compound,
+        HashMap::new(),
+        &*format!("{}/nbt", tag_path)
+    );
     let block_entity = BlockEntity {
         tags: nbt_comp.clone(),
     };
@@ -124,29 +140,44 @@ fn parse_array_item(item: &Value, tag_path: &str, palette_size: i32, region_size
 }
 
 fn parse_entity(tag: &mut Value, tag_path: &str) -> Result<Entity, Error> {
-    let compound = unwrap_tag!(tag,Compound,HashMap::new(),tag_path);
+    let compound = unwrap_tag!(tag, Compound, HashMap::new(), tag_path);
 
     let mut entity = Entity::new();
     // parse blockPos
     {
-        let block_pos = unwrap_opt_tag!(compound.get("blockPos"),List,vec![],&*format!("{}/blockPos",tag_path));
+        let block_pos = unwrap_opt_tag!(
+            compound.get("blockPos"),
+            List,
+            vec![],
+            &*format!("{}/blockPos", tag_path)
+        );
         if block_pos.len() != 3 {
             return Err(Error::InvalidValue {
                 tag_path: format!("{}/blockPos", tag_path),
-                error: format!("blockPos should have 3 elements, but found {}", block_pos.len()),
-            }
-            );
+                error: format!(
+                    "blockPos should have 3 elements, but found {}",
+                    block_pos.len()
+                ),
+            });
         }
 
         for idx in 0..3 {
-            entity.block_pos[idx] = *unwrap_opt_tag!(block_pos.get(idx),
-                Int,0,
-                &*format!("{}/blockPos[{}]",tag_path,idx));
+            entity.block_pos[idx] = *unwrap_opt_tag!(
+                block_pos.get(idx),
+                Int,
+                0,
+                &*format!("{}/blockPos[{}]", tag_path, idx)
+            );
         }
     }
     // parse pos
     {
-        let pos = unwrap_opt_tag!(compound.get("pos"),List,vec![],&*format!("{}/pos",tag_path));
+        let pos = unwrap_opt_tag!(
+            compound.get("pos"),
+            List,
+            vec![],
+            &*format!("{}/pos", tag_path)
+        );
         if pos.len() != 3 {
             return Err(Error::InvalidValue {
                 tag_path: format!("{}/pos", tag_path),
@@ -155,25 +186,34 @@ fn parse_entity(tag: &mut Value, tag_path: &str) -> Result<Entity, Error> {
         }
 
         for idx in 0..3 {
-            entity.position[idx] = *unwrap_opt_tag!(pos.get(idx),
-                Double,0.0,
-                &*format!("{}/pos[{}]",tag_path,idx));
+            entity.position[idx] = *unwrap_opt_tag!(
+                pos.get(idx),
+                Double,
+                0.0,
+                &*format!("{}/pos[{}]", tag_path, idx)
+            );
         }
     }
 
     // parse nbt
     {
-        let nbt = unwrap_opt_tag!(compound.remove("nbt"),
-            Compound,HashMap::new(),&*format!("{}/nbt",tag_path));
+        let nbt = unwrap_opt_tag!(
+            compound.remove("nbt"),
+            Compound,
+            HashMap::new(),
+            &*format!("{}/nbt", tag_path)
+        );
         entity.tags = nbt;
     }
     return Ok(entity);
 }
 
-
 impl Schematic {
     /// Load vanilla structure from file
-    pub fn from_vanilla_structure_file(filename: &str, option: &VanillaStructureLoadOption) -> Result<(Schematic, VanillaStructureMetaData), Error> {
+    pub fn from_vanilla_structure_file(
+        filename: &str,
+        option: &VanillaStructureLoadOption,
+    ) -> Result<(Schematic, VanillaStructureMetaData), Error> {
         let file_res = File::open(filename);
         let mut file;
         match file_res {
@@ -185,9 +225,12 @@ impl Schematic {
         return Self::from_vanilla_structure_reader(&mut decoder, option);
     }
     /// Load vanilla structure from reader
-    pub fn from_vanilla_structure_reader(src: &mut dyn std::io::Read, option: &VanillaStructureLoadOption)
-        -> Result<(Schematic, VanillaStructureMetaData), Error> {
-        let loaded_opt: Result<HashMap<String, Value>, fastnbt::error::Error> = fastnbt::from_reader(src);
+    pub fn from_vanilla_structure_reader(
+        src: &mut dyn std::io::Read,
+        option: &VanillaStructureLoadOption,
+    ) -> Result<(Schematic, VanillaStructureMetaData), Error> {
+        let loaded_opt: Result<HashMap<String, Value>, fastnbt::error::Error> =
+            fastnbt::from_reader(src);
         let nbt;
         match loaded_opt {
             Ok(loaded_nbt) => nbt = loaded_nbt,
@@ -197,12 +240,15 @@ impl Schematic {
     }
 
     /// Load vanilla structure from nbt.
-    pub fn from_vanilla_structure_nbt(mut nbt: HashMap<String, Value>, option: &VanillaStructureLoadOption) -> Result<(Schematic, VanillaStructureMetaData), Error> {
+    pub fn from_vanilla_structure_nbt(
+        mut nbt: HashMap<String, Value>,
+        option: &VanillaStructureLoadOption,
+    ) -> Result<(Schematic, VanillaStructureMetaData), Error> {
         let mut schem = Schematic::new();
 
         let mut md = VanillaStructureMetaData::default();
         {
-            md.data_version = *unwrap_opt_tag!(nbt.get("DataVersion"),Int,0,"/DataVersion");
+            md.data_version = *unwrap_opt_tag!(nbt.get("DataVersion"), Int, 0, "/DataVersion");
             schem.metadata = MetaDataIR::from_vanilla_structure(&md);
         }
 
@@ -223,14 +269,14 @@ impl Schematic {
 
         //parse block palette
         {
-            let palette_list = unwrap_opt_tag!(nbt.get("palette"),List,vec![],"/palette");
+            let palette_list = unwrap_opt_tag!(nbt.get("palette"), List, vec![], "/palette");
 
             region.palette.reserve(palette_list.len());
 
             for (idx, blk_tag) in palette_list.iter().enumerate() {
                 let tag_path = format!("/palette[{}]", idx);
 
-                let blk_comp = unwrap_tag!(blk_tag,Compound,HashMap::new(),&tag_path);
+                let blk_comp = unwrap_tag!(blk_tag, Compound, HashMap::new(), &tag_path);
                 let blk = common::parse_block(blk_comp, &tag_path);
                 match blk {
                     Err(err) => return Err(err),
@@ -263,13 +309,15 @@ impl Schematic {
 
         // fill in blocks
         {
-            let blocks_list = unwrap_opt_tag!(nbt.get("blocks"),List,vec![],"/blocks");
+            let blocks_list = unwrap_opt_tag!(nbt.get("blocks"), List, vec![], "/blocks");
 
             for (idx, blk_item) in blocks_list.iter().enumerate() {
-                let blk_item = parse_array_item(blk_item,
-                                                &*format!("/blocks[{}]", idx),
-                                                region.palette.len() as i32,
-                                                [region_size[0], region_size[1], region_size[2]]);
+                let blk_item = parse_array_item(
+                    blk_item,
+                    &*format!("/blocks[{}]", idx),
+                    region.palette.len() as i32,
+                    [region_size[0], region_size[1], region_size[2]],
+                );
                 let state;
                 let pos;
                 let block_entity_opt;
@@ -279,10 +327,14 @@ impl Schematic {
                 }
 
                 let pos_ndarr = [pos[0] as usize, pos[1] as usize, pos[2] as usize];
-                region.array_yzx.set_3d(&Region::pos_xyz_to_yzx(&pos_ndarr), state as u16);
+                region
+                    .array_yzx
+                    .set_3d(&Region::pos_xyz_to_yzx(&pos_ndarr), state as u16);
 
                 if let Some(block_entity) = block_entity_opt {
-                    region.block_entities.insert([pos[0], pos[1], pos[2]], block_entity);
+                    region
+                        .block_entities
+                        .insert([pos[0], pos[1], pos[2]], block_entity);
                 }
             }
         }
@@ -290,7 +342,8 @@ impl Schematic {
         // fill in entities
         {
             // unwrap the list
-            let mut entity_list = unwrap_opt_tag!(nbt.remove("entities"),List,vec![],"/entities");
+            let mut entity_list =
+                unwrap_opt_tag!(nbt.remove("entities"), List, vec![], "/entities");
             for (idx, entity_tag) in entity_list.iter_mut().enumerate() {
                 let tag_path = format!("/entities[{}]", idx);
                 let parsed_entity = parse_entity(entity_tag, &tag_path);
@@ -339,7 +392,10 @@ fn pos_to_nbt(pos: &[i32; 3]) -> Value {
 #[allow(dead_code)]
 impl Schematic {
     /// Save schematic to nbt as vanilla structure
-    pub fn to_nbt_vanilla_structure(&self, option: &VanillaStructureSaveOption) -> Result<HashMap<String, Value>, Error> {
+    pub fn to_nbt_vanilla_structure(
+        &self,
+        option: &VanillaStructureSaveOption,
+    ) -> Result<HashMap<String, Value>, Error> {
         let mut nbt: HashMap<String, Value> = HashMap::new();
 
         {
@@ -391,7 +447,8 @@ impl Schematic {
                         assert_eq!(first_r_blk_info.is_some(), first_region_idx.is_some());
                         let first_region_idx: usize = first_region_idx.unwrap();
                         let first_r_blk_info = first_r_blk_info.unwrap();
-                        let g_blk_id = luts_of_block_idx[first_region_idx][first_r_blk_info.0 as usize];
+                        let g_blk_id =
+                            luts_of_block_idx[first_region_idx][first_r_blk_info.0 as usize];
 
                         if first_r_blk_info.1.is_structure_void() {
                             continue;
@@ -437,7 +494,10 @@ impl Schematic {
             nbt.insert(String::from("entities"), Value::List(entities));
         }
 
-        nbt.insert(String::from("DataVersion"), Value::Int(self.metadata.mc_data_version));
+        nbt.insert(
+            String::from("DataVersion"),
+            Value::Int(self.metadata.mc_data_version),
+        );
 
         return Ok(nbt);
     }
@@ -459,7 +519,11 @@ impl Schematic {
 
     /// Save schematic to file as vanilla structure
 
-    pub fn save_vanilla_structure_file(&self, filename: &str, option: &VanillaStructureSaveOption) -> Result<(), Error> {
+    pub fn save_vanilla_structure_file(
+        &self,
+        filename: &str,
+        option: &VanillaStructureSaveOption,
+    ) -> Result<(), Error> {
         let nbt = self.to_nbt_vanilla_structure(option)?;
 
         let file = match File::create(filename) {
@@ -480,9 +544,12 @@ impl Schematic {
         return Ok(());
     }
 
-
     /// Save schematic to writer as vanilla structure
-    pub fn save_vanilla_structure_writer(&self, dest: &mut dyn std::io::Write, option: &VanillaStructureSaveOption) -> Result<(), Error> {
+    pub fn save_vanilla_structure_writer(
+        &self,
+        dest: &mut dyn std::io::Write,
+        option: &VanillaStructureSaveOption,
+    ) -> Result<(), Error> {
         let nbt = self.to_nbt_vanilla_structure(option)?;
 
         let encoder = GzBuilder::new()
@@ -497,4 +564,3 @@ impl Schematic {
         return Ok(());
     }
 }
-

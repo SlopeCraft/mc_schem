@@ -99,7 +99,7 @@ impl Biome {
                 return Some(val);
             }
         }
-        return None;
+        None
     }
 }
 

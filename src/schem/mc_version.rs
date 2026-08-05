@@ -72,7 +72,7 @@ pub enum DataVersion {
     Java_26_1_snapshot3 = 4767,
     Java_26_1_snapshot2 = 4765,
     Java_26_1_snapshot1 = 4764,
-    
+
     Java_1_21_11 = 4671,
     Java_1_21_11_rc3 = 4670,
     Java_1_21_11_rc2 = 4669,
@@ -689,7 +689,7 @@ pub enum DataVersion {
      * Data version was introduced in snapshot 15w32a.
      * Value below has no meaning outside this crate, we assign i32 to these versions simply to
      * satisfy the requirement of rust enumeration
-    */
+     */
     Snapshot_15w31c = 99,
     Snapshot_15w31b = 98,
     Snapshot_15w31a = 97,

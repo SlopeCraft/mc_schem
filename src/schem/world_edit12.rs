@@ -232,7 +232,8 @@ impl Region {
                     let (id, damage) = id_damage_array[pos];
                     let stat = &id_damage_counter[id as usize][damage as usize];
                     debug_assert!((stat.id as usize) < region.palette.len());
-                    region.array_yzx[pos] = stat.id;
+                    region.array_yzx.set_3d(&pos, stat.id);
+                    // region.array_yzx[pos] = stat.id;
                 }
             }
         }

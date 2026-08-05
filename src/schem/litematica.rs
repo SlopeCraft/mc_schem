@@ -243,7 +243,8 @@ impl Region {
                             })
                         }
                         idx += 1;
-                        region.array_yzx[[y as usize, z as usize, x as usize, ]] = blk_id as u16;
+                        region.array_yzx.set_3d(&[y as usize, z as usize, x as usize], blk_id as u16);
+                        // region.array_yzx[] = blk_id as u16;
                     }
                 }
             }
@@ -806,11 +807,13 @@ impl Region {
         {
             let mut mbs = MultiBitSet::new();
             mbs.reset(block_required_bits(self.palette.len()) as u8, self.volume() as usize);
+
+            //TODO: Use visit_dense instead
             let mut idx = 0usize;
             for y in 0..self.shape()[1] as usize {
                 for z in 0..self.shape()[2] as usize {
                     for x in 0..self.shape()[0] as usize {
-                        let res = mbs.set(idx, self.array_yzx[[y, z, x]] as u64);
+                        let res = mbs.set(idx, self.array_yzx.get_3d(&[y, z, x]) as u64);
                         assert!(res.is_ok());
                         idx += 1;
                     }

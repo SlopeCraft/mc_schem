@@ -177,27 +177,18 @@ impl Sparse3DArray {
         let y = idx / (sx * sz);
         let rest = idx % (sx * sz);
         let z = rest / sx;
-        let x = rest & sx;
+        let x = rest % sx;
         debug_assert!(x < *sx);
         debug_assert!(y < *sy);
         debug_assert!(z < *sz);
-        return [y, z, x];
+        [y, z, x]
     }
     pub fn reshape(&mut self, shape_new: &[usize; 3]) {
         self.elements.clear();
         self.shape = *shape_new;
-        // let mut usz: [usize; 3] = [0, 0, 0];
-        // for idx in 0..3 {
-        //     let sz = shape_new[idx];
-        //     if sz < 0 {
-        //         panic!("Try resizing with negative size [{},{},{}]", shape_new[0], shape_new[1], shape_new[2]);
-        //     }
-        //     usz[idx] = sz as usize;
-        // }
-        // self.shape = usz;
     }
 
-    pub fn with_shape(shape: &[usize; 3]) -> Sparse3DArray {
+    pub fn zeros(shape: &[usize; 3]) -> Sparse3DArray {
         let mut ret = Self::new();
         ret.reshape(shape);
         ret
@@ -301,6 +292,13 @@ impl Array3DVariant {
         }
     }
 
+    pub fn zeros(shape: &[usize; 3], dense: bool) -> Array3DVariant {
+        if dense {
+            return Array3DVariant::Dense(Array3::zeros(*shape));
+        }
+        Array3DVariant::Sparse(Sparse3DArray::zeros(shape))
+    }
+
     pub fn reshape(&mut self, new_shape: &[usize; 3]) {
         match self {
             Array3DVariant::Dense(arr) => {
@@ -324,6 +322,55 @@ impl Array3DVariant {
             Array3DVariant::Dense(arr) => arr[*pos] = value,
             Array3DVariant::Sparse(arr) => arr.set_3d(pos, value)
         }
+    }
+
+    pub fn visit_non_zero<F: FnMut(usize, &[usize; 3], u16)>(&self, func: &mut F) {
+        match self {
+            Array3DVariant::Dense(arr) => {
+                for idx_1d in 0..arr.len() {
+                    let pos = Sparse3DArray::coordinate_1d_to_3d(idx_1d, &self.shape());
+                    func(idx_1d, &pos, arr[pos]);
+                }
+            },
+            Array3DVariant::Sparse(arr) => {
+                arr.visit_non_zero(func);
+            },
+        }
+    }
+
+    pub fn visit_non_zero_mut<F: FnMut(usize, &[usize; 3], &mut u16)>(&mut self, func: &mut F) {
+        let shape = self.shape();
+        match self {
+            Array3DVariant::Dense(arr) => {
+                for idx_1d in 0..arr.len() {
+                    let pos = Sparse3DArray::coordinate_1d_to_3d(idx_1d, &shape);
+                    func(idx_1d, &pos, &mut arr[pos]);
+                }
+            },
+            Array3DVariant::Sparse(arr) => {
+                arr.visit_non_zero_mut(func);
+            },
+        }
+    }
+
+    pub fn fill(&mut self, value: u16) {
+        match self {
+            Array3DVariant::Dense(arr) => {
+                arr.fill(value);
+                return;
+            },
+            Array3DVariant::Sparse(arr) => {
+                if value == 0 {
+                    arr.elements.clear();
+                    return;
+                }
+                // Fill with non-zero
+            }
+        }
+        let shape = self.shape();
+        let mut new_arr = Array3::zeros(shape);
+        new_arr.fill(value);
+        *self = Array3DVariant::Dense(new_arr);
     }
 
     pub fn visit_dense<F: FnMut(usize, &[usize; 3], u16)>(&self, func: &mut F) {
@@ -352,7 +399,7 @@ pub struct Region {
     /// Name of this region, only useful in litematica
     pub name: String,
     /// Array of block indices, stored in y,z,x
-    pub array_yzx: Array3<u16>,
+    pub array_yzx: Array3DVariant,
     /// All kinds of blocks
     pub palette: Vec<Block>,
     /// All block entities. The key is position (xyz)
@@ -422,13 +469,13 @@ impl PendingTickInfo {
 
 impl HasPalette for Region {
     fn palette(&self) -> &[Block] {
-        return &self.palette;
+        &self.palette
     }
 }
 
 impl HasOffset for Region {
     fn offset(&self) -> [i32; 3] {
-        return self.offset;
+        self.offset
     }
 }
 
@@ -446,27 +493,31 @@ impl WorldSlice for Region {
     /// void is never counted.
     fn total_blocks(&self, include_air: bool) -> u64 {
         let mut counter = 0;
+        let air_idx_opt = self.block_index_of_air();
+        let sv_idx_opt = self.block_index_of_structure_void();
 
-        for blk_id in &self.array_yzx {
-            if let Some(air_idx) = self.block_index_of_air() {
-                if *blk_id == air_idx {
-                    if include_air {
-                        counter += 1;
+        self.array_yzx.visit_dense(
+            &mut |_idx_1d: usize, _pos: &[usize; 3], blk_id: u16| {
+                if let Some(air_idx) = air_idx_opt {
+                    if blk_id == air_idx {
+                        if include_air {
+                            counter += 1;
+                        }
+                        return;
                     }
-                    continue;
                 }
-            }
 
-            if let Some(sv_idx) = self.block_index_of_structure_void() {
-                if *blk_id == sv_idx {
-                    counter += 1;
-                    continue;
+                if let Some(sv_idx) = sv_idx_opt {
+                    if blk_id == sv_idx {
+                        counter += 1;
+                        return;
+                    }
                 }
-            }
 
-            counter += 1;
-        }
-        return counter;
+                counter += 1;
+            }
+        );
+        counter
     }
 
     /// Returns detailed block infos at `r_pos`, including block index, block, block entity and pending tick.
@@ -490,8 +541,8 @@ impl WorldSlice for Region {
         let y = r_pos[1] as usize;
         let z = r_pos[2] as usize;
 
-        let pid = self.array_yzx[[y, z, x]] as usize;
-        return Some(pid as u16);
+        let pid = self.array_yzx.get_3d(&[y, z, x]) as usize;
+        Some(pid as u16)
     }
     /// Get block at `r_pos`, returns `None` if the block is outside the region
     fn block_at(&self, r_pos: [i32; 3]) -> Option<&Block> {
@@ -511,7 +562,7 @@ impl WorldSlice for Region {
         if let Some(pts) = self.pending_ticks.get(&r_pos) {
             return &pts;
         }
-        return &[];
+        &[]
     }
 }
 
@@ -521,18 +572,18 @@ impl Region {
     /// Convert pos from xyz to yzx
     pub fn pos_xyz_to_yzx<T>(pos: &[T; 3]) -> [T; 3]
         where T: Copy {
-        return [pos[1], pos[2], pos[0]];
+        [pos[1], pos[2], pos[0]]
     }
 
     /// Convert pos from yzx to xyz
     pub fn pos_yzx_to_xyz<T>(yzx: &[T; 3]) -> [T; 3]
         where T: Copy {
-        return [yzx[2], yzx[0], yzx[1]];
+        [yzx[2], yzx[0], yzx[1]]
     }
 
     /// Create a new region with size \[1,1,1\], filled with air
     pub fn new() -> Region {
-        return Self::with_shape([1, 1, 1]);
+        Self::with_shape([1, 1, 1])
     }
 
     pub fn with_shape(shape_xyz: [i32; 3]) -> Region {
@@ -540,7 +591,7 @@ impl Region {
         //let shape_zx = [shape_xyz[2], shape_xyz[1]];
         let mut result = Region {
             name: String::from("NewRegion"),
-            array_yzx: Array3::zeros(shape_yzx),
+            array_yzx: Array3DVariant::zeros(&shape_yzx, true),
             palette: Vec::new(),
             block_entities: HashMap::new(),
             pending_ticks: HashMap::new(),
@@ -580,7 +631,7 @@ impl Region {
         let y = pos[1] as usize;
         let z = pos[2] as usize;
 
-        return [x, y, z];
+        [x, y, z]
     }
 
     /// Set block as assigned position. `r_pos` is a relative pos in xyz. \
@@ -607,7 +658,7 @@ impl Region {
         let blkid = blkid as u16;
 
         let pos_usize = Self::i32_to_usize(&r_pos);
-        self.array_yzx[Self::pos_xyz_to_yzx(&pos_usize)] = blkid;
+        self.array_yzx.set_3d(&Self::pos_xyz_to_yzx(&pos_usize), blkid);
 
         return Ok(());
     }
@@ -621,7 +672,7 @@ impl Region {
             return Err(());
         }
         let pos_usize = Self::i32_to_usize(&r_pos);
-        self.array_yzx[Self::pos_xyz_to_yzx(&pos_usize)] = block_id;
+        self.array_yzx.set_3d(&Self::pos_xyz_to_yzx(&pos_usize), block_id);
         return Ok(());
     }
 
@@ -636,7 +687,7 @@ impl Region {
             usz[idx] = sz as usize;
         }
         let shape_yzx = Self::pos_xyz_to_yzx(&usz);
-        self.array_yzx = Array3::zeros(shape_yzx);
+        self.array_yzx.reshape(&shape_yzx);
         //let shape_zx = [shape_xyz[2], shape_xyz[1]];
         // self.sky_block_light = Array3::default(shape_yzx);
         // self.sky_block_light.fill(Light::default());
@@ -649,25 +700,25 @@ impl Region {
         if shape.len() != 3 {
             panic!("Invalid array dimensions: should be 3 but now it is {}", shape.len());
         }
-        return [shape[0] as i32, shape[1] as i32, shape[2] as i32];
+        [shape[0] as i32, shape[1] as i32, shape[2] as i32]
     }
 
     /// Convert global position to relative position. `r_pos` = `g_pos` - `self.offset`
     pub fn global_pos_to_relative_pos(&self, g_pos: [i32; 3]) -> [i32; 3] {
-        return [
+        [
             g_pos[0] - self.offset[0],
             g_pos[1] - self.offset[1],
             g_pos[2] - self.offset[2],
-        ];
+        ]
     }
 
     /// Convert relative position to global position. `g_pos` = `r_pos` + `self.offset`
     pub fn relative_pos_to_global_pos(&self, r_pos: [i32; 3]) -> [i32; 3] {
-        return [
+        [
             r_pos[0] + self.offset[0],
             r_pos[1] + self.offset[1],
             r_pos[2] + self.offset[2],
-        ];
+        ]
     }
     /// Remove non-existing blocks from palette. Returns error if there is any block index that is
     /// equal or greater than length of palette
@@ -675,21 +726,28 @@ impl Region {
         let mut block_counter: Vec<u64> = Vec::new();
         block_counter.resize(self.palette.len(), 0);
 
-        for x in 0..self.shape()[0] {
-            for y in 0..self.shape()[1] {
-                for z in 0..self.shape()[2] {
-                    let idx = self.array_yzx[[y as usize, z as usize, x as usize]];
-                    if idx as usize >= self.palette.len() {
-                        return Err(Error::BlockIndexOutOfRangeWriting {
-                            r_pos: [x, y, z],
-                            block_index: idx,
-                            max_index: self.palette.len() as u16 - 1,
-                        });
-                    }
-                    block_counter[idx as usize] += 1;
+        let mut ret: Result<(), Error> = Ok(());
+        self.array_yzx.visit_dense(
+            &mut |_, pos, blk_idx| {
+                if let Err(_) = &ret {
+                    return;
                 }
+                if blk_idx as usize >= self.palette.len()
+                {
+                    let [y, z, x] = *pos;
+                    ret = Err(Error::BlockIndexOutOfRangeWriting {
+                        r_pos: [x as i32, y as i32, z as i32],
+                        block_index: blk_idx,
+                        max_index: self.palette.len() as u16 - 1,
+                    });
+                }
+                block_counter[blk_idx as usize] += 1;
             }
+        );
+        if ret.is_err() {
+            return ret;
         }
+
 
         let mut id_map: Vec<u16> = Vec::new();
         id_map.resize(self.palette.len(), 65535);
@@ -708,13 +766,16 @@ impl Region {
                 }
             }
         }
-        for blkid in &mut self.array_yzx {
-            let new_id = id_map[*blkid as usize];
-            assert!((new_id as usize) < self.palette.len());
-            *blkid = new_id;
-        }
 
-        return Ok(());
+        self.array_yzx.visit_non_zero_mut(
+            &mut |_, _, blkid| {
+                let new_id = id_map[*blkid as usize];
+                assert!((new_id as usize) < self.palette.len());
+                *blkid = new_id;
+            }
+        );
+
+        Ok(())
     }
 
     /// Find the block index of a block in palette

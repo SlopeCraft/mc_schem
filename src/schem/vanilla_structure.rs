@@ -279,7 +279,7 @@ impl Schematic {
                 }
 
                 let pos_ndarr = [pos[0] as usize, pos[1] as usize, pos[2] as usize];
-                region.array_yzx[Region::pos_xyz_to_yzx(&pos_ndarr)] = state as u16;
+                region.array_yzx.set_3d(&Region::pos_xyz_to_yzx(&pos_ndarr), state as u16);
 
                 if let Some(block_entity) = block_entity_opt {
                     region.block_entities.insert([pos[0], pos[1], pos[2]], block_entity);

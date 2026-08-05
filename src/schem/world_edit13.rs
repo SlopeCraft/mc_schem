@@ -24,7 +24,7 @@ use flate2::read::GzDecoder;
 use ndarray::Array3;
 use crate::block::Block;
 use crate::error::{Error};
-use crate::region::{BlockEntity, Region, WorldSlice};
+use crate::region::{Array3DVariant, BlockEntity, Region, WorldSlice};
 use crate::schem::{common, MetaDataIR, Schematic, WE13MetaData, WE13MetaDataV3Extra, WorldEdit13LoadOption, WorldEdit13SaveOption};
 use crate::{unwrap_opt_tag, unwrap_tag};
 use crate::schem::id_of_nbt_tag;
@@ -329,7 +329,7 @@ impl Region {
         {
             let block_data_tag_path = format!("{tag_path}/BlockData");
             let block_data = unwrap_opt_tag!(root.get("BlockData"),ByteArray,fastnbt::ByteArray::new(vec![]),block_data_tag_path);
-            region.array_yzx = Self::parse_3d_array_v2(block_data.as_ref(), &block_data_tag_path, option, size, &region.palette)?;
+            region.array_yzx = Array3DVariant::Dense(Self::parse_3d_array_v2(block_data.as_ref(), &block_data_tag_path, option, size, &region.palette)?);
         }
 
 
@@ -339,7 +339,7 @@ impl Region {
             let block_entities = unwrap_opt_tag!(root.get_mut("BlockEntities"),List,vec![],be_tag_path);
             region.block_entities = Self::parse_block_entities_v2(block_entities, &be_tag_path, option, size)?;
         }
-        return Ok(region);
+        Ok(region)
     }
 
     /// Load region from nbt, for `.schem` v3
@@ -361,7 +361,7 @@ impl Region {
         {
             let tag_data_path = "/Schematic/Blocks/Data";
             let tag_data = unwrap_opt_tag!(tag_blocks.get("Data"),ByteArray,fastnbt::ByteArray::new(vec![]),tag_data_path);
-            region.array_yzx = Self::parse_3d_array_v2(&tag_data, tag_data_path, option, size, &region.palette)?;
+            region.array_yzx = Array3DVariant::Dense(Self::parse_3d_array_v2(&tag_data, tag_data_path, option, size, &region.palette)?);
         }
         //block entities
         {

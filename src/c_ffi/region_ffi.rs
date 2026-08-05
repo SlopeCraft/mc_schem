@@ -22,7 +22,7 @@ use std::ptr::{drop_in_place, null, null_mut};
 use fastnbt::Value;
 use crate::Block;
 use crate::c_ffi::{CArrayView, CMapRef, CPendingTickType, CPosDouble, CPosInt, CRegionBlockInfo, CStringView, error_to_box};
-use crate::region::{BlockEntity, Entity, HasPalette, PendingTick, PendingTickInfo, Region, WorldSlice};
+use crate::region::{Array3DVariant, BlockEntity, Entity, HasPalette, PendingTick, PendingTickInfo, Region, WorldSlice};
 use crate::error::Error;
 
 #[no_mangle]
@@ -274,7 +274,10 @@ unsafe extern "C" fn MC_SCHEM_region_get_entities(region: *const Region, len: *m
 #[no_mangle]
 unsafe extern "C" fn MC_SCHEM_region_get_block_index_array(region: *const Region) -> *mut u16 {
     let region = &mut *(region as *mut Region);
-    return region.array_yzx.as_mut_ptr();
+    if let Array3DVariant::Dense(arr) = &mut region.array_yzx {
+        return arr.as_mut_ptr();
+    }
+    null_mut()
 }
 
 #[no_mangle]

@@ -27,6 +27,7 @@ use ndarray::Array3;
 use rand::Rng;
 use mc_schem::block::CommonBlock;
 use mc_schem::{Schematic, WorldEdit12LoadOption, LitematicaLoadOption, LitematicaSaveOption, Block, schem, old_block, DataVersion, WorldEdit13SaveOption, Region, BlockEntity, MetaDataIR, WorldEdit13LoadOption};
+use mc_schem::region::WorldSlice;
 
 #[test]
 fn block_id_parse() {
@@ -715,6 +716,39 @@ fn test_3d_array_order() {
     }
 }
 
+#[test]
+fn test_region_sparse() {
+    let (schem, _) = Schematic::from_litematica_file("./test_files/litematica/full-blocks-26.2.litematic", &LitematicaLoadOption::default()).unwrap();
+
+    assert_eq!(schem.regions.len(), 1);
+    let region_dense = &schem.regions[0];
+    assert!(region_dense.is_dense());
+    let mut region_sparse = region_dense.clone();
+    region_sparse.convert_to_sparse();
+    assert_eq!(region_sparse.shape_yzx(), region_dense.shape_yzx());
+
+    let [y_max, z_max, x_max] = region_sparse.shape_yzx();
+
+    for y in 0..y_max {
+        for z in 0..z_max {
+            for x in 0..x_max {
+                let sparse_info = region_sparse.block_info_at([x, y, z]);
+                let dense_info = region_dense.block_info_at([x, y, z]);
+                assert_eq!(sparse_info.is_some(), dense_info.is_some());
+                if sparse_info.is_none() {
+                    continue;
+                }
+
+                let (sp_blkid, sp_blk, sp_be, sp_pt) = sparse_info.unwrap();
+                let (ds_blkid, ds_blk, ds_be, ds_pt) = dense_info.unwrap();
+                assert_eq!(sp_blkid, ds_blkid);
+                assert_eq!(sp_blk, ds_blk);
+                assert_eq!(sp_be.is_some(), ds_be.is_some());
+                assert_eq!(sp_pt.len(), ds_pt.len());
+            }
+        }
+    }
+}
 // #[test]
 // fn check_mca() {
 //     let filename = "F:\\Users\\Joseph\\Documents\\Games\\Minecraft\\PCL2\\.minecraft\\versions\\1.20.2-Fabric 0.15.6\\saves\\New World\\region\\r.0.0.mca";

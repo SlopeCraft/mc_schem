@@ -75,53 +75,32 @@ if (${WIN32})
             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 endif ()
 
-file(GLOB_RECURSE headers "c_sources/*.h")
-add_library(mc_schem STATIC
-        c_sources/mc_schem.c
-        ${headers})
-add_library(mc_schem::mc_schem ALIAS mc_schem)
+add_library(mc_schem INTERFACE)
+target_sources(mc_schem INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/c_sources/mc_schem.hpp>
+)
 add_dependencies(mc_schem mc_schem_rs)
-include(GenerateExportHeader)
-generate_export_header(mc_schem)
-target_include_directories(mc_schem PUBLIC
-        $<BUILD_INTERFACE: "${CMAKE_SOURCE_DIR}/c_sources;${CMAKE_BINARY_DIR}" >
-        $<INSTALL_INTERFACE:"include">)
+
+target_include_directories(mc_schem INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/c_sources>
+    $<INSTALL_INTERFACE:include>
+)
 if (${link_shared_lib_directly})    # link to shared lib directly
-    target_link_libraries(mc_schem PUBLIC
+    target_link_libraries(mc_schem INTERFACE
             $<BUILD_INTERFACE:${shared_lib_loc}>
             $<INSTALL_INTERFACE:${shared_lib_name}>)
 else ()
-    target_link_libraries(mc_schem PUBLIC
+    target_link_libraries(mc_schem INTERFACE
             $<BUILD_INTERFACE:${export_lib_loc}>
             $<INSTALL_INTERFACE:${export_lib_name}>)
 endif ()
 
-if (${CMAKE_C_COMPILER_ID} STREQUAL "MSVC")
-    message(WARNING "Up til 2024/2/4, MSVC doesn't support c23, build may fail. It's suggested to use clang-cl 17+ instead")
-endif ()
+target_compile_features(mc_schem INTERFACE c_std_23)
 
-if (MSVC)
-    target_compile_options(mc_schem PUBLIC "/Zc:__cplusplus")
-    target_compile_options(mc_schem PRIVATE "/std:clatest")
-    target_compile_options(mc_schem PRIVATE "/std:c17")
-else ()
-    target_compile_features(mc_schem PUBLIC c_std_23)
-endif ()
 
-add_library(mc_schem_hpp INTERFACE
-    c_sources/mc_schem.hpp)
-target_link_libraries(mc_schem_hpp INTERFACE mc_schem)
-target_compile_features(mc_schem_hpp INTERFACE cxx_std_23)
-
-add_executable(c_test c_sources/c_test.c)
-target_link_libraries(c_test PRIVATE mc_schem)
-if (MSVC)
-    target_compile_options(c_test PRIVATE "/std:clatest")
-endif ()
-
-add_executable(cpp_test c_sources/cpp_test.cpp)
+add_executable(cpp_test tests/test_c_ffi.cpp)
 target_compile_features(cpp_test PRIVATE cxx_std_23)
-target_link_libraries(cpp_test PRIVATE mc_schem_hpp)
+target_link_libraries(cpp_test PRIVATE mc_schem)
 
 if (${MC_SCHEM_INSTALL})
     include(CMakePackageConfigHelpers)

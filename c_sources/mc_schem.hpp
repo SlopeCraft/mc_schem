@@ -154,6 +154,9 @@ class deleter {
   static void operator()(region* ptr) { mc_schem_destroy_region(ptr); }
 };
 
+/// Block for Minecraft.
+/// Note: sizeof(block) is fake. Never construct from C/C++, only construct,
+/// allocate, destroy and deallocate in Rust. Always use `this` as handle.
 class block {
  public:
   block() = delete;
@@ -167,28 +170,28 @@ class block {
     return std::unique_ptr<block, deleter>{mc_schem_create_block()};
   }
 
-  [[nodiscard]] std::string id() const {
+  [[nodiscard]] std::string id() const& {
     std::string ret;
     rust_string_receiver receiver{ret};
     mc_schem_block_get_id(this, &receiver);
     return ret;
   }
 
-  [[nodiscard]] std::string namespace_() const {
+  [[nodiscard]] std::string namespace_() const& {
     std::string ret;
     rust_string_receiver receiver{ret};
     mc_schem_block_get_namespace(this, &receiver);
     return ret;
   }
 
-  void set_id(const std::string& id) {
+  void set_id(const std::string& id) & {
     mc_schem_block_set_id(this, id.c_str());
   }
-  void set_namespace(const std::string& ns) {
+  void set_namespace(const std::string& ns) & {
     mc_schem_block_set_namespace(this, ns.c_str());
   }
 
-  [[nodiscard]] std::string full_id() const {
+  [[nodiscard]] std::string full_id() const& {
     std::string ret;
     rust_string_receiver receiver{ret};
     mc_schem_block_get_full_id(this, &receiver);
@@ -196,7 +199,7 @@ class block {
   }
 
   [[nodiscard]] std::expected<void, block_id_parse_error> reset(
-      const std::string& full_id) {
+      const std::string& full_id) & {
     block_id_parse_error err{};
     if (mc_schem_block_reset(this, full_id.c_str(), &err)) {
       return {};
@@ -207,7 +210,7 @@ class block {
   template <class visitor_type>
     requires std::is_invocable_r_v<void, visitor_type, std::string&&,
                                    std::string&&>
-  void visit_attributes(visitor_type&& visitor) const {
+  void visit_attributes(visitor_type&& visitor) const& {
     auto callback = [](const char8_t* key, size_t key_bytes,
                        const char8_t* value, size_t value_bytes,
                        void* custom_data) {
@@ -222,20 +225,23 @@ class block {
     mc_schem_block_visit_attributes(this, callback, &visitor);
   }
 
-  void erase_attribute(const std::string& key) {
+  void erase_attribute(const std::string& key) & {
     mc_schem_block_erase_attribute(this, key.c_str());
   }
 
-  void set_attribute(const std::string& key, const std::string& value) {
+  void set_attribute(const std::string& key, const std::string& value) & {
     mc_schem_block_set_attribute(this, key.c_str(), value.c_str());
   }
 
-  [[nodiscard]] bool is_air() const { return mc_schem_block_is_air(this); }
-  [[nodiscard]] bool is_structure_void() const {
+  [[nodiscard]] bool is_air() const& { return mc_schem_block_is_air(this); }
+  [[nodiscard]] bool is_structure_void() const& {
     return mc_schem_block_is_structure_void(this);
   }
 };
 
+/// Error from Rust side
+/// Note: sizeof is fake. Never construct from C/C++, only construct,
+/// allocate, destroy and deallocate in Rust. Always use `this` as handle.
 class error {
  public:
   error() = delete;
@@ -245,7 +251,7 @@ class error {
   error& operator=(const error&) = delete;
   error& operator=(error&&) = delete;
 
-  [[nodiscard]] std::string message() const {
+  [[nodiscard]] std::string message() const& {
     std::string ret;
     rust_string_receiver receiver{ret};
     mc_schem_error_get_message(this, &receiver);
@@ -253,6 +259,9 @@ class error {
   }
 };
 
+/// Region of schematic
+/// Note: sizeof(region) is fake. Never construct from C/C++, only construct,
+/// allocate, destroy and deallocate in Rust. Always use `this` as handle.
 class region {
  public:
   region() = delete;
@@ -285,29 +294,33 @@ class region {
     return std::unexpected{std::unique_ptr<error, deleter>{err}};
   }
 
-  [[nodiscard]] std::array<int32_t, 3> offset() const {
+  [[nodiscard]] std::array<int32_t, 3> offset() const& {
     int32_t x{0}, y{0}, z{0};
     mc_schem_region_get_offset(this, &x, &y, &z);
     return {x, y, z};
   }
 
-  [[nodiscard]] std::array<int32_t, 3> size_xyz() const {
+  [[nodiscard]] std::array<int32_t, 3> size_xyz() const& {
     int32_t x{0}, y{0}, z{0};
     mc_schem_region_get_size(this, &x, &y, &z);
     return {x, y, z};
   }
 
-  [[nodiscard]] std::array<int32_t, 3> size_yzx() const {
+  [[nodiscard]] std::array<int32_t, 3> size_yzx() const& {
     const auto [x, y, z] = size_xyz();
     return {y, z, x};
   }
 
-  [[nodiscard]] size_t palette_size() const {
+  [[nodiscard]] size_t palette_size() const& {
     return mc_schem_region_palette_get_size(this);
   }
 
-  [[nodiscard]] const block* palette(size_t index) const {
+  [[nodiscard]] const block* palette(size_t index) const& {
     return mc_schem_region_palette_get_block(this, index);
+  }
+
+  [[nodiscard]] uint16_t find_or_append_to_palette(const block& blk) & {
+    return mc_schem_region_find_or_append_to_palette(this, &blk);
   }
 
   [[nodiscard]] std::vector<const block*> full_palette() const {

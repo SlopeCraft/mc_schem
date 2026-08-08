@@ -5,8 +5,8 @@
 #include <mc_schem.hpp>
 #include <print>
 
-int main(int argc, char** argv) {
-  using namespace mc_schem;
+using namespace mc_schem;
+void test_blocks() {
   auto block = block::create();
 
   std::println(R"(id of default block: "{}", namespace: "{}")", block->id(),
@@ -26,5 +26,21 @@ int main(int argc, char** argv) {
     std::print("{}={},", k, v);
   });
   std::println("]");
+
+}
+
+void test_region() {
+  auto region = region::create(3, 4, 5);
+
+  std::println("Palette: [");
+  for (auto blk : region->full_palette()) {
+    std::println("{}", blk->full_id());
+  }
+  std::println("]");
+}
+
+int main(int argc, char** argv) {
+  test_blocks();
+  test_region();
   return 0;
 }

@@ -17,9 +17,24 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 use crate::block::{Block, BlockIdParseError};
+use crate::error::Error;
+use crate::region::HasPalette;
+use crate::Region;
 use std::ffi::{c_char, c_void, CStr};
-use std::ptr::null_mut;
+use std::ptr::{null, null_mut, slice_from_raw_parts};
 use Box;
+
+#[repr(C)]
+pub struct rust_string_receiver {
+    func_receive_string: extern "C" fn(*const u8, usize, *mut c_void),
+    custom_data: *mut c_void,
+}
+
+impl rust_string_receiver {
+    pub unsafe fn receive(&self, string: &str) {
+        (self.func_receive_string)(string.as_ptr(), string.len(), self.custom_data);
+    }
+}
 
 #[no_mangle]
 pub extern "C" fn mc_schem_create_block() -> *mut Block {
@@ -36,16 +51,12 @@ pub unsafe extern "C" fn mc_schem_destroy_block(ptr: *mut Block) {
     let _ = Box::from_raw(ptr);
 }
 
-#[repr(C)]
-pub struct rust_string_receiver {
-    func_receive_string: extern "C" fn(*const u8, usize, *mut c_void),
-    custom_data: *mut c_void,
-}
-
-impl rust_string_receiver {
-    pub unsafe fn receive(&self, string: &str) {
-        (self.func_receive_string)(string.as_ptr(), string.len(), self.custom_data);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_destroy_error(err: *mut Error) {
+    if err.is_null() {
+        return;
     }
+    let _ = Box::from_raw(err);
 }
 
 #[no_mangle]
@@ -150,4 +161,123 @@ pub unsafe extern "C" fn mc_schem_block_is_air(ptr: *const Block) -> bool {
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_block_is_structure_void(ptr: *const Block) -> bool {
     (*ptr).is_structure_void()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_error_get_message(
+    err: *const Error,
+    receiver: *const rust_string_receiver,
+) {
+    if err.is_null() {
+        (*receiver).receive("");
+        return;
+    }
+    (*receiver).receive(&(*err).to_string());
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_create_region(
+    size_x: i32,
+    size_y: i32,
+    size_z: i32,
+) -> *mut Region {
+    let shape = [size_x, size_y, size_z];
+    let box_ptr = Box::from(Region::with_shape(shape));
+    Box::into_raw(box_ptr)
+}
+/// Create region with given palette. If error, error_dest is box of error and returns null;
+/// Otherwise error_dest is null.
+// [[nodiscard]] region* mc_schem_create_region_with_palette(
+// int32_t size_x, int32_t size_y, int32_t size_z,
+// const block* const palette[], size_t palette_size, error** error_dest);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_create_region_with_palette(
+    size_x: i32,
+    size_y: i32,
+    size_z: i32,
+    blocks_ptr: *const *const Block,
+    palette_size: usize,
+    error: *mut *mut Error,
+) -> *mut Region {
+    if palette_size <= 0 {
+        let err = Box::new(Error::PaletteIsEmpty);
+        *error = Box::into_raw(err);
+        return null_mut();
+    }
+
+    let shape = [size_x, size_y, size_z];
+    let mut box_ptr = Box::from(Region::with_shape(shape));
+    box_ptr.palette.clear();
+    let blocks_ptr = &*slice_from_raw_parts(blocks_ptr, palette_size);
+    for ptr in blocks_ptr {
+        box_ptr.palette.push((**ptr).clone());
+    }
+    *error = null_mut();
+    Box::into_raw(box_ptr)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_destroy_region(region: *mut Region) {
+    let _ = Box::from_raw(region);
+}
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_get_name(
+    region: *const Region,
+    receiver: *const rust_string_receiver,
+) {
+    (*receiver).receive(&(*region).name);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_get_offset(
+    region: *const Region,
+    dest_x: *mut i32,
+    dest_y: *mut i32,
+    dest_z: *mut i32,
+) {
+    let [x, y, z] = (*region).offset;
+    *dest_x = x;
+    *dest_y = y;
+    *dest_z = z;
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_get_size(
+    region: *const Region,
+    dest_x: *mut i32,
+    dest_y: *mut i32,
+    dest_z: *mut i32,
+) {
+    let [y, z, x] = (*region).shape_yzx();
+    *dest_x = x;
+    *dest_y = y;
+    *dest_z = z;
+}
+//size_t mc_schem_region_palette_get_size(const region*);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_palette_get_size(region: *const Region) -> usize {
+    (*region).palette.len()
+}
+
+//const block* mc_schem_region_palette_get_block(const region*, size_t index);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_palette_get_block(
+    region: *const Region,
+    index: usize,
+) -> *const Block {
+    if index >= (*region).palette().len() {
+        return null();
+    }
+    (*region).palette.as_ptr().add(index)
+}
+
+// Add block into palette (deep copy). If identical block already exist in
+// palette, don't copy; otherwise append. Returns index of this block in palette
+// uint16_t mc_schem_region_find_or_append_to_palette(region* region, const block* block);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_add_to_palette(
+    region: *mut Region,
+    new_blk: *const Block,
+) -> u16 {
+    (*region).find_or_append_to_palette(&*new_blk)
 }

@@ -92,6 +92,8 @@ void mc_schem_destroy_error(error*);
     int32_t size_x, int32_t size_y, int32_t size_z,
     const block* const palette[], size_t palette_size, error** error_dest);
 void mc_schem_destroy_region(region* region);
+void mc_schem_destroy_entity(entity* entity);
+void mc_schem_destroy_block_entity(block_entity*be);
 
 // Block
 void mc_schem_block_get_id(const block*, const rust_string_receiver* receiver);
@@ -117,6 +119,9 @@ void mc_schem_error_get_message(const error*,
                                 const rust_string_receiver* receiver);
 
 // Region
+////////////////////////////////////////////////////////////////////////////////
+// Palette
+////////////////////////////////////////////////////////////////////////
 void mc_schem_region_get_name(const region*, const rust_string_receiver* dest);
 void mc_schem_region_get_offset(const region*, int32_t* dest_x, int32_t* dest_y,
                                 int32_t* dest_z);
@@ -129,22 +134,33 @@ const block* mc_schem_region_palette_get_block(const region*, size_t index);
 /// palette
 uint16_t mc_schem_region_find_or_append_to_palette(region* region,
                                                    const block* block);
-
+// Entity
+////////////////////////////////////////////////////////////////////////
 size_t mc_schem_region_get_entities_count(const region*);
 const entity* mc_schem_region_get_entity(const region*, size_t index);
 entity* mc_schem_region_get_entity_mut(region*, size_t index);
 void mc_schem_region_erase_entity(region*, size_t index);
 /// Clone entity into region, returns index
 size_t mc_schem_region_add_entity(region*, const entity*);
-
-// void mc_schem_region_visit_block_entities(const region*,
-//                                           void (*callback)(int32_t x, int32_t
-//                                           y,
-//                                                            int32_t z,
-//                                                            const
-//                                                            block_entity*,
-//                                                            void*),
-//                                           void* custom_data);
+// Block entity
+////////////////////////////////////////////////////////////////////////////////
+size_t mc_schem_region_get_block_entities_count(const region*);
+void mc_schem_region_visit_block_entities(const region*,
+                                          void (*callback)(int32_t x, int32_t y,
+                                                           int32_t z,
+                                                           const block_entity*,
+                                                           void*),
+                                          void* custom_data);
+const block_entity* mc_schem_region_get_block_entity(const region*, int32_t x,
+                                                     int32_t y, int32_t z);
+block_entity* mc_schem_region_get_block_entity_mut(region*, int32_t x,
+                                                   int32_t y, int32_t z);
+/// Copy and insert block entity into given coordinate. If previous BE exists, it
+/// will be moved out and boxed and returned as ptr. If be is null, erase old
+/// value
+block_entity* mc_schem_region_add_block_entity(region*, int32_t x, int32_t y,
+                                               int32_t z,
+                                               const block_entity* nullable);
 }
 
 class deleter {
@@ -152,6 +168,10 @@ class deleter {
   static void operator()(block* block) { mc_schem_destroy_block(block); }
   static void operator()(error* err) { mc_schem_destroy_error(err); }
   static void operator()(region* ptr) { mc_schem_destroy_region(ptr); }
+  static void operator()(entity* ptr) { mc_schem_destroy_entity(ptr); }
+  static void operator()(block_entity* ptr) {
+    mc_schem_destroy_block_entity(ptr);
+  }
 };
 
 /// Block for Minecraft.
@@ -347,6 +367,43 @@ class region {
   }
   [[nodiscard]] size_t add_entity(const entity& entity) & {
     return mc_schem_region_add_entity(this, &entity);
+  }
+
+  [[nodiscard]] size_t block_entities_count() const& {
+    return mc_schem_region_get_block_entities_count(this);
+  }
+  template <class visitor_type>
+    requires std::is_invocable_r_v<void, visitor_type, int32_t, int32_t,
+                                   int32_t, const block_entity*>
+  void visit_block_entities(visitor_type&& visitor) const& {
+    auto func = [](int32_t x, int32_t y, int32_t z, const block_entity* e,
+                   void* custom_data) {
+      auto& visitor = *reinterpret_cast<visitor_type*>(custom_data);
+      visitor(x, y, z, e);
+    };
+    mc_schem_region_visit_block_entities(this, func, &visitor);
+  }
+  [[nodiscard]] const block_entity* get_block_entity(
+      const std::array<int32_t, 3>& pos) const& {
+    return mc_schem_region_get_block_entity(this, pos[0], pos[1], pos[2]);
+  }
+  [[nodiscard]] block_entity* get_block_entity(
+      const std::array<int32_t, 3>& pos) & {
+    return mc_schem_region_get_block_entity_mut(this, pos[0], pos[1], pos[2]);
+  }
+  /// Insert new, returns previous value (if exist)
+  std::unique_ptr<block_entity, deleter> add_block_entity(
+      const std::array<int32_t, 3>& pos, const block_entity* e) & {
+    auto ret =
+        mc_schem_region_add_block_entity(this, pos[0], pos[1], pos[2], e);
+    return std::unique_ptr<block_entity, deleter>{ret};
+  }
+  /// Returns previous value (if exist)
+  std::unique_ptr<block_entity, deleter> erase_block_entity(
+      const std::array<int32_t, 3>& pos) & {
+    auto ret =
+        mc_schem_region_add_block_entity(this, pos[0], pos[1], pos[2], nullptr);
+    return std::unique_ptr<block_entity, deleter>{ret};
   }
 };
 

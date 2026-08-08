@@ -18,7 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::block::{Block, BlockIdParseError};
 use crate::error::Error;
-use crate::region::HasPalette;
+use crate::region::{BlockEntity, HasPalette};
 use crate::{Entity, Region};
 use std::ffi::{c_char, c_void, CStr};
 use std::ptr::{null, null_mut, slice_from_raw_parts};
@@ -57,6 +57,21 @@ pub unsafe extern "C" fn mc_schem_destroy_error(err: *mut Error) {
         return;
     }
     let _ = Box::from_raw(err);
+}
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_destroy_entity(ptr: *mut Entity) {
+    if ptr.is_null() {
+        return;
+    }
+    let _ = Box::from_raw(ptr);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_destroy_block_entity(ptr: *mut BlockEntity) {
+    if ptr.is_null() {
+        return;
+    }
+    let _ = Box::from_raw(ptr);
 }
 
 #[no_mangle]
@@ -326,4 +341,85 @@ pub unsafe extern "C" fn mc_schem_region_add_entity(
     (*region).entities.push((*entity_ptr).clone());
 
     (*region).entities.len() - 1
+}
+
+// size_t mc_schem_region_get_block_entities_count(const region*);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_get_block_entities_count(region: *const Region) -> usize {
+    (*region).block_entities.len()
+}
+// void mc_schem_region_visit_block_entities(const region*, void (*callback)(int32_t x, int32_t y, const block_entity*, void*), void* custom_data);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_visit_block_entities(
+    region: *const Region,
+    callback: extern "C" fn(
+        x: i32,
+        y: i32,
+        z: i32,
+        be: *const BlockEntity,
+        custom_data: *mut c_void,
+    ),
+    custom_data: *mut c_void,
+) {
+    for (pos, be) in &(*region).block_entities {
+        let [x, y, z] = *pos;
+        callback(x, y, z, be, custom_data);
+    }
+}
+// const block_entity* mc_schem_region_get_block_entity(const region*, int32_t x, int32_t y, int32_t z);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_get_block_entity(
+    region: *const Region,
+    x: i32,
+    y: i32,
+    z: i32,
+) -> *const BlockEntity {
+    let be = (*region).block_entities.get(&[x, y, z]);
+
+    if let Some(ret) = be {
+        return ret;
+    }
+    null()
+}
+// block_entity* mc_schem_region_get_block_entity_mut(region*, int32_t x, int32_t y, int32_t z);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_get_block_entity_mut(
+    region: *mut Region,
+    x: i32,
+    y: i32,
+    z: i32,
+) -> *mut BlockEntity {
+    let be = (*region).block_entities.get_mut(&[x, y, z]);
+
+    if let Some(ret) = be {
+        return ret;
+    }
+    null_mut()
+}
+
+/// Copy and insert block entity into given coordinate. If previous BE exists, it
+/// will be moved out and boxed and returned as ptr. If be is null, erase old value
+// block_entity* mc_schem_region_add_block_entity(region*, int32_t x, int32_t y, int32_t z, const block_entity*nullable);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_add_block_entity(
+    region: *mut Region,
+    x: i32,
+    y: i32,
+    z: i32,
+    new_be_nullable: *const BlockEntity,
+) -> *mut BlockEntity {
+    let old;
+    if new_be_nullable.is_null() {
+        old = (*region).block_entities.remove(&[x, y, z]);
+    } else {
+        old = (*region)
+            .block_entities
+            .insert([x, y, z], (*new_be_nullable).clone());
+    }
+
+    if let Some(old) = old {
+        let ret = Box::new(old);
+        return Box::into_raw(ret);
+    }
+    null_mut()
 }

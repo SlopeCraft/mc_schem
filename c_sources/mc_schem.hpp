@@ -86,8 +86,8 @@ void mc_schem_destroy_block(block* block);
 void mc_schem_destroy_error(error*);
 [[nodiscard]] region* mc_schem_create_region(int32_t size_x, int32_t size_y,
                                              int32_t size_z);
-/// Create region with given palette. If error, error_dest is box of error and returns null;
-/// Otherwise error_dest is null.
+/// Create region with given palette. If error, error_dest is box of error and
+/// returns null; Otherwise error_dest is null.
 [[nodiscard]] region* mc_schem_create_region_with_palette(
     int32_t size_x, int32_t size_y, int32_t size_z,
     const block* const palette[], size_t palette_size, error** error_dest);
@@ -125,11 +125,17 @@ void mc_schem_region_get_size(const region*, int32_t* size_x, int32_t* size_y,
 size_t mc_schem_region_palette_get_size(const region*);
 const block* mc_schem_region_palette_get_block(const region*, size_t index);
 /// Add block into palette (deep copy). If identical block already exist in
-/// palette, don't copy; otherwise append. Returns index of this block in palette
+/// palette, don't copy; otherwise append. Returns index of this block in
+/// palette
 uint16_t mc_schem_region_find_or_append_to_palette(region* region,
                                                    const block* block);
 
-// size_t mc_schem_region_get_entities_count(const region*);
+size_t mc_schem_region_get_entities_count(const region*);
+const entity* mc_schem_region_get_entity(const region*, size_t index);
+entity* mc_schem_region_get_entity_mut(region*, size_t index);
+void mc_schem_region_erase_entity(region*, size_t index);
+/// Clone entity into region, returns index
+size_t mc_schem_region_add_entity(region*, const entity*);
 
 // void mc_schem_region_visit_block_entities(const region*,
 //                                           void (*callback)(int32_t x, int32_t
@@ -139,10 +145,6 @@ uint16_t mc_schem_region_find_or_append_to_palette(region* region,
 //                                                            block_entity*,
 //                                                            void*),
 //                                           void* custom_data);
-//
-// void mc_schem_region_visit_entities(const region*,
-//                                     void (*callback)(const entity*, void*),
-//                                     void* custom_data);
 }
 
 class deleter {
@@ -316,6 +318,22 @@ class region {
       ret.emplace_back(palette(i));
     }
     return ret;
+  }
+
+  [[nodiscard]] size_t entities_count() const& {
+    return mc_schem_region_get_entities_count(this);
+  }
+  [[nodiscard]] const entity* get_entity(size_t index) const& {
+    return mc_schem_region_get_entity(this, index);
+  }
+  [[nodiscard]] entity* get_entity(size_t index) & {
+    return mc_schem_region_get_entity_mut(this, index);
+  }
+  void erase_entity(size_t index) & {
+    mc_schem_region_erase_entity(this, index);
+  }
+  [[nodiscard]] size_t add_entity(const entity& entity) & {
+    return mc_schem_region_add_entity(this, &entity);
   }
 };
 

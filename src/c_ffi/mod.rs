@@ -19,7 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::block::{Block, BlockIdParseError};
 use crate::error::Error;
 use crate::region::HasPalette;
-use crate::Region;
+use crate::{Entity, Region};
 use std::ffi::{c_char, c_void, CStr};
 use std::ptr::{null, null_mut, slice_from_raw_parts};
 use Box;
@@ -200,7 +200,9 @@ pub unsafe extern "C" fn mc_schem_create_region_with_palette(
     error: *mut *mut Error,
 ) -> *mut Region {
     if palette_size <= 0 {
-        let err = Box::new(Error::PaletteIsEmpty);
+        let err = Box::new(Error::PaletteIsEmpty {
+            tag_path: "From API".to_string(),
+        });
         *error = Box::into_raw(err);
         return null_mut();
     }
@@ -280,4 +282,48 @@ pub unsafe extern "C" fn mc_schem_region_add_to_palette(
     new_blk: *const Block,
 ) -> u16 {
     (*region).find_or_append_to_palette(&*new_blk)
+}
+
+//size_t mc_schem_region_get_entities_count(const region*);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_get_entities_count(region: *const Region) -> usize {
+    (*region).entities.len()
+}
+//const entity* mc_schem_region_get_entity(const region*, size_t index);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_get_entity(
+    region: *const Region,
+    idx: usize,
+) -> *const Entity {
+    if idx >= (*region).entities.len() {
+        return null();
+    }
+    &(&(*region).entities)[idx]
+}
+//entity* mc_schem_region_get_entity_mut(region*, size_t index);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_get_entity_mut(
+    region: *mut Region,
+    idx: usize,
+) -> *mut Entity {
+    if idx >= (*region).entities.len() {
+        return null_mut();
+    }
+    &mut (&mut (*region).entities)[idx]
+}
+//void mc_schem_region_erase_entity(region*, size_t index);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_erase_entity(region: *mut Region, idx: usize) {
+    (*region).entities.remove(idx);
+}
+/// Clone entity into region, returns index
+//size_t mc_schem_region_add_entity(region*, const entity*);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_add_entity(
+    region: *mut Region,
+    entity_ptr: *const Entity,
+) -> usize {
+    (*region).entities.push((*entity_ptr).clone());
+
+    (*region).entities.len() - 1
 }

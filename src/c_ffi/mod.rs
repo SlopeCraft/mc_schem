@@ -326,10 +326,15 @@ pub unsafe extern "C" fn mc_schem_region_get_entity_mut(
     }
     &mut (&mut (*region).entities)[idx]
 }
-//void mc_schem_region_erase_entity(region*, size_t index);
+//entity* mc_schem_region_erase_entity(region*, size_t index);
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_region_erase_entity(region: *mut Region, idx: usize) {
-    (*region).entities.remove(idx);
+pub unsafe extern "C" fn mc_schem_region_erase_entity(
+    region: *mut Region,
+    idx: usize,
+) -> *mut Entity {
+    let old = (*region).entities.remove(idx);
+    let ret = Box::from(old);
+    Box::into_raw(ret)
 }
 /// Clone entity into region, returns index
 //size_t mc_schem_region_add_entity(region*, const entity*);

@@ -1,10 +1,10 @@
-use std::ffi::c_void;
-use std::ptr::{null, null_mut, slice_from_raw_parts};
 use crate::block::Block;
 use crate::c_ffi::rust_string_receiver;
 use crate::error::Error;
-use crate::{Entity, Region};
 use crate::region::{BlockEntity, HasPalette};
+use crate::{Entity, PendingTick, Region};
+use std::ffi::c_void;
+use std::ptr::{null, null_mut, slice_from_raw_parts};
 
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_create_region(
@@ -237,6 +237,53 @@ pub unsafe extern "C" fn mc_schem_region_add_block_entity(
     if let Some(old) = old {
         let ret = Box::new(old);
         return Box::into_raw(ret);
+    }
+    null_mut()
+}
+
+// size_t mc_schem_region_get_pending_ticks_count(const region*, int32_t x, int32_t y, int32_t z);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_get_pending_ticks_count(
+    region: *const Region,
+    x: i32,
+    y: i32,
+    z: i32,
+) -> usize {
+    (*region)
+        .pending_ticks
+        .get(&[x, y, z])
+        .unwrap_or(&vec![])
+        .len()
+}
+// const pending_tick* mc_schem_region_get_pending_tick(const region*, int32_t x, int32_t y, int32_t z, size_t idx);
+pub unsafe extern "C" fn mc_schem_region_get_pending_tick(
+    region: *const Region,
+    x: i32,
+    y: i32,
+    z: i32,
+    idx: usize,
+) -> *const PendingTick {
+    let opt = (*region).pending_ticks.get(&[x, y, z]);
+    if let Some(val) = opt {
+        if idx < val.len() {
+            return &val[idx];
+        }
+    }
+    null()
+}
+// pending_tick* mc_schem_region_get_pending_tick_mut(region*, int32_t x, int32_t y, int32_t z, size_t idx);
+pub unsafe extern "C" fn mc_schem_region_get_pending_tick_mut(
+    region: *mut Region,
+    x: i32,
+    y: i32,
+    z: i32,
+    idx: usize,
+) -> *mut PendingTick {
+    let opt = (*region).pending_ticks.get_mut(&[x, y, z]);
+    if let Some(val) = opt {
+        if idx < val.len() {
+            return &mut val[idx];
+        }
     }
     null_mut()
 }

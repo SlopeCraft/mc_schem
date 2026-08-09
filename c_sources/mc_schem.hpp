@@ -161,6 +161,18 @@ block_entity* mc_schem_region_get_block_entity_mut(region*, int32_t x,
 block_entity* mc_schem_region_add_block_entity(region*, int32_t x, int32_t y,
                                                int32_t z,
                                                const block_entity* nullable);
+
+// Get pending ticks. Currently no rule to add or remove pending ticks. Will do
+// this later if pending ticks is found to be useful
+////////////////////////////////////////////////////////////////////////////////
+size_t mc_schem_region_get_pending_ticks_count(const region*, int32_t x,
+                                               int32_t y, int32_t z);
+const pending_tick* mc_schem_region_get_pending_tick(const region*, int32_t x,
+                                                     int32_t y, int32_t z,
+                                                     size_t idx);
+pending_tick* mc_schem_region_get_pending_tick_mut(region*, int32_t x,
+                                                   int32_t y, int32_t z,
+                                                   size_t idx);
 }
 
 class deleter {
@@ -405,6 +417,35 @@ class region {
     auto ret =
         mc_schem_region_add_block_entity(this, pos[0], pos[1], pos[2], nullptr);
     return std::unique_ptr<block_entity, deleter>{ret};
+  }
+
+  [[nodiscard]] size_t pending_ticks_count_at(
+      const std::array<int32_t, 3>& pos) const& {
+    return mc_schem_region_get_pending_ticks_count(this, pos[0], pos[1],
+                                                   pos[2]);
+  }
+
+  [[nodiscard]] std::vector<const pending_tick*> pending_ticks_at(
+      const std::array<int32_t, 3>& pos) const& {
+    std::vector<const pending_tick*> ret;
+    const size_t n = pending_ticks_count_at(pos);
+    ret.reserve(n);
+    for (size_t i = 0; i < n; i++) {
+      ret.emplace_back(
+          mc_schem_region_get_pending_tick(this, pos[0], pos[1], pos[2], i));
+    }
+    return ret;
+  }
+  [[nodiscard]] std::vector<pending_tick*> pending_ticks_at(
+      const std::array<int32_t, 3>& pos) & {
+    std::vector<pending_tick*> ret;
+    const size_t n = pending_ticks_count_at(pos);
+    ret.reserve(n);
+    for (size_t i = 0; i < n; i++) {
+      ret.emplace_back(mc_schem_region_get_pending_tick_mut(this, pos[0],
+                                                            pos[1], pos[2], i));
+    }
+    return ret;
   }
 };
 

@@ -60,7 +60,8 @@ add_custom_target(mc_schem_rs ALL
         COMMAND ${cargo_exe} build ${cargo_build_flags} --target-dir=${rust_build_dir}
         SOURCES ${rust_sources} Cargo.toml
         COMMENT "Building all rust binaries"
-        BYPRODUCTS ${shared_lib_loc} ${export_lib_loc} ${schemtool_loc})
+    BYPRODUCTS ${shared_lib_loc} ${export_lib_loc} ${schemtool_loc}
+)
 
 message(STATUS "shared_lib_loc = ${shared_lib_loc}")
 message(STATUS "export_lib_loc = ${export_lib_loc}")

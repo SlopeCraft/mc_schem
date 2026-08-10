@@ -3,7 +3,7 @@ use crate::c_ffi::rust_string_receiver;
 use crate::error::Error;
 use crate::region::{BlockEntity, HasPalette, WorldSlice};
 use crate::{Entity, PendingTick, Region};
-use std::ffi::c_void;
+use std::ffi::{c_char, c_void, CStr};
 use std::ptr::{null, null_mut, slice_from_raw_parts};
 
 #[no_mangle]
@@ -70,6 +70,16 @@ pub unsafe extern "C" fn mc_schem_region_get_offset(
     *dest_z = z;
 }
 
+//void mc_schem_region_set_name(region*,const char* str);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_set_name(region: *mut Region, name_c: *const c_char) {
+    (*region).name = CStr::from_ptr(name_c).to_string_lossy().to_string();
+}
+// void mc_schem_region_set_offset(region*, int32_t x, int32_t y, int32_t z);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_set_offset(region: *mut Region, x: i32, y: i32, z: i32) {
+    (*region).offset = [x, y, z];
+}
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_region_get_size(
     region: *const Region,
@@ -82,6 +92,12 @@ pub unsafe extern "C" fn mc_schem_region_get_size(
     *dest_y = y;
     *dest_z = z;
 }
+//bool mc_schem_region_is_dense(const region*)
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_is_dense(region: *const Region) -> bool {
+    (*region).is_dense()
+}
+
 //size_t mc_schem_region_palette_get_size(const region*);
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_region_palette_get_size(region: *const Region) -> usize {
@@ -115,6 +131,21 @@ pub unsafe extern "C" fn mc_schem_region_add_to_palette(
     new_blk: *const Block,
 ) -> u16 {
     (*region).find_or_append_to_palette(&*new_blk)
+}
+
+//uint16_t mc_schem_region_find_in_palette(const region*, const block*, bool* ok);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_find_in_palette(
+    region: *const Region,
+    blk: *const Block,
+    dest_ok: *mut bool,
+) -> u16 {
+    let result = (*region).find_in_palette(&*blk);
+    *dest_ok = result.is_some();
+    if let Some(idx) = result {
+        return idx;
+    }
+    u16::MAX
 }
 
 //size_t mc_schem_region_get_entities_count(const region*);

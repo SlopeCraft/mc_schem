@@ -122,14 +122,19 @@ void mc_schem_error_get_message(const error*,
 
 // Region
 ////////////////////////////////////////////////////////////////////////////////
-// Palette
+// Metainfo
 ////////////////////////////////////////////////////////////////////////
 void mc_schem_region_get_name(const region*, const rust_string_receiver* dest);
 void mc_schem_region_get_offset(const region*, int32_t* dest_x, int32_t* dest_y,
                                 int32_t* dest_z);
+void mc_schem_region_set_name(region*, const char* str);
+void mc_schem_region_set_offset(region*, int32_t x, int32_t y, int32_t z);
 void mc_schem_region_get_size(const region*, int32_t* size_x, int32_t* size_y,
                               int32_t* size_z);
+bool mc_schem_region_is_dense(const region*);
 void mc_schem_region_reshape(region*, int32_t x, int32_t y, int32_t z);
+// Palette
+////////////////////////////////////////////////////////////////////////
 size_t mc_schem_region_palette_get_size(const region*);
 const block* mc_schem_region_palette_get_block(const region*, size_t index);
 /// Add block into palette (deep copy). If identical block already exist in
@@ -137,6 +142,7 @@ const block* mc_schem_region_palette_get_block(const region*, size_t index);
 /// palette
 uint16_t mc_schem_region_find_or_append_to_palette(region* region,
                                                    const block* block);
+uint16_t mc_schem_region_find_in_palette(const region*, const block*, bool* ok);
 // Entity
 ////////////////////////////////////////////////////////////////////////
 size_t mc_schem_region_get_entities_count(const region*);
@@ -345,10 +351,25 @@ class region {
     return std::unexpected{std::unique_ptr<error, deleter>{err}};
   }
 
+  [[nodiscard]] std::string name() const& {
+    std::string ret;
+    rust_string_receiver receiver{ret};
+    mc_schem_region_get_name(this, &receiver);
+    return ret;
+  }
+
   [[nodiscard]] std::array<int32_t, 3> offset() const& {
     int32_t x{0}, y{0}, z{0};
     mc_schem_region_get_offset(this, &x, &y, &z);
     return {x, y, z};
+  }
+
+  void set_name(const std::string& name) & {
+    mc_schem_region_set_name(this, name.c_str());
+  }
+
+  void set_offset(const std::array<int32_t, 3>& offset) & {
+    mc_schem_region_set_offset(this, offset[0], offset[1], offset[2]);
   }
 
   [[nodiscard]] std::array<int32_t, 3> size_xyz() const& {
@@ -361,6 +382,11 @@ class region {
     const auto [x, y, z] = size_xyz();
     return {y, z, x};
   }
+
+  [[nodiscard]] bool is_dense() const& {
+    return mc_schem_region_is_dense(this);
+  }
+  [[nodiscard]] bool is_sparse() const& { return not is_dense(); }
 
   void reshape(const std::array<int32_t, 3>& shape) & {
     mc_schem_region_reshape(this, shape[0], shape[1], shape[2]);
@@ -376,6 +402,17 @@ class region {
 
   [[nodiscard]] uint16_t find_or_append_to_palette(const block& blk) & {
     return mc_schem_region_find_or_append_to_palette(this, &blk);
+  }
+
+  [[nodiscard]] std::optional<uint16_t> find_in_palette(
+      const block& blk) const& {
+    bool ok = false;
+    const auto result = mc_schem_region_find_in_palette(this, &blk, &ok);
+    if (not ok) {
+      return std::nullopt;
+    }
+    assert(result < palette_size());
+    return result;
   }
 
   [[nodiscard]] std::vector<const block*> full_palette() const {

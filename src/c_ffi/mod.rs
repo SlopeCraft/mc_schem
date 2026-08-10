@@ -16,15 +16,16 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 mod block;
+mod entity;
 mod error;
 mod region;
-mod entity;
 
-use crate::block::{Block};
+use crate::block::Block;
 use crate::error::Error;
-use crate::region::{BlockEntity, HasPalette};
+use crate::region::{BlockEntity, HasPalette, PendingTick};
+use crate::schem::{MetaDataIR, Schematic};
 use crate::{Entity, Region};
-use std::ffi::{c_void};
+use std::ffi::c_void;
 use Box;
 
 #[repr(C)]
@@ -73,4 +74,19 @@ pub unsafe extern "C" fn mc_schem_destroy_block_entity(ptr: *mut BlockEntity) {
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_destroy_region(region: *mut Region) {
     let _ = Box::from_raw(region);
+}
+//void mc_schem_destroy_pending_tick(pending_tick* tick);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_destroy_pending_tick(ptr: *mut PendingTick) {
+    let _ = Box::from_raw(ptr);
+}
+// void mc_schem_destroy_schematic(schematic* schematic);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_destroy_schematic(ptr: *mut Schematic) {
+    let _ = Box::from_raw(ptr);
+}
+// void mc_schem_destroy_meta_data_ir(meta_data_ir* mdata);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_destroy_meta_data_ir(ptr: *mut MetaDataIR) {
+    let _ = Box::from_raw(ptr);
 }

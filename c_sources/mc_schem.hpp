@@ -61,6 +61,7 @@ class block_entity;
 class pending_tick;
 class region;
 class schematic;
+class meta_data_ir;
 
 /// Copy rust str to std::string
 struct rust_string_receiver {
@@ -96,6 +97,9 @@ void mc_schem_destroy_error(error*);
 void mc_schem_destroy_region(region* region);
 void mc_schem_destroy_entity(entity* entity);
 void mc_schem_destroy_block_entity(block_entity* be);
+void mc_schem_destroy_pending_tick(pending_tick* tick);
+void mc_schem_destroy_schematic(schematic* schematic);
+void mc_schem_destroy_meta_data_ir(meta_data_ir* mdata);
 
 // Block
 void mc_schem_block_get_id(const block*, const rust_string_receiver* receiver);
@@ -209,7 +213,6 @@ void mc_schem_region_visit_blocks(
                      const block*, const block_entity*, void* custom_data),
     void* custom_data);
 
-
 // Entity
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -226,6 +229,13 @@ class deleter {
   static void operator()(entity* ptr) { mc_schem_destroy_entity(ptr); }
   static void operator()(block_entity* ptr) {
     mc_schem_destroy_block_entity(ptr);
+  }
+  static void operator()(pending_tick* ptr) {
+    mc_schem_destroy_pending_tick(ptr);
+  }
+  static void operator()(schematic* ptr) { mc_schem_destroy_schematic(ptr); }
+  static void operator()(meta_data_ir* ptr) {
+    mc_schem_destroy_meta_data_ir(ptr);
   }
 };
 

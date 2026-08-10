@@ -23,9 +23,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <cstddef>
 #include <cstdint>
 #include <expected>
+#include <format>
 #include <memory>
 #include <optional>
 #include <span>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -127,6 +129,7 @@ void mc_schem_region_get_offset(const region*, int32_t* dest_x, int32_t* dest_y,
                                 int32_t* dest_z);
 void mc_schem_region_get_size(const region*, int32_t* size_x, int32_t* size_y,
                               int32_t* size_z);
+void mc_schem_region_reshape(region*, int32_t x, int32_t y, int32_t z);
 size_t mc_schem_region_palette_get_size(const region*);
 const block* mc_schem_region_palette_get_block(const region*, size_t index);
 /// Add block into palette (deep copy). If identical block already exist in
@@ -143,7 +146,7 @@ entity* mc_schem_region_erase_entity(region*, size_t index);
 /// Clone entity into region, returns index
 size_t mc_schem_region_add_entity(region*, const entity*);
 // Block entity
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
 size_t mc_schem_region_get_block_entities_count(const region*);
 void mc_schem_region_visit_block_entities(const region*,
                                           void (*callback)(int32_t x, int32_t y,
@@ -164,7 +167,7 @@ block_entity* mc_schem_region_add_block_entity(region*, int32_t x, int32_t y,
 
 // Get pending ticks. Currently no rule to add or remove pending ticks. Will do
 // this later if pending ticks is found to be useful
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
 size_t mc_schem_region_get_pending_ticks_count(const region*, int32_t x,
                                                int32_t y, int32_t z);
 const pending_tick* mc_schem_region_get_pending_tick(const region*, int32_t x,
@@ -173,6 +176,16 @@ const pending_tick* mc_schem_region_get_pending_tick(const region*, int32_t x,
 pending_tick* mc_schem_region_get_pending_tick_mut(region*, int32_t x,
                                                    int32_t y, int32_t z,
                                                    size_t idx);
+// Get and set blocks
+////////////////////////////////////////////////////////////////////////
+uint16_t mc_schem_region_get_block_index(const region*, int32_t x, int32_t y,
+                                         int32_t z, bool* ok);
+// returns ok
+bool mc_schem_region_set_block_by_index(region*, int32_t x, int32_t y,
+                                        int32_t z, uint16_t idx);
+// returns ok
+bool mc_schem_region_set_block_by_block(region*, int32_t x, int32_t y,
+                                        int32_t z, const block* blk);
 }
 
 class deleter {
@@ -343,6 +356,10 @@ class region {
     return {y, z, x};
   }
 
+  void reshape(const std::array<int32_t, 3>& shape) & {
+    mc_schem_region_reshape(this, shape[0], shape[1], shape[2]);
+  }
+
   [[nodiscard]] size_t palette_size() const& {
     return mc_schem_region_palette_get_size(this);
   }
@@ -425,27 +442,95 @@ class region {
                                                    pos[2]);
   }
 
-  [[nodiscard]] std::vector<const pending_tick*> pending_ticks_at(
-      const std::array<int32_t, 3>& pos) const& {
-    std::vector<const pending_tick*> ret;
+  [[nodiscard]] std::vector<std::reference_wrapper<const pending_tick>>
+  pending_ticks_at(const std::array<int32_t, 3>& pos) const& {
+    std::vector<std::reference_wrapper<const pending_tick>> ret;
     const size_t n = pending_ticks_count_at(pos);
     ret.reserve(n);
     for (size_t i = 0; i < n; i++) {
-      ret.emplace_back(
-          mc_schem_region_get_pending_tick(this, pos[0], pos[1], pos[2], i));
+      auto ptr =
+          mc_schem_region_get_pending_tick(this, pos[0], pos[1], pos[2], i);
+      ret.emplace_back(std::ref(*ptr));
     }
     return ret;
   }
-  [[nodiscard]] std::vector<pending_tick*> pending_ticks_at(
-      const std::array<int32_t, 3>& pos) & {
-    std::vector<pending_tick*> ret;
+  [[nodiscard]] std::vector<std::reference_wrapper<pending_tick>>
+  pending_ticks_at(const std::array<int32_t, 3>& pos) & {
+    std::vector<std::reference_wrapper<pending_tick>> ret;
     const size_t n = pending_ticks_count_at(pos);
     ret.reserve(n);
     for (size_t i = 0; i < n; i++) {
-      ret.emplace_back(mc_schem_region_get_pending_tick_mut(this, pos[0],
-                                                            pos[1], pos[2], i));
+      auto ptr =
+          mc_schem_region_get_pending_tick_mut(this, pos[0], pos[1], pos[2], i);
+      ret.emplace_back(std::ref(*ptr));
     }
     return ret;
+  }
+
+  [[nodiscard]] std::optional<uint16_t> block_index_at(
+      const std::array<int32_t, 3>& pos) const& {
+    bool ok = false;
+    const uint16_t ret =
+        mc_schem_region_get_block_index(this, pos[0], pos[1], pos[2], &ok);
+    if (not ok) {
+      return std::nullopt;
+    }
+    assert(ret < this->palette_size());
+    return ret;
+  }
+
+  [[nodiscard]] bool contains_coordinate(
+      const std::array<int32_t, 3>& pos) const& {
+    return this->block_index_at(pos).has_value();
+  }
+
+  [[nodiscard]] std::optional<
+      std::tuple<uint16_t, std::reference_wrapper<const block>>>
+  block_at(const std::array<int32_t, 3>& pos) const& {
+    const auto idx_opt = this->block_index_at(pos);
+    if (not idx_opt) {
+      return std::nullopt;
+    }
+    const uint16_t idx = idx_opt.value();
+    auto blkp = this->palette(idx);
+    assert(blkp);
+    return std::make_tuple(idx, std::ref(*blkp));
+  }
+
+  [[nodiscard]] std::optional<std::tuple<
+      uint16_t, std::reference_wrapper<const block>, const block_entity*,
+      std::vector<std::reference_wrapper<const pending_tick>>>>
+  block_info_at(const std::array<int32_t, 3>& pos) const& {
+    const auto blk_opt = this->block_at(pos);
+    if (not blk_opt) {
+      return std::nullopt;
+    }
+    const auto [idx, blk] = blk_opt.value();
+
+    const auto bep = this->get_block_entity(pos);
+    auto pts = this->pending_ticks_at(pos);
+    return std::make_tuple(idx, blk, bep, std::move(pts));
+  }
+
+  void set_block(const std::array<int32_t, 3>& pos, uint16_t blkid) & {
+    if (not mc_schem_region_set_block_by_index(this, pos[0], pos[1], pos[2],
+                                               blkid)) {
+      // This error is rare. Usually don't process with exception
+      throw std::runtime_error{
+          std::format("Unable to set block ({}, {}, {}) to index {}. Block out "
+                      "of range or block id out of range",
+                      pos[0], pos[1], pos[2], blkid)};
+    }
+  }
+  void set_block(const std::array<int32_t, 3>& pos, const block& blk) & {
+    if (not mc_schem_region_set_block_by_block(this, pos[0], pos[1], pos[2],
+                                               &blk)) {
+      // This error is rare. Usually don't process with exception
+      throw std::runtime_error{
+          std::format("Unable to set block ({}, {}, {}). Block out of range or "
+                      "palette size out of range",
+                      pos[0], pos[1], pos[2])};
+    }
   }
 };
 

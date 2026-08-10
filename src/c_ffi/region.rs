@@ -1,7 +1,7 @@
 use crate::block::Block;
 use crate::c_ffi::rust_string_receiver;
 use crate::error::Error;
-use crate::region::{BlockEntity, HasPalette};
+use crate::region::{BlockEntity, HasPalette, WorldSlice};
 use crate::{Entity, PendingTick, Region};
 use std::ffi::c_void;
 use std::ptr::{null, null_mut, slice_from_raw_parts};
@@ -86,6 +86,12 @@ pub unsafe extern "C" fn mc_schem_region_get_size(
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_region_palette_get_size(region: *const Region) -> usize {
     (*region).palette.len()
+}
+
+//void mc_schem_region_reshape(region*, int32_t x, int32_t y, int32_t z);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_reshape(region: *mut Region, x: i32, y: i32, z: i32) {
+    (*region).reshape(&[x, y, z]);
 }
 
 //const block* mc_schem_region_palette_get_block(const region*, size_t index);
@@ -256,6 +262,7 @@ pub unsafe extern "C" fn mc_schem_region_get_pending_ticks_count(
         .len()
 }
 // const pending_tick* mc_schem_region_get_pending_tick(const region*, int32_t x, int32_t y, int32_t z, size_t idx);
+#[no_mangle]
 pub unsafe extern "C" fn mc_schem_region_get_pending_tick(
     region: *const Region,
     x: i32,
@@ -272,6 +279,7 @@ pub unsafe extern "C" fn mc_schem_region_get_pending_tick(
     null()
 }
 // pending_tick* mc_schem_region_get_pending_tick_mut(region*, int32_t x, int32_t y, int32_t z, size_t idx);
+#[no_mangle]
 pub unsafe extern "C" fn mc_schem_region_get_pending_tick_mut(
     region: *mut Region,
     x: i32,
@@ -286,4 +294,44 @@ pub unsafe extern "C" fn mc_schem_region_get_pending_tick_mut(
         }
     }
     null_mut()
+}
+
+//uint16_t mc_schem_region_get_block_index(const region*, int32_t x, int32_t y, int32_t z, bool* ok)
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_get_block_index(
+    region: *const Region,
+    x: i32,
+    y: i32,
+    z: i32,
+    ok_dest: *mut bool,
+) -> u16 {
+    let result = (*region).block_index_at([x, y, z]);
+    *ok_dest = result.is_some();
+
+    result.unwrap_or_else(|| u16::MAX)
+}
+
+// error* mc_schem_region_set_block_by_index(region*, int32_t x, int32_t y, int32_t z, uint16_t idx);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_set_block_by_index(
+    region: *mut Region,
+    x: i32,
+    y: i32,
+    z: i32,
+    idx: u16,
+) -> bool {
+    let result = (*region).set_block_id([x, y, z], idx);
+    result.is_ok()
+}
+// error* mc_schem_region_set_block_by_block(region*, int32_t x, int32_t y, int32_t z, const block* blk);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_set_block_by_block(
+    region: *mut Region,
+    x: i32,
+    y: i32,
+    z: i32,
+    blk: *const Block,
+) -> bool {
+    let result = (*region).set_block([x, y, z], &*blk);
+    result.is_ok()
 }

@@ -208,6 +208,14 @@ void mc_schem_region_visit_blocks(
     void (*callback)(int32_t x, int32_t y, int32_t z, uint16_t block_idx,
                      const block*, const block_entity*, void* custom_data),
     void* custom_data);
+
+
+// Entity
+////////////////////////////////////////////////////////////////////////////////
+
+void mc_schem_entity_get_position(const entity*, int32_t* x, int32_t* y,
+                                  int32_t* z, double* fp_x, double* fp_y,
+                                  double* fp_z);
 }
 
 class deleter {
@@ -611,6 +619,25 @@ class region {
       vis(pos, blkid, *blkp, be);
     };
     mc_schem_region_visit_blocks(this, explicit_only, func, &visitor);
+  }
+};
+
+class entity {
+ public:
+  entity() = delete;
+  entity(const entity&) = delete;
+  entity(entity&&) = delete;
+  entity& operator=(const entity&) = delete;
+  entity& operator=(entity&&) = delete;
+  ~entity() = delete;
+
+  [[nodiscard]] std::pair<std::array<int32_t, 3>, std::array<double, 3>>
+  position() const& {
+    std::array<int32_t, 3> block_pos{0, 0, 0};
+    std::array<double, 3> pos{0, 0, 0};
+    mc_schem_entity_get_position(this, &block_pos[0], &block_pos[1],
+                                 &block_pos[2], &pos[0], &pos[1], &pos[2]);
+    return std::make_pair(block_pos, pos);
   }
 };
 

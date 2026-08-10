@@ -18,6 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 mod block;
 mod error;
 mod region;
+mod entity;
 
 use crate::block::{Block};
 use crate::error::Error;

@@ -186,6 +186,12 @@ bool mc_schem_region_set_block_by_index(region*, int32_t x, int32_t y,
 // returns ok
 bool mc_schem_region_set_block_by_block(region*, int32_t x, int32_t y,
                                         int32_t z, const block* blk);
+// Complex operations for region
+////////////////////////////////////////////////////////////////////////
+error* mc_schem_region_shrink_palette(region*);
+void mc_schem_region_fill_with(region*, const block* blk);
+void mc_schem_region_convert_to_sparse(region*);
+void mc_schem_region_convert_to_dense(region*);
 }
 
 class deleter {
@@ -532,6 +538,19 @@ class region {
                       pos[0], pos[1], pos[2])};
     }
   }
+
+  std::expected<void, std::unique_ptr<error, deleter>> shrink_palette() & {
+    auto err =
+        std::unique_ptr<error, deleter>{mc_schem_region_shrink_palette(this)};
+    if (err) {
+      return std::unexpected{std::move(err)};
+    }
+    return {};
+  }
+
+  void fill_with(const block& blk) & { mc_schem_region_fill_with(this, &blk); }
+  void convert_to_sparse() & { mc_schem_region_convert_to_sparse(this); }
+  void convert_to_dense() & { mc_schem_region_convert_to_dense(this); }
 };
 
 }  // namespace mc_schem

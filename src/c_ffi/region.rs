@@ -335,3 +335,28 @@ pub unsafe extern "C" fn mc_schem_region_set_block_by_block(
     let result = (*region).set_block([x, y, z], &*blk);
     result.is_ok()
 }
+
+// error* mc_schem_region_shrink_palette(region*);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_shrink_palette(region: *mut Region) -> *mut Error {
+    let result = (*region).shrink_palette();
+    if let Err(err) = result {
+        return Box::into_raw(Box::from(err));
+    }
+    null_mut()
+}
+// void mc_schem_region_fill_with(region*, const block* blk);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_fill_with(region: *mut Region, blk: *const Block) {
+    (*region).fill_with(&*blk);
+}
+// void mc_schem_region_convert_to_sparse(region*);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_convert_to_sparse(region: *mut Region) {
+    (*region).convert_to_sparse();
+}
+// void mc_schem_region_convert_to_dense(region*);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_convert_to_dense(region: *mut Region) {
+    (*region).convert_to_dense();
+}

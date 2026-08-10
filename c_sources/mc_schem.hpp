@@ -198,6 +198,16 @@ error* mc_schem_region_shrink_palette(region*);
 void mc_schem_region_fill_with(region*, const block* blk);
 void mc_schem_region_convert_to_sparse(region*);
 void mc_schem_region_convert_to_dense(region*);
+uint64_t mc_schem_region_total_blocks(const region*, bool include_air);
+/// Visit all blocks in region. If explicit-only, skip background blocks for
+/// sparse region. Pending ticks is ignored on-purpose, because currently no
+/// perfect way to pass &[PendingTick] while pending_tick has incorrect size
+/// than rust
+void mc_schem_region_visit_blocks(
+    const region*, bool explicit_only,
+    void (*callback)(int32_t x, int32_t y, int32_t z, uint16_t block_idx,
+                     const block*, const block_entity*, void* custom_data),
+    void* custom_data);
 }
 
 class deleter {
@@ -588,6 +598,20 @@ class region {
   void fill_with(const block& blk) & { mc_schem_region_fill_with(this, &blk); }
   void convert_to_sparse() & { mc_schem_region_convert_to_sparse(this); }
   void convert_to_dense() & { mc_schem_region_convert_to_dense(this); }
+
+  template <class visitor_type>
+    requires std::is_invocable_r_v<void, visitor_type, std::array<int32_t, 3>,
+                                   uint16_t, const block&, const block_entity*>
+  void visit_blocks(visitor_type&& visitor, bool explicit_only) const& {
+    auto func = [](int32_t x, int32_t y, int32_t z, uint16_t blkid,
+                   const block* blkp, const block_entity* be,
+                   void* custom_data) {
+      auto& vis = *reinterpret_cast<visitor_type*>(custom_data);
+      const std::array<int32_t, 3> pos{x, y, z};
+      vis(pos, blkid, *blkp, be);
+    };
+    mc_schem_region_visit_blocks(this, explicit_only, func, &visitor);
+  }
 };
 
 }  // namespace mc_schem

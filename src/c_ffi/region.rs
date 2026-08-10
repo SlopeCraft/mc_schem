@@ -391,3 +391,45 @@ pub unsafe extern "C" fn mc_schem_region_convert_to_sparse(region: *mut Region) 
 pub unsafe extern "C" fn mc_schem_region_convert_to_dense(region: *mut Region) {
     (*region).convert_to_dense();
 }
+// uint64_t mc_schem_region_total_blocks(const region*, bool include_air)
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_total_blocks(
+    region: *const Region,
+    include_air: bool,
+) -> u64 {
+    (*region).total_blocks(include_air)
+}
+/// Visit all blocks in region. If explicit-only, skip background blocks for
+/// sparse region
+// void mc_schem_region_visit_blocks(const region*, bool explicit_only, void (*callback)(int32_t x, int32_t y, int32_t z, uint16_t block_idx, const block*, const block_entity*, void* custom_data),void* custom_data);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_visit_blocks(
+    region: *const Region,
+    explicit_only: bool,
+    callback: extern "C" fn(
+        x: i32,
+        y: i32,
+        z: i32,
+        block_idx: u16,
+        blk: *const Block,
+        be: *const BlockEntity,
+        data: *mut c_void,
+    ),
+    custom_data: *mut c_void,
+) {
+    let mut func = |pos: &[i32; 3], blkid, blk: &Block, be: Option<&BlockEntity>, _pts: &[PendingTick]| {
+        let [x, y, z] = *pos;
+        let beptr = if let Some(be) = be {
+            be as *const BlockEntity
+        } else {
+            null()
+        };
+        callback(x, y, z, blkid, blk as *const Block, beptr, custom_data);
+    };
+
+    if explicit_only {
+        (*region).visit_explicit(&mut func);
+    } else {
+        (*region).visit_dense(&mut func);
+    }
+}

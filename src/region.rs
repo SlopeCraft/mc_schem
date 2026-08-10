@@ -892,4 +892,35 @@ impl Region {
     pub fn convert_to_sparse(&mut self) {
         self.array_yzx.convert_to_sparse();
     }
+    /// Visit all blocks
+    pub fn visit_dense<F: FnMut(&[i32; 3], u16, &Block, Option<&BlockEntity>, &[PendingTick])>(
+        &self,
+        func: &mut F,
+    ) {
+        self.array_yzx.visit_dense(&mut |_idx_1d, idx_3d, blkid| {
+            let blk = &self.palette[blkid as usize];
+            let [y, z, x] = *idx_3d;
+            let pos = [x as i32, y as i32, z as i32];
+            let be = self.block_entities.get(&pos);
+            let pts = self.pending_tick_at(pos);
+            func(&pos, blkid, blk, be, pts);
+        });
+    }
+    /// Only visit explicit blocks
+    pub fn visit_explicit<
+        F: FnMut(&[i32; 3], u16, &Block, Option<&BlockEntity>, &[PendingTick]),
+    >(
+        &self,
+        func: &mut F,
+    ) {
+        self.array_yzx
+            .visit_non_zero(&mut |_idx_1d, idx_3d, blkid| {
+                let blk = &self.palette[blkid as usize];
+                let [y, z, x] = *idx_3d;
+                let pos = [x as i32, y as i32, z as i32];
+                let be = self.block_entities.get(&pos);
+                let pts = self.pending_tick_at(pos);
+                func(&pos, blkid, blk, be, pts);
+            });
+    }
 }

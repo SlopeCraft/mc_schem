@@ -83,17 +83,9 @@ struct rust_string_receiver {
 };
 
 extern "C" {
-// create/destroy
-[[nodiscard]] block* mc_schem_create_block();
+// destroy
 void mc_schem_destroy_block(block* block);
 void mc_schem_destroy_error(error*);
-[[nodiscard]] region* mc_schem_create_region(int32_t size_x, int32_t size_y,
-                                             int32_t size_z);
-/// Create region with given palette. If error, error_dest is box of error and
-/// returns null; Otherwise error_dest is null.
-[[nodiscard]] region* mc_schem_create_region_with_palette(
-    int32_t size_x, int32_t size_y, int32_t size_z,
-    const block* const palette[], size_t palette_size, error** error_dest);
 void mc_schem_destroy_region(region* region);
 void mc_schem_destroy_entity(entity* entity);
 void mc_schem_destroy_block_entity(block_entity* be);
@@ -102,6 +94,8 @@ void mc_schem_destroy_schematic(schematic* schematic);
 void mc_schem_destroy_meta_data_ir(meta_data_ir* mdata);
 
 // Block
+////////////////////////////////////////////////////////////////////////////////
+[[nodiscard]] block* mc_schem_create_block();
 void mc_schem_block_get_id(const block*, const rust_string_receiver* receiver);
 void mc_schem_block_get_namespace(const block*,
                                   const rust_string_receiver* receiver);
@@ -126,6 +120,13 @@ void mc_schem_error_get_message(const error*,
 
 // Region
 ////////////////////////////////////////////////////////////////////////////////
+[[nodiscard]] region* mc_schem_create_region(int32_t size_x, int32_t size_y,
+                                             int32_t size_z);
+/// Create region with given palette. If error, error_dest is box of error and
+/// returns null; Otherwise error_dest is null.
+[[nodiscard]] region* mc_schem_create_region_with_palette(
+    int32_t size_x, int32_t size_y, int32_t size_z,
+    const block* const palette[], size_t palette_size, error** error_dest);
 // Metainfo
 ////////////////////////////////////////////////////////////////////////
 void mc_schem_region_get_name(const region*, const rust_string_receiver* dest);
@@ -198,7 +199,7 @@ bool mc_schem_region_set_block_by_block(region*, int32_t x, int32_t y,
                                         int32_t z, const block* blk);
 // Complex operations for region
 ////////////////////////////////////////////////////////////////////////
-error* mc_schem_region_shrink_palette(region*);
+[[nodiscard]] error* mc_schem_region_shrink_palette(region*);
 void mc_schem_region_fill_with(region*, const block* blk);
 void mc_schem_region_convert_to_sparse(region*);
 void mc_schem_region_convert_to_dense(region*);
@@ -219,6 +220,37 @@ void mc_schem_region_visit_blocks(
 void mc_schem_entity_get_position(const entity*, int32_t* x, int32_t* y,
                                   int32_t* z, double* fp_x, double* fp_y,
                                   double* fp_z);
+// Meta data ir
+////////////////////////////////////////////////////////////////////////////////
+[[nodiscard]] meta_data_ir* mc_schem_create_meta_data_ir(
+    int32_t data_version, error** dest_err_non_null);
+
+int32_t mc_schem_meta_data_ir_get_mc_data_version(const meta_data_ir*);
+int64_t mc_schem_meta_data_ir_get_time_created(const meta_data_ir*);
+int64_t mc_schem_meta_data_ir_get_time_modified(const meta_data_ir*);
+void mc_schem_meta_data_ir_get_author(const meta_data_ir*,
+                                      const rust_string_receiver* dest);
+void mc_schem_meta_data_ir_get_name(const meta_data_ir*,
+                                    const rust_string_receiver* dest);
+int32_t mc_schem_meta_data_ir_get_litematica_version(const meta_data_ir*);
+int32_t mc_schem_meta_data_ir_get_litematica_subversion(
+    const meta_data_ir*, bool* dest_exist_non_null);
+int32_t mc_schem_meta_data_ir_get_schem_version(const meta_data_ir*);
+void mc_schem_meta_data_ir_get_schem_offset(const meta_data_ir*,
+                                            int32_t* dest_x, int32_t* dest_y,
+                                            int32_t* dest_z);
+bool mc_schem_meta_data_ir_get_schem_we_offset(const meta_data_ir*,
+                                               int32_t* dest_x, int32_t* dest_y,
+                                               int32_t* dest_z);
+bool mc_schem_meta_data_ir_get_schem_world_edit_version(
+    const meta_data_ir*, const rust_string_receiver*);
+bool mc_schem_meta_data_ir_get_schem_editing_platform(
+    const meta_data_ir*, const rust_string_receiver*);
+bool mc_schem_meta_data_ir_get_schem_origin(const meta_data_ir*,
+                                            int32_t* dest_x, int32_t* dest_y,
+                                            int32_t* dest_z);
+void mc_schem_meta_data_ir_get_schem_material(const meta_data_ir*,
+                                              const rust_string_receiver*);
 }
 
 class deleter {
@@ -648,6 +680,95 @@ class entity {
     mc_schem_entity_get_position(this, &block_pos[0], &block_pos[1],
                                  &block_pos[2], &pos[0], &pos[1], &pos[2]);
     return std::make_pair(block_pos, pos);
+  }
+};
+
+class meta_data_ir {
+ public:
+  meta_data_ir() = delete;
+  meta_data_ir(const meta_data_ir&) = delete;
+  meta_data_ir(meta_data_ir&&) = delete;
+  meta_data_ir& operator=(const meta_data_ir&) = delete;
+  meta_data_ir& operator=(meta_data_ir&&) = delete;
+  ~meta_data_ir() = delete;
+
+  [[nodiscard]] static std::expected<std::unique_ptr<meta_data_ir, deleter>,
+                                     std::unique_ptr<error, deleter>>
+  create(int32_t data_version) {
+    error* dest_err = nullptr;
+    if (auto result = mc_schem_create_meta_data_ir(data_version, &dest_err)) {
+      assert(dest_err == nullptr);
+      return std::unique_ptr<meta_data_ir, deleter>{result};
+    }
+    assert(dest_err);
+    return std::unexpected{std::unique_ptr<error, deleter>{dest_err}};
+  }
+
+  [[nodiscard]] int32_t mc_data_version() const& {
+    return mc_schem_meta_data_ir_get_mc_data_version(this);
+  }
+  [[nodiscard]] int64_t time_created() const& {
+    return mc_schem_meta_data_ir_get_time_created(this);
+  }
+  [[nodiscard]] int64_t time_modified() const& {
+    return mc_schem_meta_data_ir_get_time_modified(this);
+  }
+  [[nodiscard]] std::string author() const& {
+    std::string ret;
+    rust_string_receiver rsr{ret};
+    mc_schem_meta_data_ir_get_author(this, &rsr);
+    return ret;
+  }
+  [[nodiscard]] std::string name() const& {
+    std::string ret;
+    rust_string_receiver rsr{ret};
+    mc_schem_meta_data_ir_get_name(this, &rsr);
+    return ret;
+  }
+  [[nodiscard]] int32_t litematica_version() const& {
+    return mc_schem_meta_data_ir_get_litematica_version(this);
+  }
+  [[nodiscard]] std::optional<int32_t> litematica_subversion() const& {
+    bool exist{false};
+    const auto ret =
+        mc_schem_meta_data_ir_get_litematica_subversion(this, &exist);
+    if (exist) return ret;
+    return std::nullopt;
+  }
+  [[nodiscard]] int32_t schem_version() const& {
+    return mc_schem_meta_data_ir_get_schem_version(this);
+  }
+  [[nodiscard]] std::array<int32_t, 3> schem_offset() const& {
+    int32_t x, y, z;
+    mc_schem_meta_data_ir_get_schem_offset(this, &x, &y, &z);
+    return {x, y, z};
+  }
+  [[nodiscard]] std::optional<std::array<int32_t, 3>> schem_we_offset() const& {
+    int32_t x, y, z;
+    const bool exist =
+        mc_schem_meta_data_ir_get_schem_we_offset(this, &x, &y, &z);
+    if (exist) return std::array<int32_t, 3>{x, y, z};
+    return std::nullopt;
+  }
+  [[nodiscard]] std::optional<std::string> schem_world_edit_version() const& {
+    std::string ret;
+    rust_string_receiver rsr{ret};
+    const bool exist =
+        mc_schem_meta_data_ir_get_schem_world_edit_version(this, &rsr);
+    if (exist) return ret;
+    return std::nullopt;
+  }
+  [[nodiscard]] std::optional<std::array<int32_t, 3>> schem_origin() const& {
+    int32_t x, y, z;
+    const bool exist = mc_schem_meta_data_ir_get_schem_origin(this, &x, &y, &z);
+    if (exist) return std::array<int32_t, 3>{x, y, z};
+    return std::nullopt;
+  }
+  [[nodiscard]] std::string schem_material() const& {
+    std::string ret;
+    rust_string_receiver rsr{ret};
+    mc_schem_meta_data_ir_get_schem_material(this, &rsr);
+    return ret;
   }
 };
 

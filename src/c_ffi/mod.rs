@@ -19,6 +19,7 @@ mod block;
 mod entity;
 mod error;
 mod region;
+mod meta_data;
 
 use crate::block::Block;
 use crate::error::Error;

@@ -18,8 +18,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 mod block;
 mod entity;
 mod error;
-mod region;
 mod meta_data;
+mod region;
 
 use crate::block::Block;
 use crate::error::Error;
@@ -90,4 +90,40 @@ pub unsafe extern "C" fn mc_schem_destroy_schematic(ptr: *mut Schematic) {
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_destroy_meta_data_ir(ptr: *mut MetaDataIR) {
     let _ = Box::from_raw(ptr);
+}
+
+// [[nodiscard]] block* mc_schem_clone_block(const block*);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_clone_block(ptr: *const Block) -> *mut Block {
+    Box::into_raw(Box::from(ptr.as_ref_unchecked().clone()))
+}
+// [[nodiscard]] region* mc_schem_clone_region(const region*);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_clone_region(ptr: *const Region) -> *mut Region {
+    Box::into_raw(Box::from(ptr.as_ref_unchecked().clone()))
+}
+// [[nodiscard]] entity* mc_schem_clone_entity(const entity*);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_clone_entity(ptr: *const Entity) -> *mut Entity {
+    Box::into_raw(Box::from(ptr.as_ref_unchecked().clone()))
+}
+// [[nodiscard]] block_entity* mc_schem_clone_block_entity(const block_entity*);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_clone_block_entity(ptr: *const BlockEntity) -> *mut BlockEntity {
+    Box::into_raw(Box::from(ptr.as_ref_unchecked().clone()))
+}
+// [[nodiscard]] pending_tick* mc_schem_clone_pending_tick(const pending_tick*);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_clone_pending_tick(ptr: *const PendingTick) -> *mut PendingTick {
+    Box::into_raw(Box::from(ptr.as_ref_unchecked().clone()))
+}
+// [[nodiscard]] meta_data_ir* mc_schem_clone_meta_data_ir(const meta_data_ir*);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_clone_meta_data_ir(ptr: *const MetaDataIR) -> *mut MetaDataIR {
+    Box::into_raw(Box::from(ptr.as_ref_unchecked().clone()))
+}
+// [[nodiscard]] schematic* mc_schem_clone_schematic(const schematic*);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_clone_schematic(ptr: *const Schematic) -> *mut Schematic {
+    Box::into_raw(Box::from(ptr.as_ref_unchecked().clone()))
 }

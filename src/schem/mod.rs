@@ -342,7 +342,7 @@ impl MetaDataIR {
 
 /// Schematic is part of a Minecraft world, like `.litematic` of litematica mod, `.schem` and
 /// `.schematic` of world edit, `.nbt` of vanilla structure.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Schematic {
     pub metadata: MetaDataIR,
     /// A list of regions. A schematic can have multiple regions.

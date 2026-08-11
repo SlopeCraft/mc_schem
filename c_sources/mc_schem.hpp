@@ -60,8 +60,8 @@ class entity;
 class block_entity;
 class pending_tick;
 class region;
-class schematic;
 class meta_data_ir;
+class schematic;
 
 /// Copy rust str to std::string
 struct rust_string_receiver {
@@ -90,8 +90,18 @@ void mc_schem_destroy_region(region* region);
 void mc_schem_destroy_entity(entity* entity);
 void mc_schem_destroy_block_entity(block_entity* be);
 void mc_schem_destroy_pending_tick(pending_tick* tick);
-void mc_schem_destroy_schematic(schematic* schematic);
 void mc_schem_destroy_meta_data_ir(meta_data_ir* mdata);
+void mc_schem_destroy_schematic(schematic* schematic);
+
+// clone
+[[nodiscard]] block* mc_schem_clone_block(const block*);
+// [[nodiscard]] error* mc_schem_clone_error(const error*);
+[[nodiscard]] region* mc_schem_clone_region(const region*);
+[[nodiscard]] entity* mc_schem_clone_entity(const entity*);
+[[nodiscard]] block_entity* mc_schem_clone_block_entity(const block_entity*);
+[[nodiscard]] pending_tick* mc_schem_clone_pending_tick(const pending_tick*);
+[[nodiscard]] meta_data_ir* mc_schem_clone_meta_data_ir(const meta_data_ir*);
+[[nodiscard]] schematic* mc_schem_clone_schematic(const schematic*);
 
 // Block
 ////////////////////////////////////////////////////////////////////////////////
@@ -286,6 +296,9 @@ class block {
   [[nodiscard]] static std::unique_ptr<block, deleter> create() {
     return std::unique_ptr<block, deleter>{mc_schem_create_block()};
   }
+  [[nodiscard]] auto clone() const& {
+    return std::unique_ptr<block, deleter>{mc_schem_clone_block(this)};
+  }
 
   [[nodiscard]] std::string id() const& {
     std::string ret;
@@ -409,6 +422,10 @@ class region {
     }
     assert(err);
     return std::unexpected{std::unique_ptr<error, deleter>{err}};
+  }
+
+  [[nodiscard]] auto clone() const& {
+    return std::unique_ptr<region, deleter>{mc_schem_clone_region(this)};
   }
 
   [[nodiscard]] std::string name() const& {
@@ -673,6 +690,10 @@ class entity {
   entity& operator=(entity&&) = delete;
   ~entity() = delete;
 
+  [[nodiscard]] auto clone() const& {
+    return std::unique_ptr<entity, deleter>{mc_schem_clone_entity(this)};
+  }
+
   [[nodiscard]] std::pair<std::array<int32_t, 3>, std::array<double, 3>>
   position() const& {
     std::array<int32_t, 3> block_pos{0, 0, 0};
@@ -702,6 +723,11 @@ class meta_data_ir {
     }
     assert(dest_err);
     return std::unexpected{std::unique_ptr<error, deleter>{dest_err}};
+  }
+
+  [[nodiscard]] auto clone() const& {
+    return std::unique_ptr<meta_data_ir, deleter>{
+        mc_schem_clone_meta_data_ir(this)};
   }
 
   [[nodiscard]] int32_t mc_data_version() const& {

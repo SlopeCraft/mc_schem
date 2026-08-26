@@ -14,7 +14,7 @@ pub unsafe extern "C" fn mc_schem_block_get_id(
     ptr: *const Block,
     dest: *const rust_string_receiver,
 ) {
-    (*dest).receive((*ptr).id.as_str());
+    (*dest).receive((&*ptr).id.as_str());
 }
 
 #[no_mangle]
@@ -22,25 +22,25 @@ pub unsafe extern "C" fn mc_schem_block_get_namespace(
     ptr: *const Block,
     dest: *const rust_string_receiver,
 ) {
-    (*dest).receive((*ptr).namespace.as_str());
+    (*dest).receive((&*ptr).namespace.as_str());
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_block_set_id(ptr: *mut Block, str: *const c_char) {
     let cstr = CStr::from_ptr(str);
-    (*ptr).id = cstr.to_string_lossy().to_string();
+    (&mut *ptr).id = cstr.to_string_lossy().to_string();
 }
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_block_set_namespace(ptr: *mut Block, str: *const c_char) {
     let cstr = CStr::from_ptr(str);
-    (*ptr).namespace = cstr.to_string_lossy().to_string();
+    (&mut *ptr).namespace = cstr.to_string_lossy().to_string();
 }
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_block_get_full_id(
     ptr: *const Block,
     dest: *const rust_string_receiver,
 ) {
-    (*dest).receive((*ptr).full_id().as_str());
+    (*dest).receive((&*ptr).full_id().as_str());
 }
 
 #[no_mangle]
@@ -77,7 +77,7 @@ pub unsafe extern "C" fn mc_schem_block_visit_attributes(
     ),
     custom_data: *mut c_void,
 ) {
-    for (key, value) in &(*ptr).attributes {
+    for (key, value) in &(&*ptr).attributes {
         callback(
             key.as_ptr(),
             key.len(),
@@ -91,7 +91,7 @@ pub unsafe extern "C" fn mc_schem_block_visit_attributes(
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_block_erase_attribute(ptr: *mut Block, key_c: *const c_char) {
     let key = CStr::from_ptr(key_c).to_string_lossy().to_string();
-    let _ = (*ptr).attributes.remove(&key);
+    let _ = (&mut *ptr).attributes.remove(&key);
 }
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_block_set_attribute(
@@ -101,14 +101,14 @@ pub unsafe extern "C" fn mc_schem_block_set_attribute(
 ) {
     let key = CStr::from_ptr(key_c).to_string_lossy().to_string();
     let value = CStr::from_ptr(value_c).to_string_lossy().to_string();
-    (*ptr).attributes.insert(key, value);
+    (&mut *ptr).attributes.insert(key, value);
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_block_is_air(ptr: *const Block) -> bool {
-    (*ptr).is_air()
+    (&*ptr).is_air()
 }
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_block_is_structure_void(ptr: *const Block) -> bool {
-    (*ptr).is_structure_void()
+    (&*ptr).is_structure_void()
 }

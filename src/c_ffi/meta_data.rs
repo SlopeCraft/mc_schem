@@ -46,7 +46,7 @@ pub unsafe extern "C" fn mc_schem_meta_data_ir_get_author(
     ir: *const MetaDataIR,
     dest: *const rust_string_receiver,
 ) {
-    (*dest).receive((*ir).author.as_str());
+    (*dest).receive((&*ir).author.as_str());
 }
 // void mc_schem_meta_data_ir_get_name(const meta_data_ir*, const rust_string_receiver* dest);
 #[no_mangle]
@@ -54,7 +54,7 @@ pub unsafe extern "C" fn mc_schem_meta_data_ir_get_name(
     ir: *const MetaDataIR,
     dest: *const rust_string_receiver,
 ) {
-    (*dest).receive((*ir).name.as_str())
+    (*dest).receive((&*ir).name.as_str())
 }
 // int32_t mc_schem_meta_data_ir_get_litematica_version(const meta_data_ir*);
 #[no_mangle]

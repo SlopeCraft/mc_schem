@@ -390,7 +390,7 @@ class error {
 };
 
 /// Region of schematic
-/// Note: sizeof(region) is fake. Never construct from C/C++, only construct,
+/// Note: sizeof is fake. Never construct from C/C++, only construct,
 /// allocate, destroy and deallocate in Rust. Always use `this` as handle.
 class region {
  public:
@@ -680,7 +680,9 @@ class region {
     mc_schem_region_visit_blocks(this, explicit_only, func, &visitor);
   }
 };
-
+/// Entity in Minecraft
+/// Note: sizeof is fake. Never construct from C/C++, only construct,
+/// allocate, destroy and deallocate in Rust. Always use `this` as handle.
 class entity {
  public:
   entity() = delete;
@@ -703,7 +705,9 @@ class entity {
     return std::make_pair(block_pos, pos);
   }
 };
-
+/// Intermediate representation of schematic meta data
+/// Note: sizeof is fake. Never construct from C/C++, only construct,
+/// allocate, destroy and deallocate in Rust. Always use `this` as handle.
 class meta_data_ir {
  public:
   meta_data_ir() = delete;

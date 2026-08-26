@@ -26,6 +26,8 @@ use crate::error::Error;
 use crate::region::{BlockEntity, HasPalette, PendingTick};
 use crate::schem::{MetaDataIR, Schematic};
 use crate::{Entity, Region};
+use fastnbt::Value;
+use std::collections::HashMap;
 use std::ffi::c_void;
 use Box;
 
@@ -92,6 +94,11 @@ pub unsafe extern "C" fn mc_schem_destroy_meta_data_ir(ptr: *mut MetaDataIR) {
     let _ = Box::from_raw(ptr);
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_destroy_nbt_hashmap(ptr: *mut HashMap<String, Value>) {
+    let _ = Box::from_raw(ptr);
+}
+
 // [[nodiscard]] block* mc_schem_clone_block(const block*);
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_clone_block(ptr: *const Block) -> *mut Block {
@@ -125,5 +132,12 @@ pub unsafe extern "C" fn mc_schem_clone_meta_data_ir(ptr: *const MetaDataIR) -> 
 // [[nodiscard]] schematic* mc_schem_clone_schematic(const schematic*);
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_clone_schematic(ptr: *const Schematic) -> *mut Schematic {
+    Box::into_raw(Box::from(ptr.as_ref_unchecked().clone()))
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_clone_nbt_hashmap(
+    ptr: *const HashMap<String, Value>,
+) -> *mut HashMap<String, Value> {
     Box::into_raw(Box::from(ptr.as_ref_unchecked().clone()))
 }

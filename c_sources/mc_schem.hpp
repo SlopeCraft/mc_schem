@@ -62,6 +62,7 @@ class pending_tick;
 class region;
 class meta_data_ir;
 class schematic;
+class nbt_hashmap;
 
 /// Copy rust str to std::string
 struct rust_string_receiver {
@@ -92,6 +93,7 @@ void mc_schem_destroy_block_entity(block_entity* be);
 void mc_schem_destroy_pending_tick(pending_tick* tick);
 void mc_schem_destroy_meta_data_ir(meta_data_ir* mdata);
 void mc_schem_destroy_schematic(schematic* schematic);
+void mc_schem_destroy_nbt_hashmap(nbt_hashmap* hashmap);
 
 // clone
 [[nodiscard]] block* mc_schem_clone_block(const block*);
@@ -102,6 +104,7 @@ void mc_schem_destroy_schematic(schematic* schematic);
 [[nodiscard]] pending_tick* mc_schem_clone_pending_tick(const pending_tick*);
 [[nodiscard]] meta_data_ir* mc_schem_clone_meta_data_ir(const meta_data_ir*);
 [[nodiscard]] schematic* mc_schem_clone_schematic(const schematic*);
+[[nodiscard]] nbt_hashmap* mc_schem_clone_nbt_hashmap(const nbt_hashmap*);
 
 // Block
 ////////////////////////////////////////////////////////////////////////////////
@@ -230,6 +233,11 @@ void mc_schem_region_visit_blocks(
 void mc_schem_entity_get_position(const entity*, int32_t* x, int32_t* y,
                                   int32_t* z, double* fp_x, double* fp_y,
                                   double* fp_z);
+const nbt_hashmap* mc_schem_entity_get_tags(const entity*);
+nbt_hashmap* mc_schem_entity_get_tags_mut(entity*);
+/// Deep copy new_value into entity, returns old value by box (transfer
+/// ownership
+nbt_hashmap* mc_schem_entity_set_tags(entity*, const nbt_hashmap* new_value);
 // Meta data ir
 ////////////////////////////////////////////////////////////////////////////////
 [[nodiscard]] meta_data_ir* mc_schem_create_meta_data_ir(
@@ -278,6 +286,9 @@ class deleter {
   static void operator()(schematic* ptr) { mc_schem_destroy_schematic(ptr); }
   static void operator()(meta_data_ir* ptr) {
     mc_schem_destroy_meta_data_ir(ptr);
+  }
+  static void operator()(nbt_hashmap* ptr) {
+    mc_schem_destroy_nbt_hashmap(ptr);
   }
 };
 
@@ -703,6 +714,18 @@ class entity {
     mc_schem_entity_get_position(this, &block_pos[0], &block_pos[1],
                                  &block_pos[2], &pos[0], &pos[1], &pos[2]);
     return std::make_pair(block_pos, pos);
+  }
+
+  [[nodiscard]] const nbt_hashmap* tags() const& {
+    return mc_schem_entity_get_tags(this);
+  }
+  [[nodiscard]] nbt_hashmap* tags() & {
+    return mc_schem_entity_get_tags_mut(this);
+  }
+  /// Deep copy src, move old value onto heap and returns (transfer ownership)
+  std::unique_ptr<nbt_hashmap, deleter> set_tags(const nbt_hashmap& src) & {
+    auto old_value = mc_schem_entity_set_tags(this, &src);
+    return std::unique_ptr<nbt_hashmap, deleter>{old_value};
   }
 };
 /// Intermediate representation of schematic meta data

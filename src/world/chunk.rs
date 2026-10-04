@@ -1,19 +1,21 @@
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Display, Formatter};
 use std::ops::Range;
-use std::time;
+use web_time;
 
 use fastnbt::Value;
 use math::round::{ceil, floor};
 
-use crate::{unwrap_opt_tag, unwrap_tag};
 use crate::biome::Biome;
 use crate::error::Error;
 use crate::region::{Light, PendingTick, PendingTickInfo, WorldSlice};
 use crate::schem::common;
 use crate::schem::common::ceil_up_to;
 use crate::schem::id_of_nbt_tag;
-use crate::world::{Chunk, ChunkPos, ChunkRefAbsolutePos, ChunkRefRelativePos, ChunkStatus, NBTWithSource, SubChunk};
+use crate::world::{
+    Chunk, ChunkPos, ChunkRefAbsolutePos, ChunkRefRelativePos, ChunkStatus, NBTWithSource, SubChunk,
+};
+use crate::{unwrap_opt_tag, unwrap_tag};
 
 impl Display for ChunkStatus {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -52,7 +54,8 @@ impl ChunkStatus {
             ChunkStatus::InitializeLight,
             ChunkStatus::Light,
             ChunkStatus::Spawn,
-            ChunkStatus::Full, ]
+            ChunkStatus::Full,
+        ]
     }
 
     pub fn from_str(str: &str) -> Option<ChunkStatus> {
@@ -69,11 +72,20 @@ impl ChunkStatus {
     }
 }
 
-fn parse_pending_tick(nbt: &HashMap<String, Value>, is_block_tick: bool, tag_path: &str) -> Result<([i32; 3], PendingTick), Error> {
+fn parse_pending_tick(
+    nbt: &HashMap<String, Value>,
+    is_block_tick: bool,
+    tag_path: &str,
+) -> Result<([i32; 3], PendingTick), Error> {
     let pos = common::parse_size_compound(nbt, tag_path, true)?;
-    let id = unwrap_opt_tag!(nbt.get("i"),String,"".to_string(),format!("{tag_path}/i"));
-    let p = *unwrap_opt_tag!(nbt.get("p"),Int,0,format!("{tag_path}/p"));
-    let t = *unwrap_opt_tag!(nbt.get("t"),Int,0,format!("{tag_path}/t"));
+    let id = unwrap_opt_tag!(
+        nbt.get("i"),
+        String,
+        "".to_string(),
+        format!("{tag_path}/i")
+    );
+    let p = *unwrap_opt_tag!(nbt.get("p"), Int, 0, format!("{tag_path}/p"));
+    let t = *unwrap_opt_tag!(nbt.get("t"), Int, 0, format!("{tag_path}/t"));
 
     let info = if is_block_tick {
         PendingTickInfo::Block { id: id.clone() }
@@ -93,7 +105,10 @@ fn parse_pending_tick(nbt: &HashMap<String, Value>, is_block_tick: bool, tag_pat
 impl Chunk {
     pub fn new() -> Chunk {
         Chunk {
-            time_stamp: time::SystemTime::now().duration_since(time::UNIX_EPOCH).unwrap().as_secs() as u32,
+            time_stamp: web_time::SystemTime::now()
+                .duration_since(web_time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs() as u32,
             status: ChunkStatus::Empty,
             last_update: 0,
             inhabited_time: 0,
@@ -112,19 +127,30 @@ impl Chunk {
         self.sub_chunks.len() as i32 * 16
     }
 
-    pub fn from_nbt(region_nbt_data: NBTWithSource, entity_nbt_data: Option<NBTWithSource>, chunk_pos: &ChunkPos) -> Result<Chunk, Error> {
+    pub fn from_nbt(
+        region_nbt_data: NBTWithSource,
+        entity_nbt_data: Option<NBTWithSource>,
+        chunk_pos: &ChunkPos,
+    ) -> Result<Chunk, Error> {
         let region_source_filename = region_nbt_data.source;
         let mut region_nbt = region_nbt_data.nbt;
 
-        let path_in_saves = format!("{region_source_filename}/[{},{}]",
-                                    chunk_pos.local_coordinate().x,
-                                    chunk_pos.local_coordinate().z);
+        let path_in_saves = format!(
+            "{region_source_filename}/[{},{}]",
+            chunk_pos.local_coordinate().x,
+            chunk_pos.local_coordinate().z
+        );
         let mut result = Chunk::new();
         result.file_region = region_source_filename.to_string();
         // chunk status
         {
             let status: ChunkStatus;
-            let str = unwrap_opt_tag!(region_nbt.get("Status"),String,"".to_string(),format!("{path_in_saves}/Status"));
+            let str = unwrap_opt_tag!(
+                region_nbt.get("Status"),
+                String,
+                "".to_string(),
+                format!("{path_in_saves}/Status")
+            );
             match ChunkStatus::from_str(str) {
                 Some(s) => status = s,
                 None => {
@@ -136,17 +162,33 @@ impl Chunk {
             };
             result.status = status;
         }
-        result.last_update = *unwrap_opt_tag!(region_nbt.get("LastUpdate"),Long,0,format!("{path_in_saves}/LastUpdate"));
-        result.inhabited_time = *unwrap_opt_tag!(region_nbt.get("InhabitedTime"),Long,0,format!("{path_in_saves}/InhabitedTime"));
+        result.last_update = *unwrap_opt_tag!(
+            region_nbt.get("LastUpdate"),
+            Long,
+            0,
+            format!("{path_in_saves}/LastUpdate")
+        );
+        result.inhabited_time = *unwrap_opt_tag!(
+            region_nbt.get("InhabitedTime"),
+            Long,
+            0,
+            format!("{path_in_saves}/InhabitedTime")
+        );
         if let Some(tag) = region_nbt.get("isLightOn") {
-            result.is_light_on = *unwrap_tag!(tag,Byte,1,format!("{path_in_saves}/isLightOn")) != 0;
+            result.is_light_on =
+                *unwrap_tag!(tag, Byte, 1, format!("{path_in_saves}/isLightOn")) != 0;
         }
 
-        let sections = unwrap_opt_tag!(region_nbt.get_mut("sections"),List,vec![],format!("{path_in_saves}/sections"));
+        let sections = unwrap_opt_tag!(
+            region_nbt.get_mut("sections"),
+            List,
+            vec![],
+            format!("{path_in_saves}/sections")
+        );
 
         for (idx, nbt) in sections.iter_mut().enumerate() {
             let path = format!("{path_in_saves}/sections[{idx}]");
-            let sect_nbt = unwrap_tag!(nbt,Compound,HashMap::new(),path);
+            let sect_nbt = unwrap_tag!(nbt, Compound, HashMap::new(), path);
             let opt = parse_section(sect_nbt, &path)?;
             if let Some((sub_chunk, y)) = opt {
                 result.sub_chunks.insert(y, sub_chunk);
@@ -168,7 +210,12 @@ impl Chunk {
         // block entities
         {
             let be_list_tag = format!("{path_in_saves}/block_entities");
-            let mut be_list = unwrap_opt_tag!(region_nbt.remove("block_entities"),List,vec![],be_list_tag);
+            let mut be_list = unwrap_opt_tag!(
+                region_nbt.remove("block_entities"),
+                List,
+                vec![],
+                be_list_tag
+            );
 
             let pos_lb = [pos_lb[0], result.y_range().start, pos_lb[1]];
             let pos_ub = [pos_ub[0], result.y_range().end - 1, pos_ub[1]];
@@ -179,7 +226,7 @@ impl Chunk {
                 let mut temp = Value::Byte(0);
                 std::mem::swap(&mut temp, nbt);
                 let be_nbt_tag = format!("{path_in_saves}/block_entities/[{idx}]");
-                let be_nbt = unwrap_tag!(temp,Compound,HashMap::new(),be_nbt_tag);
+                let be_nbt = unwrap_tag!(temp, Compound, HashMap::new(), be_nbt_tag);
                 let (pos, be) = common::parse_block_entity_nocheck(be_nbt, &be_nbt_tag, true)?;
                 if !common::check_pos_in_range(pos, pos_lb, pos_ub) {
                     return Err(Error::BlockPosOutOfRange {
@@ -202,18 +249,34 @@ impl Chunk {
         {
             //let mut tick_tag_record = HashMap::new();
             let tag_path_block_ticks = format!("{path_in_saves}/block_ticks");
-            let tag_block_ticks = unwrap_opt_tag!(region_nbt.get("block_ticks"),List,vec![],tag_path_block_ticks);
-
+            let tag_block_ticks = unwrap_opt_tag!(
+                region_nbt.get("block_ticks"),
+                List,
+                vec![],
+                tag_path_block_ticks
+            );
 
             let tag_path_fluid_ticks = format!("{path_in_saves}/fluid_ticks");
-            let tag_fluid_ticks = unwrap_opt_tag!(region_nbt.get("fluid_ticks"),List,vec![],tag_path_fluid_ticks);
-            result.pending_ticks.reserve(tag_block_ticks.len() + tag_fluid_ticks.len());
-            for (is_block, (list, tag_path)) in [(tag_block_ticks, tag_path_block_ticks),
-                (tag_fluid_ticks, tag_path_fluid_ticks)].iter().enumerate() {
+            let tag_fluid_ticks = unwrap_opt_tag!(
+                region_nbt.get("fluid_ticks"),
+                List,
+                vec![],
+                tag_path_fluid_ticks
+            );
+            result
+                .pending_ticks
+                .reserve(tag_block_ticks.len() + tag_fluid_ticks.len());
+            for (is_block, (list, tag_path)) in [
+                (tag_block_ticks, tag_path_block_ticks),
+                (tag_fluid_ticks, tag_path_fluid_ticks),
+            ]
+            .iter()
+            .enumerate()
+            {
                 let is_block = is_block == 0;
                 for (idx, nbt) in list.iter().enumerate() {
                     let cur_tag_path = format!("{tag_path}[{idx}]");
-                    let nbt = unwrap_tag!(nbt,Compound,HashMap::new(),cur_tag_path);
+                    let nbt = unwrap_tag!(nbt, Compound, HashMap::new(), cur_tag_path);
                     let (pos, tick) = parse_pending_tick(nbt, is_block, &cur_tag_path)?;
 
                     //if result.pending_ticks.contains_key(&pos) {
@@ -239,21 +302,23 @@ impl Chunk {
             }
         }
 
-
         // entities
         if let Some(entity_nbt_data) = entity_nbt_data {
             let entity_source_file = entity_nbt_data.source;
             let mut entity_nbt = entity_nbt_data.nbt;
 
             result.file_entities = entity_source_file.to_string();
-            let entity_path = format!("{entity_source_file}/[{},{}]/Entities",
-                                      chunk_pos.local_coordinate().x,
-                                      chunk_pos.local_coordinate().z);
-            let mut entity_list = unwrap_opt_tag!(entity_nbt.remove("Entities"),List,vec![],entity_path);
+            let entity_path = format!(
+                "{entity_source_file}/[{},{}]/Entities",
+                chunk_pos.local_coordinate().x,
+                chunk_pos.local_coordinate().z
+            );
+            let mut entity_list =
+                unwrap_opt_tag!(entity_nbt.remove("Entities"), List, vec![], entity_path);
             result.entities.reserve(entity_list.len());
             for (idx, entity) in entity_list.iter_mut().enumerate() {
                 let cur_path = format!("{entity_path}/[{idx}]");
-                let temp = unwrap_tag!(entity,Compound,HashMap::new(),cur_path);
+                let temp = unwrap_tag!(entity, Compound, HashMap::new(), cur_path);
                 let mut entity = HashMap::new();
                 std::mem::swap(&mut entity, temp);
 
@@ -286,7 +351,8 @@ impl Chunk {
             min = min.min(*y);
         }
 
-        if max <= min { // zero or 1 elements
+        if max <= min {
+            // zero or 1 elements
             return vec![];
         }
         if (max - min + 1) as usize == self.sub_chunks.len() {
@@ -315,7 +381,6 @@ impl Chunk {
         self.y_range().start
     }
 
-
     pub fn shape(&self) -> [i32; 3] {
         [16, self.height(), 16]
     }
@@ -341,29 +406,44 @@ impl Chunk {
             chunk_pos: *chunk_pos,
         }
     }
-
 }
 
 pub fn bits_per_block(block_types: usize, min_value: u8) -> u8 {
     (ceil((block_types as f64).log2(), 0) as u8).max(min_value)
 }
 
-fn parse_blocks(reg: &mut SubChunk, sect: &HashMap<String, Value>, path: &str) -> Result<(), Error> {
-    let block_states = unwrap_opt_tag!(sect.get("block_states"),Compound,HashMap::new(),format!("{path}/block_states"));
+fn parse_blocks(
+    reg: &mut SubChunk,
+    sect: &HashMap<String, Value>,
+    path: &str,
+) -> Result<(), Error> {
+    let block_states = unwrap_opt_tag!(
+        sect.get("block_states"),
+        Compound,
+        HashMap::new(),
+        format!("{path}/block_states")
+    );
 
     {
-        let palette = unwrap_opt_tag!(block_states.get("palette"),List,vec![],format!("{path}/block_states/palette"));
+        let palette = unwrap_opt_tag!(
+            block_states.get("palette"),
+            List,
+            vec![],
+            format!("{path}/block_states/palette")
+        );
         let mut pal = Vec::with_capacity(palette.len());
         for (idx, blk) in palette.iter().enumerate() {
             let path = format!("{path}/block_states/palette[{idx}]");
-            let blk = unwrap_tag!(blk,Compound,HashMap::new(),path);
+            let blk = unwrap_tag!(blk, Compound, HashMap::new(), path);
             let blk = common::parse_block(blk, &path)?;
             pal.push(blk);
         }
         reg.palette = pal;
     }
     if reg.palette.len() <= 0 {
-        return Err(Error::PaletteIsEmpty { tag_path: format!("{path}/block_states/palette") });
+        return Err(Error::PaletteIsEmpty {
+            tag_path: format!("{path}/block_states/palette"),
+        });
     }
     if reg.palette.len() > 65535 {
         return Err(Error::PaletteTooLong(reg.palette.len()));
@@ -373,7 +453,12 @@ fn parse_blocks(reg: &mut SubChunk, sect: &HashMap<String, Value>, path: &str) -
         reg.block_id_array.fill(0);
     } else {
         let path = format!("{path}/block_states/data");
-        let array_i64 = unwrap_opt_tag!(block_states.get("data"),LongArray,fastnbt::LongArray::new(vec![]),path);
+        let array_i64 = unwrap_opt_tag!(
+            block_states.get("data"),
+            LongArray,
+            fastnbt::LongArray::new(vec![]),
+            path
+        );
 
         let block_id_max = reg.palette.len() - 1;
         let bits_per_block = bits_per_block(reg.palette.len(), 4);
@@ -399,31 +484,49 @@ fn parse_blocks(reg: &mut SubChunk, sect: &HashMap<String, Value>, path: &str) -
             }
             reg.block_id_array[idx] = blk_id;
         }
-
     }
     Ok(())
 }
 
-fn parse_biomes(reg: &mut SubChunk, sect: &HashMap<String, Value>, path: &str) -> Result<(), Error> {
-    let biomes = unwrap_opt_tag!(sect.get("biomes"),Compound,HashMap::new(),format!("{path}/biomes"));
+fn parse_biomes(
+    reg: &mut SubChunk,
+    sect: &HashMap<String, Value>,
+    path: &str,
+) -> Result<(), Error> {
+    let biomes = unwrap_opt_tag!(
+        sect.get("biomes"),
+        Compound,
+        HashMap::new(),
+        format!("{path}/biomes")
+    );
     // parse biome palette
     let mut biome_pal = Vec::new();
     {
-        let tag_pal = unwrap_opt_tag!(biomes.get("palette"),List,vec![],format!("{path}/biomes/palette"));
+        let tag_pal = unwrap_opt_tag!(
+            biomes.get("palette"),
+            List,
+            vec![],
+            format!("{path}/biomes/palette")
+        );
         biome_pal.reserve(tag_pal.len());
         for (idx, biome_str) in tag_pal.iter().enumerate() {
             let tag_path = format!("{path}/biomes/palette[{idx}]");
-            let biome_str = unwrap_tag!(biome_str,String,"".to_string(),tag_path);
+            let biome_str = unwrap_tag!(biome_str, String, "".to_string(), tag_path);
             if let Some(b) = Biome::from_str(biome_str) {
                 biome_pal.push(b);
             } else {
-                return Err(Error::InvalidBiome { tag_path, biome: biome_str.to_string() });
+                return Err(Error::InvalidBiome {
+                    tag_path,
+                    biome: biome_str.to_string(),
+                });
             }
         }
     }
 
     if biome_pal.is_empty() {
-        return Err(Error::PaletteIsEmpty { tag_path: format!("{path}/biomes/palette") });
+        return Err(Error::PaletteIsEmpty {
+            tag_path: format!("{path}/biomes/palette"),
+        });
     }
     if biome_pal.len() == 1 {
         reg.biome_array.fill(biome_pal[0]);
@@ -432,7 +535,12 @@ fn parse_biomes(reg: &mut SubChunk, sect: &HashMap<String, Value>, path: &str) -
     //parse 3d
     {
         let path = format!("{path}/biomes/data");
-        let array_i64 = unwrap_opt_tag!(biomes.get("data"),LongArray,fastnbt::LongArray::new(vec![]),path);
+        let array_i64 = unwrap_opt_tag!(
+            biomes.get("data"),
+            LongArray,
+            fastnbt::LongArray::new(vec![]),
+            path
+        );
 
         let block_id_max = biome_pal.len() - 1;
         let bits_per_block = bits_per_block(biome_pal.len(), 1);
@@ -468,24 +576,26 @@ fn parse_biomes(reg: &mut SubChunk, sect: &HashMap<String, Value>, path: &str) -
     Ok(())
 }
 
-fn parse_section(sect: &HashMap<String, Value>, path: &str) -> Result<Option<(SubChunk, i8)>, Error> {
+fn parse_section(
+    sect: &HashMap<String, Value>,
+    path: &str,
+) -> Result<Option<(SubChunk, i8)>, Error> {
     let mut subchunk = SubChunk::new();
     // let reg = &mut subchunk.region;
 
     // y
-    let y_pos = *unwrap_opt_tag!(sect.get("Y"),Byte,0,format!("{path}/Y"));
+    let y_pos = *unwrap_opt_tag!(sect.get("Y"), Byte, 0, format!("{path}/Y"));
 
     if y_pos >= 20 || y_pos <= -5 {
         return Ok(None);
     }
     // block entities
     if let Some(be) = sect.get("block_entities") {
-        let be = unwrap_tag!(be,List,vec![],format!("{path}/Entities"));
+        let be = unwrap_tag!(be, List, vec![], format!("{path}/Entities"));
         if !be.is_empty() {
             println!("{} block entities in {path}", be.len());
         }
     }
-
 
     // palette
     parse_blocks(&mut subchunk, sect, path)?;
@@ -494,9 +604,12 @@ fn parse_section(sect: &HashMap<String, Value>, path: &str) -> Result<Option<(Su
     {
         let sky_light = if let Some(s) = sect.get("SkyLight") {
             let tag_path = format!("{path}/SkyLight");
-            let arr = unwrap_tag!(s,ByteArray,fastnbt::ByteArray::new(vec![]),tag_path).as_ref();
+            let arr = unwrap_tag!(s, ByteArray, fastnbt::ByteArray::new(vec![]), tag_path).as_ref();
             if arr.len() != 2048 {
-                return Err(Error::InvalidValue { tag_path, error: format!("The length should be 2048, but found {}", arr.len()) });
+                return Err(Error::InvalidValue {
+                    tag_path,
+                    error: format!("The length should be 2048, but found {}", arr.len()),
+                });
             }
             arr
         } else {
@@ -504,9 +617,12 @@ fn parse_section(sect: &HashMap<String, Value>, path: &str) -> Result<Option<(Su
         };
         let block_light = if let Some(s) = sect.get("BlockLight") {
             let tag_path = format!("{path}/BlockLight");
-            let arr = unwrap_tag!(s,ByteArray,fastnbt::ByteArray::new(vec![]),tag_path).as_ref();
+            let arr = unwrap_tag!(s, ByteArray, fastnbt::ByteArray::new(vec![]), tag_path).as_ref();
             if arr.len() != 2048 {
-                return Err(Error::InvalidValue { tag_path, error: format!("The length should be 2048, but found {}", arr.len()) });
+                return Err(Error::InvalidValue {
+                    tag_path,
+                    error: format!("The length should be 2048, but found {}", arr.len()),
+                });
             }
             arr
         } else {
@@ -572,7 +688,8 @@ impl MultiBitSet {
         assert!(element_bits < 64);
         self.element_bits = element_bits;
         self.num_elements = num_elements;
-        self.array.resize(Self::required_num_u64(num_elements, element_bits), 0);
+        self.array
+            .resize(Self::required_num_u64(num_elements, element_bits), 0);
     }
 
     pub fn index_of_element(&self, ele_idx: usize) -> (usize, u8) {
@@ -636,4 +753,3 @@ fn test_multi_bit_set() {
         assert_eq!(vec.get(i), expected);
     }
 }
-

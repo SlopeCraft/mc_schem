@@ -185,6 +185,7 @@ impl FilesInMemory {
         Ok(result)
     }
 
+    #[cfg(not(target_arch = "wasm32"))] // SevenZReader::open does not exist on wasm32
     pub fn from_7z_file(
         path: impl AsRef<Path> + std::fmt::Display,
         password: &str,

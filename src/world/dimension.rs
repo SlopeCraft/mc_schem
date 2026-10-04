@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use std::ops::Range;
 use std::sync::mpsc::{channel, Receiver};
 #[allow(unused_imports)]
-use std::time;
+use web_time;
 
 impl<T> RefOrObject<'_, T> {
     pub fn to_ref(&self) -> &T {
@@ -195,7 +195,7 @@ impl Dimension {
                             exception_chunk_z: pos.to_global_pos().z,
                             exception_value: chunk.to_ref().y_range(),
                         })
-                            .unwrap();
+                        .unwrap();
                         return;
                     }
 
@@ -230,7 +230,7 @@ impl Dimension {
                             exception_chunk_z: pos.to_global_pos().z,
                             exception_value: chunk.y_range(),
                         })
-                            .unwrap();
+                        .unwrap();
                         return;
                     }
 
@@ -345,14 +345,14 @@ impl<'dim> AbsolutePosIndexed<'dim, 'dim> for Dimension {
 
 #[test]
 fn test_load_dimension() {
-    let begin = time::SystemTime::now();
+    let begin = web_time::SystemTime::now();
     let files = FilesInMemory::from_7z_file("test_files/world/00_1.20.2.7z", "").unwrap();
-    let decompressed = time::SystemTime::now();
+    let decompressed = web_time::SystemTime::now();
 
     let mut dim = Dimension::from_files(&files, false, -64..320, 0).unwrap();
     dim.parse_all(0).unwrap();
 
-    let parsed = time::SystemTime::now();
+    let parsed = web_time::SystemTime::now();
 
     println!(
         "{} chunks parsed in {} ms.",
@@ -368,17 +368,17 @@ fn test_load_dimension() {
 
 #[test]
 fn test_large_overworld() {
-    let begin = time::SystemTime::now();
+    let begin = web_time::SystemTime::now();
     let files =
         FilesInMemory::from_7z_file("test_files/world/01_large-world-1.20.2.7z", "").unwrap();
-    let decompressed = time::SystemTime::now();
+    let decompressed = web_time::SystemTime::now();
 
     let mut dim = Dimension::from_files(&files, false, -64..320, 0).unwrap();
 
     dim.parse_all(0).unwrap();
     //dim.check_all().unwrap();
 
-    let parsed = time::SystemTime::now();
+    let parsed = web_time::SystemTime::now();
 
     println!(
         "{} chunks parsed in {} ms.",
@@ -394,15 +394,15 @@ fn test_large_overworld() {
 
 #[test]
 fn test_load_dimension_mcc_block_entities() {
-    let begin = time::SystemTime::now();
+    let begin = web_time::SystemTime::now();
     let files =
         FilesInMemory::from_7z_file("test_files/world/02_mcc-block-entities.7z", "").unwrap();
-    let decompressed = time::SystemTime::now();
+    let decompressed = web_time::SystemTime::now();
 
     let mut dim = Dimension::from_files(&files, false, -64..320, 0).unwrap();
     dim.parse_all(0).unwrap();
 
-    let parsed = time::SystemTime::now();
+    let parsed = web_time::SystemTime::now();
 
     println!(
         "{} chunks parsed in {} ms.",

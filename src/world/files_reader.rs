@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Read, Seek};
 use std::ops::{Index, Range};
-use std::path::Path;
 use std::sync::Arc;
 
 use sevenz_rust::SevenZReader;
@@ -187,7 +186,7 @@ impl FilesInMemory {
 
     #[cfg(not(target_arch = "wasm32"))] // SevenZReader::open does not exist on wasm32
     pub fn from_7z_file(
-        path: impl AsRef<Path> + std::fmt::Display,
+        path: impl AsRef<std::path::Path> + std::fmt::Display,
         password: &str,
     ) -> Result<FilesInMemory, Error> {
         let filename = path.to_string();

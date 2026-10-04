@@ -54,7 +54,6 @@ pub mod schem;
 pub mod world;
 
 mod biome;
-#[cfg(not(target_arch = "wasm32"))]
 mod c_ffi;
 mod item;
 mod player;

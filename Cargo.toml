@@ -30,7 +30,7 @@ panic = "abort"
 [dependencies]
 strum = { version = "0.26.1", features = ["derive", "strum_macros"] }
 ndarray = "0.15.6"
-fastnbt = "2.4.4"
+fastnbt = "2.6.3"
 flate2 = { version = "1.0.28", features = [] }
 libmath = "0.2.1"
 rand = "0.8.5"

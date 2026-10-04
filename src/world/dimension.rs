@@ -195,7 +195,7 @@ impl Dimension {
                             exception_chunk_z: pos.to_global_pos().z,
                             exception_value: chunk.to_ref().y_range(),
                         })
-                            .unwrap();
+                        .unwrap();
                         return;
                     }
 
@@ -230,7 +230,7 @@ impl Dimension {
                             exception_chunk_z: pos.to_global_pos().z,
                             exception_value: chunk.y_range(),
                         })
-                            .unwrap();
+                        .unwrap();
                         return;
                     }
 

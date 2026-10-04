@@ -16,13 +16,15 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+use crate::c_ffi::{
+    CArrayView, CByteArrayView, CEnumNBTType, CIntArrayView, CLongArrayView, CMapRef, CNBTListView,
+    CStringView, CValueBox,
+};
+use fastnbt::Value;
 use std::collections::HashMap;
 use std::ffi::{c_double, c_float};
 use std::mem::swap;
 use std::ptr::{drop_in_place, null, null_mut};
-use fastnbt::{Value};
-use crate::c_ffi::{CArrayView, CByteArrayView, CEnumNBTType, CIntArrayView, CLongArrayView, CMapRef, CNBTListView, CStringView, CValueBox};
-
 
 #[no_mangle]
 extern "C" fn MC_SCHEM_create_nbt() -> CValueBox {
@@ -31,7 +33,7 @@ extern "C" fn MC_SCHEM_create_nbt() -> CValueBox {
 
 #[no_mangle]
 unsafe extern "C" fn MC_SCHEM_release_nbt(nbt_box: *mut CValueBox) {
-        drop_in_place(nbt_box);
+    drop_in_place(nbt_box);
 }
 
 #[no_mangle]
@@ -68,7 +70,7 @@ extern "C" fn MC_SCHEM_nbt_get_byte(nbt: *const Value, ok: *mut bool) -> i8 {
         } else {
             *ok = false;
             0
-        }
+        };
     }
 }
 
@@ -81,7 +83,7 @@ extern "C" fn MC_SCHEM_nbt_get_short(nbt: *const Value, ok: *mut bool) -> i16 {
         } else {
             *ok = false;
             0
-        }
+        };
     }
 }
 
@@ -94,7 +96,7 @@ extern "C" fn MC_SCHEM_nbt_get_int(nbt: *const Value, ok: *mut bool) -> i32 {
         } else {
             *ok = false;
             0
-        }
+        };
     }
 }
 
@@ -107,7 +109,7 @@ extern "C" fn MC_SCHEM_nbt_get_long(nbt: *const Value, ok: *mut bool) -> i64 {
         } else {
             *ok = false;
             0
-        }
+        };
     }
 }
 
@@ -120,7 +122,7 @@ extern "C" fn MC_SCHEM_nbt_get_float(nbt: *const Value, ok: *mut bool) -> c_floa
         } else {
             *ok = false;
             0.0
-        }
+        };
     }
 }
 
@@ -133,10 +135,9 @@ extern "C" fn MC_SCHEM_nbt_get_double(nbt: *const Value, ok: *mut bool) -> c_dou
         } else {
             *ok = false;
             0.0
-        }
+        };
     }
 }
-
 
 #[no_mangle]
 extern "C" fn MC_SCHEM_nbt_get_string(nbt: *const Value, ok: *mut bool) -> *const String {
@@ -147,10 +148,9 @@ extern "C" fn MC_SCHEM_nbt_get_string(nbt: *const Value, ok: *mut bool) -> *cons
         } else {
             *ok = false;
             null()
-        }
+        };
     }
 }
-
 
 #[no_mangle]
 extern "C" fn MC_SCHEM_nbt_get_byte_array(nbt: *const Value, ok: *mut bool) -> CByteArrayView {
@@ -161,7 +161,7 @@ extern "C" fn MC_SCHEM_nbt_get_byte_array(nbt: *const Value, ok: *mut bool) -> C
         } else {
             *ok = false;
             CArrayView::empty()
-        }
+        };
     }
 }
 
@@ -174,10 +174,9 @@ extern "C" fn MC_SCHEM_nbt_get_int_array(nbt: *const Value, ok: *mut bool) -> CI
         } else {
             *ok = false;
             CArrayView::empty()
-        }
+        };
     }
 }
-
 
 #[no_mangle]
 extern "C" fn MC_SCHEM_nbt_get_long_array(nbt: *const Value, ok: *mut bool) -> CLongArrayView {
@@ -188,10 +187,9 @@ extern "C" fn MC_SCHEM_nbt_get_long_array(nbt: *const Value, ok: *mut bool) -> C
         } else {
             *ok = false;
             CArrayView::empty()
-        }
+        };
     }
 }
-
 
 #[no_mangle]
 extern "C" fn MC_SCHEM_nbt_get_list(nbt: *const Value, ok: *mut bool) -> CNBTListView {
@@ -202,10 +200,9 @@ extern "C" fn MC_SCHEM_nbt_get_list(nbt: *const Value, ok: *mut bool) -> CNBTLis
         } else {
             *ok = false;
             CArrayView::empty()
-        }
+        };
     }
 }
-
 
 #[no_mangle]
 extern "C" fn MC_SCHEM_nbt_get_compound(nbt: *const Value, ok: *mut bool) -> CMapRef {
@@ -216,7 +213,7 @@ extern "C" fn MC_SCHEM_nbt_get_compound(nbt: *const Value, ok: *mut bool) -> CMa
         } else {
             *ok = false;
             CMapRef::StrValue(null_mut())
-        }
+        };
     }
 }
 
@@ -274,7 +271,6 @@ extern "C" fn MC_SCHEM_nbt_set_string(nbt: *mut Value, val: CStringView) {
     }
 }
 
-
 #[no_mangle]
 extern "C" fn MC_SCHEM_nbt_set_byte_array(nbt: *mut Value, val: CByteArrayView) {
     unsafe {
@@ -298,7 +294,6 @@ extern "C" fn MC_SCHEM_nbt_set_int_array(nbt: *mut Value, val: CIntArrayView) {
         }
     }
 }
-
 
 #[no_mangle]
 extern "C" fn MC_SCHEM_nbt_set_long_array(nbt: *mut Value, val: CLongArrayView) {

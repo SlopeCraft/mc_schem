@@ -16,14 +16,20 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+use crate::c_ffi::{
+    error_to_box, CArrayView, CMapRef, CPendingTickType, CPosDouble, CPosInt, CRegionBlockInfo,
+    CStringView,
+};
+use crate::error::Error;
+use crate::region::{
+    Array3DVariant, BlockEntity, Entity, HasPalette, PendingTick, PendingTickInfo, Region,
+    WorldSlice,
+};
+use crate::Block;
+use fastnbt::Value;
 use std::collections::HashMap;
 use std::mem::swap;
 use std::ptr::{drop_in_place, null, null_mut};
-use fastnbt::Value;
-use crate::Block;
-use crate::c_ffi::{CArrayView, CMapRef, CPendingTickType, CPosDouble, CPosInt, CRegionBlockInfo, CStringView, error_to_box};
-use crate::region::{Array3DVariant, BlockEntity, Entity, HasPalette, PendingTick, PendingTickInfo, Region, WorldSlice};
-use crate::error::Error;
 
 #[no_mangle]
 extern "C" fn MC_SCHEM_create_entity() -> Box<Entity> {
@@ -46,7 +52,9 @@ unsafe extern "C" fn MC_SCHEM_swap_entity(a: *mut Entity, b: *mut Entity) {
 extern "C" fn MC_SCHEM_entity_get_block_pos(entity: *const Entity) -> CPosInt {
     unsafe {
         let entity = &*entity;
-        return CPosInt { pos: entity.block_pos };
+        return CPosInt {
+            pos: entity.block_pos,
+        };
     }
 }
 
@@ -54,7 +62,9 @@ extern "C" fn MC_SCHEM_entity_get_block_pos(entity: *const Entity) -> CPosInt {
 extern "C" fn MC_SCHEM_entity_get_pos(entity: *const Entity) -> CPosDouble {
     unsafe {
         let entity = &*entity;
-        return CPosDouble { pos: entity.position };
+        return CPosDouble {
+            pos: entity.position,
+        };
     }
 }
 
@@ -76,9 +86,9 @@ extern "C" fn MC_SCHEM_entity_set_pos(entity: *mut Entity, pos: CPosDouble) {
 extern "C" fn MC_SCHEM_entity_get_tags(entity: *const Entity) -> CMapRef {
     unsafe {
         let entity = &*entity;
-        return CMapRef::StrValue(&entity.tags
-            as *const HashMap<String, Value>
-            as *mut HashMap<String, Value>);
+        return CMapRef::StrValue(
+            &entity.tags as *const HashMap<String, Value> as *mut HashMap<String, Value>,
+        );
     }
 }
 
@@ -110,7 +120,12 @@ extern "C" fn MC_SCHEM_block_entity_get_tags(be: *const BlockEntity) -> CMapRef 
 
 #[no_mangle]
 extern "C" fn MC_SCHEM_create_pending_tick() -> Box<PendingTick> {
-    return Box::new(PendingTick { priority: 0, sub_tick: 0, time: 0, info: PendingTickInfo::default() });
+    return Box::new(PendingTick {
+        priority: 0,
+        sub_tick: 0,
+        time: 0,
+        info: PendingTickInfo::default(),
+    });
 }
 
 #[no_mangle]
@@ -119,7 +134,6 @@ extern "C" fn MC_SCHEM_release_pending_tick(b: *mut Box<PendingTick>) {
         drop_in_place(b);
     }
 }
-
 
 #[no_mangle]
 unsafe extern "C" fn MC_SCHEM_swap_pending_tick(a: *mut PendingTick, b: *mut PendingTick) {
@@ -174,7 +188,7 @@ extern "C" fn MC_SCHEM_pending_tick_get_id(p: *const PendingTick) -> CStringView
         return match &(&*p).info {
             PendingTickInfo::Fluid { id } => CStringView::from(&id),
             PendingTickInfo::Block { id } => CStringView::from(&id),
-        }
+        };
     }
 }
 
@@ -184,12 +198,16 @@ extern "C" fn MC_SCHEM_pending_tick_get_type(p: *const PendingTick) -> CPendingT
         return match &(&*p).info {
             PendingTickInfo::Fluid { .. } => CPendingTickType::Fluid,
             PendingTickInfo::Block { .. } => CPendingTickType::Block,
-        }
+        };
     }
 }
 
 #[no_mangle]
-extern "C" fn MC_SCHEM_pending_tick_set_info(p: *mut PendingTick, t: CPendingTickType, id: CStringView) {
+extern "C" fn MC_SCHEM_pending_tick_set_info(
+    p: *mut PendingTick,
+    t: CPendingTickType,
+    id: CStringView,
+) {
     unsafe {
         let p = &mut *p;
         match t {
@@ -198,7 +216,6 @@ extern "C" fn MC_SCHEM_pending_tick_set_info(p: *mut PendingTick, t: CPendingTic
         }
     }
 }
-
 
 #[no_mangle]
 extern "C" fn MC_SCHEM_create_region() -> Box<Region> {
@@ -226,7 +243,9 @@ unsafe extern "C" fn MC_SCHEM_region_set_name(region: *mut Region, name: CString
 
 #[no_mangle]
 unsafe extern "C" fn MC_SCHEM_region_get_offset(region: *const Region) -> CPosInt {
-    return CPosInt { pos: (*region).offset };
+    return CPosInt {
+        pos: (*region).offset,
+    };
 }
 
 #[no_mangle]
@@ -235,14 +254,21 @@ unsafe extern "C" fn MC_SCHEM_region_set_offset(region: *mut Region, offset: CPo
 }
 
 #[no_mangle]
-unsafe extern "C" fn MC_SCHEM_region_get_palette(region: *const Region, len: *mut usize) -> *mut Block {
+unsafe extern "C" fn MC_SCHEM_region_get_palette(
+    region: *const Region,
+    len: *mut usize,
+) -> *mut Block {
     let region = &mut *(region as *mut Region);
     *len = region.palette.len();
     return region.palette.as_mut_ptr();
 }
 
 #[no_mangle]
-unsafe extern "C" fn MC_SCHEM_region_set_palette(region: *mut Region, pal: *const *const Block, len: usize) {
+unsafe extern "C" fn MC_SCHEM_region_set_palette(
+    region: *mut Region,
+    pal: *const *const Block,
+    len: usize,
+) {
     let region = &mut *(region);
     let mut new_pal = Vec::with_capacity(len);
     for idx in 0..len {
@@ -255,17 +281,24 @@ unsafe extern "C" fn MC_SCHEM_region_set_palette(region: *mut Region, pal: *cons
 #[no_mangle]
 unsafe extern "C" fn MC_SCHEM_region_get_block_entities(region: *const Region) -> CMapRef {
     let region = &mut *(region as *mut Region);
-    return CMapRef::PosBlockEntity(&mut region.block_entities as *mut HashMap<[i32; 3], BlockEntity>);
+    return CMapRef::PosBlockEntity(
+        &mut region.block_entities as *mut HashMap<[i32; 3], BlockEntity>,
+    );
 }
 
 #[no_mangle]
 unsafe extern "C" fn MC_SCHEM_region_get_pending_ticks(region: *const Region) -> CMapRef {
     let region = &mut *(region as *mut Region);
-    return CMapRef::PosPendingTick(&mut region.pending_ticks as *mut HashMap<[i32; 3], Vec<PendingTick>>);
+    return CMapRef::PosPendingTick(
+        &mut region.pending_ticks as *mut HashMap<[i32; 3], Vec<PendingTick>>,
+    );
 }
 
 #[no_mangle]
-unsafe extern "C" fn MC_SCHEM_region_get_entities(region: *const Region, len: *mut usize) -> *mut Entity {
+unsafe extern "C" fn MC_SCHEM_region_get_entities(
+    region: *const Region,
+    len: *mut usize,
+) -> *mut Entity {
     let region = &mut *(region as *mut Region);
     *len = region.entities.len();
     return region.entities.as_mut_ptr();
@@ -282,7 +315,9 @@ unsafe extern "C" fn MC_SCHEM_region_get_block_index_array(region: *const Region
 
 #[no_mangle]
 unsafe extern "C" fn MC_SCHEM_region_get_shape(region: *const Region) -> CPosInt {
-    return CPosInt { pos: (*region).shape() };
+    return CPosInt {
+        pos: (*region).shape(),
+    };
 }
 
 #[no_mangle]
@@ -291,7 +326,10 @@ unsafe extern "C" fn MC_SCHEM_region_reshape(region: *mut Region, new_size: CPos
 }
 
 #[no_mangle]
-unsafe extern "C" fn MC_SCHEM_region_get_block(region: *mut Region, r_pos: CPosInt) -> *const Block {
+unsafe extern "C" fn MC_SCHEM_region_get_block(
+    region: *mut Region,
+    r_pos: CPosInt,
+) -> *const Block {
     if let Some(blk) = (*region).block_at(r_pos.pos) {
         return blk as *const Block;
     }
@@ -299,7 +337,11 @@ unsafe extern "C" fn MC_SCHEM_region_get_block(region: *mut Region, r_pos: CPosI
 }
 
 #[no_mangle]
-unsafe extern "C" fn MC_SCHEM_region_set_block(region: *mut Region, r_pos: CPosInt, block: *const Block) -> bool {
+unsafe extern "C" fn MC_SCHEM_region_set_block(
+    region: *mut Region,
+    r_pos: CPosInt,
+    block: *const Block,
+) -> bool {
     let result = (*region).set_block(r_pos.pos, &*block);
     return result.is_ok();
 }
@@ -310,7 +352,11 @@ unsafe extern "C" fn MC_SCHEM_region_get_block_index(region: *const Region, r_po
 }
 
 #[no_mangle]
-unsafe extern "C" fn MC_SCHEM_region_set_block_index(region: *mut Region, r_pos: CPosInt, new_idx: u16) -> bool {
+unsafe extern "C" fn MC_SCHEM_region_set_block_index(
+    region: *mut Region,
+    r_pos: CPosInt,
+    new_idx: u16,
+) -> bool {
     return (*region).set_block_id(r_pos.pos, new_idx).is_ok();
 }
 
@@ -320,12 +366,18 @@ unsafe extern "C" fn MC_SCHEM_region_get_volume(region: *const Region) -> u64 {
 }
 
 #[no_mangle]
-unsafe extern "C" fn MC_SCHEM_region_get_total_blocks(region: *const Region, include_air: bool) -> u64 {
+unsafe extern "C" fn MC_SCHEM_region_get_total_blocks(
+    region: *const Region,
+    include_air: bool,
+) -> u64 {
     return (*region).total_blocks(include_air);
 }
 
 #[no_mangle]
-unsafe extern "C" fn MC_SCHEM_region_get_block_index_of_air(region: *const Region, ok: *mut bool) -> u16 {
+unsafe extern "C" fn MC_SCHEM_region_get_block_index_of_air(
+    region: *const Region,
+    ok: *mut bool,
+) -> u16 {
     if let Some(id) = (*region).block_index_of_air() {
         *ok = true;
         return id;
@@ -335,7 +387,10 @@ unsafe extern "C" fn MC_SCHEM_region_get_block_index_of_air(region: *const Regio
 }
 
 #[no_mangle]
-unsafe extern "C" fn MC_SCHEM_region_get_block_index_of_structure_void(region: *const Region, ok: *mut bool) -> u16 {
+unsafe extern "C" fn MC_SCHEM_region_get_block_index_of_structure_void(
+    region: *const Region,
+    ok: *mut bool,
+) -> u16 {
     if let Some(id) = (*region).block_index_of_structure_void() {
         *ok = true;
         return id;
@@ -345,12 +400,18 @@ unsafe extern "C" fn MC_SCHEM_region_get_block_index_of_structure_void(region: *
 }
 
 #[no_mangle]
-unsafe extern "C" fn MC_SCHEM_region_contains_coordinate(region: *const Region, r_pos: CPosInt) -> bool {
+unsafe extern "C" fn MC_SCHEM_region_contains_coordinate(
+    region: *const Region,
+    r_pos: CPosInt,
+) -> bool {
     return (*region).contains_coord(r_pos.pos);
 }
 
 #[no_mangle]
-unsafe extern "C" fn MC_SCHEM_region_get_block_info(region: *const Region, r_pos: CPosInt) -> CRegionBlockInfo {
+unsafe extern "C" fn MC_SCHEM_region_get_block_info(
+    region: *const Region,
+    r_pos: CPosInt,
+) -> CRegionBlockInfo {
     let region = &*region;
     let mut result = CRegionBlockInfo::default();
     result.block_index = region.block_index_at(r_pos.pos).unwrap();
@@ -360,7 +421,6 @@ unsafe extern "C" fn MC_SCHEM_region_get_block_info(region: *const Region, r_pos
         null_mut()
     };
     result.pending_ticks = CArrayView::from_slice(region.pending_tick_at(r_pos.pos));
-
 
     return result;
 }

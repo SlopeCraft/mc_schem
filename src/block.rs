@@ -394,7 +394,7 @@ impl Block {
     ///Set property of a block
     pub fn set_property<V: ?Sized>(&mut self, key: &str, value: &V)
     where
-            for<'a> &'a V: Display,
+        for<'a> &'a V: Display,
     {
         self.attributes.insert(key.to_string(), value.to_string());
     }

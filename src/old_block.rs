@@ -1273,7 +1273,7 @@ impl Block {
         if [
             53, 67, 108, 109, 114, 128, 134, 135, 136, 156, 163, 164, 180, 203,
         ]
-            .contains(&id)
+        .contains(&id)
         {
             //stairs
             let facing = index_to_stairs_facing(damage & 0b11);

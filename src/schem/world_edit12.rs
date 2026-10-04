@@ -31,7 +31,6 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::mem;
 
-
 fn i8_to_u8(a: i8) -> u8 {
     return if a >= 0 {
         a as u8

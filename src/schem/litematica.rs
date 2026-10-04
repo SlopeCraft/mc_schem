@@ -188,7 +188,7 @@ fn parse_metadata(root: &HashMap<String, Value>) -> Result<LitematicaMetaData, E
         "".to_string(),
         "/Metadata/Description".to_string()
     )
-        .clone();
+    .clone();
     //result.total_volume = *unwrap_opt_tag!(md.get("TotalVolume"),Int,0,"/Metadata/TotalVolume".to_string()) as i64;
     result.author = unwrap_opt_tag!(
         md.get("Author"),
@@ -196,14 +196,14 @@ fn parse_metadata(root: &HashMap<String, Value>) -> Result<LitematicaMetaData, E
         "".to_string(),
         "/Metadata/Author".to_string()
     )
-        .clone();
+    .clone();
     result.name = unwrap_opt_tag!(
         md.get("Name"),
         String,
         "".to_string(),
         "/Metadata/Name".to_string()
     )
-        .clone();
+    .clone();
 
     result.total_volume = *unwrap_opt_tag!(
         md.get("TotalVolume"),
@@ -742,7 +742,7 @@ fn parse_pending_tick(
                 "".to_string(),
                 format!("{}/Block", tag_path)
             )
-                .clone(),
+            .clone(),
         };
     } else {
         pending_tick.info = PendingTickInfo::Fluid {
@@ -752,7 +752,7 @@ fn parse_pending_tick(
                 "".to_string(),
                 format!("{}/Fluid", tag_path)
             )
-                .clone(),
+            .clone(),
         };
     }
 

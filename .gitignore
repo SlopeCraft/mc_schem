@@ -1,4 +1,6 @@
 /target
 /.idea
 /.vscode
+/devenv*
+/.devenv*
 /build

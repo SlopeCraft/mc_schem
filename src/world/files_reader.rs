@@ -97,7 +97,7 @@ impl FolderOnDisk {
 }
 
 impl FilesRead for FolderOnDisk {
-    fn sub_directory(&self, dir: &str) -> SubDirectory {
+    fn sub_directory(&self, dir: &str) -> SubDirectory<'_> {
         impl_sub_dir(self, dir)
     }
 
@@ -199,7 +199,7 @@ impl FilesInMemory {
 }
 
 impl FilesRead for FilesInMemory {
-    fn sub_directory(&self, dir: &str) -> SubDirectory {
+    fn sub_directory(&self, dir: &str) -> SubDirectory<'_> {
         impl_sub_dir(self, dir)
     }
 
@@ -255,7 +255,7 @@ impl FilesRead for FilesInMemory {
 }
 
 impl FilesRead for SubDirectory<'_> {
-    fn sub_directory(&self, dir: &str) -> SubDirectory {
+    fn sub_directory(&self, dir: &str) -> SubDirectory<'_> {
         let mut new_dir = self.dirname_with_slash.clone();
         new_dir.push_str(dir);
         if !new_dir.ends_with('/') {

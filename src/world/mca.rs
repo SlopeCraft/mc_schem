@@ -125,7 +125,7 @@ impl ChunkPos {
 }
 
 impl ChunkVariant {
-    pub fn check(&self, chunk_pos: &ChunkPos) -> Result<RefOrObject<Chunk>, Error> {
+    pub fn check(&self, chunk_pos: &ChunkPos) -> Result<RefOrObject<'_, Chunk>, Error> {
         match self {
             ChunkVariant::Unparsed(raw) => {
                 let chunk = raw.parse(chunk_pos)?;
@@ -149,7 +149,7 @@ impl ChunkVariant {
 }
 
 impl MCARawData {
-    pub fn to_nbt(&self) -> Result<NBTWithSource, Error> {
+    pub fn to_nbt(&self) -> Result<NBTWithSource<'_>, Error> {
         let parse_opt: Result<HashMap<String, Value>, fastnbt::error::Error>;
 
         if self.data[0..2] == [0x78, 0x9c] {
@@ -193,7 +193,7 @@ impl MCARawData {
 }
 
 impl UnparsedChunkData {
-    pub fn to_nbt(&self) -> Result<(NBTWithSource, Option<NBTWithSource>), Error> {
+    pub fn to_nbt(&self) -> Result<(NBTWithSource<'_>, Option<NBTWithSource<'_>>), Error> {
         let region_data = self.region_data.to_nbt()?;
         let entity_data = if let Some(raw) = &self.entity_data {
             Some(raw.to_nbt()?)

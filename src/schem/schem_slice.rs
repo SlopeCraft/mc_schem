@@ -95,7 +95,7 @@ impl WorldSlice for SchemSlice<'_> {
 
 impl Schematic {
     /// Return a slice of a schematic
-    pub fn slice(&self, offset: [i32; 3], shape: [i32; 3]) -> Option<SchemSlice> {
+    pub fn slice(&self, offset: [i32; 3], shape: [i32; 3]) -> Option<SchemSlice<'_>> {
         for dim in 0..3 {
             if shape[dim] < 0 {
                 panic!("Found negative shape: {}", common::format_size(&shape));

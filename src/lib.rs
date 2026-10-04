@@ -56,7 +56,9 @@ pub mod world;
 mod biome;
 mod c_ffi;
 mod item;
+#[allow(dead_code)]
 mod player;
+#[allow(dead_code)]
 mod raid;
 
 /// `Block` is a type of block with namespace and properties(aka attributes) in MC.

@@ -16,13 +16,13 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-use std::collections::BTreeMap;
-use std::ffi::c_char;
-use std::intrinsics::copy_nonoverlapping;
-use std::mem::swap;
-use std::ptr::{drop_in_place, null_mut};
 use crate::block::{Block, BlockIdParseError};
 use crate::c_ffi::{CMapRef, CStringView};
+use std::collections::BTreeMap;
+use std::ffi::c_char;
+use std::mem::swap;
+use std::ptr::copy_nonoverlapping;
+use std::ptr::{drop_in_place, null_mut};
 
 #[no_mangle]
 extern "C" fn MC_SCHEM_create_block() -> Box<Block> {
@@ -59,7 +59,9 @@ extern "C" fn MC_SCHEM_block_get_id(block: *const Block) -> CStringView {
 extern "C" fn MC_SCHEM_block_get_attributes(block: *const Block) -> CMapRef {
     unsafe {
         let block = &*block;
-        return CMapRef::StrStr(&block.attributes as *const BTreeMap<String, String> as *mut BTreeMap<String, String>);
+        return CMapRef::StrStr(
+            &block.attributes as *const BTreeMap<String, String> as *mut BTreeMap<String, String>,
+        );
     }
 }
 
@@ -92,29 +94,35 @@ extern "C" fn MC_SCHEM_block_set_attributes(block: *mut Block, map: CMapRef, ok:
 }
 
 #[no_mangle]
-extern "C" fn MC_SCHEM_parse_block(id: CStringView, block: *mut Block, error_nullable: *mut BlockIdParseError) -> bool {
+extern "C" fn MC_SCHEM_parse_block(
+    id: CStringView,
+    block: *mut Block,
+    error_nullable: *mut BlockIdParseError,
+) -> bool {
     unsafe {
         let block = &mut *block;
         return match Block::from_id(id.to_str()) {
             Ok(blk) => {
                 *block = blk;
                 true
-            },
+            }
             Err(e) => {
                 if error_nullable != null_mut() {
                     *error_nullable = e;
                 }
                 false
             }
-        }
+        };
     }
 }
 
 #[no_mangle]
-extern "C" fn MC_SCHEM_block_to_full_id(block: *const Block,
-                                        dest: *mut c_char,
-                                        dest_capacity: usize,
-                                        id_length: *mut usize) {
+extern "C" fn MC_SCHEM_block_to_full_id(
+    block: *const Block,
+    dest: *mut c_char,
+    dest_capacity: usize,
+    id_length: *mut usize,
+) {
     unsafe {
         let block = &*block;
         let mut id = block.full_id();

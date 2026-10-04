@@ -16,31 +16,34 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+#[allow(unused_imports)]
+use crate::block::{Block, BlockIdParseError, CommonBlock};
+use crate::error::Error;
+#[allow(unused_imports)]
+use crate::region::{BlockEntity, Entity, PendingTick};
+use crate::schem::{
+    DataVersion, LitematicaLoadOption, LitematicaSaveOption, MetaDataIR, Schematic,
+    VanillaStructureLoadOption, VanillaStructureSaveOption, WorldEdit12LoadOption,
+    WorldEdit13LoadOption, WorldEdit13SaveOption,
+};
+use fastnbt::Value;
+use flate2::Compression;
+use static_assertions as sa;
 use std::cmp::min;
 use std::collections::{BTreeMap, HashMap};
 use std::ffi::{c_char, c_void, CStr, CString};
 use std::fmt::{Debug, Display, Formatter};
-use std::intrinsics::copy_nonoverlapping;
 use std::io::{ErrorKind, Read, Write};
+use std::mem::{size_of, swap, ManuallyDrop};
+use std::ptr::copy_nonoverlapping;
 use std::ptr::{drop_in_place, null, null_mut, slice_from_raw_parts, slice_from_raw_parts_mut};
 use std::str::from_utf8_unchecked;
-use static_assertions as sa;
-use std::mem::{ManuallyDrop, size_of, swap};
-use fastnbt::Value;
-use flate2::Compression;
-#[allow(unused_imports)]
-use crate::block::{CommonBlock, Block, BlockIdParseError};
-use crate::error::Error;
-#[allow(unused_imports)]
-use crate::region::{BlockEntity, Entity, PendingTick};
-use crate::schem::{Schematic, LitematicaLoadOption, VanillaStructureLoadOption, WorldEdit13LoadOption, WorldEdit12LoadOption, DataVersion, LitematicaSaveOption, VanillaStructureSaveOption, WorldEdit13SaveOption, MetaDataIR};
 
+mod block_ffi;
 mod map_ffi;
 mod nbt_ffi;
-mod block_ffi;
 mod region_ffi;
 mod schem_ffi;
-
 
 #[no_mangle]
 extern "C" fn MC_SCHEM_version_string() -> *const c_char {
@@ -73,7 +76,7 @@ struct CStringView {
     begin: *const c_char,
     end: *const c_char,
 }
-sa::const_assert!(size_of::<CStringView>()==2*size_of::<usize>());
+sa::const_assert!(size_of::<CStringView>() == 2 * size_of::<usize>());
 #[allow(dead_code)]
 impl CStringView {
     pub fn from(src: &str) -> CStringView {
@@ -156,7 +159,7 @@ enum CMapRef {
     PosBlockEntity(*mut HashMap<[i32; 3], BlockEntity>),
     PosPendingTick(*mut HashMap<[i32; 3], Vec<PendingTick>>),
 }
-sa::const_assert!(size_of::<CMapRef>()==2*size_of::<usize>());
+sa::const_assert!(size_of::<CMapRef>() == 2 * size_of::<usize>());
 
 #[repr(C)]
 enum CMapBox {
@@ -166,8 +169,7 @@ enum CMapBox {
     PosPendingTick(Box<HashMap<[i32; 3], Vec<PendingTick>>>),
     None,
 }
-sa::const_assert!(size_of::<CMapBox>()==2*size_of::<usize>());
-
+sa::const_assert!(size_of::<CMapBox>() == 2 * size_of::<usize>());
 
 #[repr(C)]
 union CMapKeyWrapper {
@@ -182,7 +184,7 @@ union CMapValueWrapper {
     block_entity: *mut BlockEntity,
     pending_tick_view: ManuallyDrop<CArrayView<PendingTick>>,
 }
-sa::const_assert!(size_of::<CMapValueWrapper>()==2*size_of::<usize>());
+sa::const_assert!(size_of::<CMapValueWrapper>() == 2 * size_of::<usize>());
 
 pub struct KVRef<K, V> {
     pub key: *const K,
@@ -197,7 +199,10 @@ impl<K, V> KVRef<K, V> {
                 value: v as *mut V,
             };
         }
-        return KVRef { key: null(), value: null_mut() };
+        return KVRef {
+            key: null(),
+            value: null_mut(),
+        };
     }
 
     pub fn is_null(&self) -> bool {
@@ -206,7 +211,7 @@ impl<K, V> KVRef<K, V> {
 }
 
 #[repr(C)]
-#[warn(improper_ctypes_definitions)]// memory layout is invisible in C
+#[warn(improper_ctypes_definitions)] // memory layout is invisible in C
 enum CMapIterator {
     StrStr {
         iter: std::collections::btree_map::IterMut<'static, String, String>,
@@ -226,13 +231,15 @@ enum CMapIterator {
     },
     None,
 }
-sa::const_assert!(size_of::<CMapIterator>()==12*size_of::<usize>());
-
+sa::const_assert!(size_of::<CMapIterator>() == 12 * size_of::<usize>());
 
 #[test]
 fn sizes() {
     println!("Size of usize = {}", size_of::<usize>());
-    println!("Size of iter_mut = {}", size_of::<std::collections::btree_map::IterMut<'static, String, String>>());
+    println!(
+        "Size of iter_mut = {}",
+        size_of::<std::collections::btree_map::IterMut<'static, String, String>>()
+    );
     println!("Size of CMapIterator = {}", size_of::<CMapIterator>());
 
     println!("Size of fastnbt::Value = {}", size_of::<Value>());
@@ -244,8 +251,14 @@ fn sizes() {
     println!("Size of Pending tick = {}", size_of::<PendingTick>());
     println!("Size of (u8,u8) = {}", size_of::<(u8, u8)>());
 
-    println!("Size of CLitematicaLoadOption = {}", size_of::<CLitematicaLoadOption>());
-    println!("Size of CVanillaStructureLoadOption = {}", size_of::<CVanillaStructureLoadOption>());
+    println!(
+        "Size of CLitematicaLoadOption = {}",
+        size_of::<CLitematicaLoadOption>()
+    );
+    println!(
+        "Size of CVanillaStructureLoadOption = {}",
+        size_of::<CVanillaStructureLoadOption>()
+    );
     println!("Size of CWE13LoadOption = {}", size_of::<CWE13LoadOption>());
     println!("Size of CWE12LoadOption = {}", size_of::<CWE12LoadOption>());
 }
@@ -268,7 +281,7 @@ enum CEnumNBTType {
 }
 
 type CValueBox = Box<Value>;
-sa::const_assert!(size_of::<CValueBox>()==size_of::<usize>());
+sa::const_assert!(size_of::<CValueBox>() == size_of::<usize>());
 
 impl<T> CArrayView<T> {
     pub fn from_slice(slice: &[T]) -> CArrayView<T> {
@@ -277,7 +290,7 @@ impl<T> CArrayView<T> {
             return CArrayView {
                 begin,
                 end: begin.add(slice.len()),
-            }
+            };
         }
     }
 
@@ -287,7 +300,9 @@ impl<T> CArrayView<T> {
     }
 
     pub unsafe fn to_vec(&self) -> Vec<T>
-        where T: Clone {
+    where
+        T: Clone,
+    {
         return self.to_slice().to_vec();
     }
 
@@ -295,7 +310,7 @@ impl<T> CArrayView<T> {
         return CArrayView {
             begin: null_mut(),
             end: null_mut(),
-        }
+        };
     }
 }
 
@@ -342,7 +357,7 @@ impl Default for CRegionBlockInfo {
             block: null(),
             block_entity: null_mut(),
             pending_ticks: CArrayView::empty(),
-        }
+        };
     }
 }
 
@@ -351,13 +366,17 @@ unsafe extern "C" fn MC_SCHEM_release_error(b: *mut Box<Error>) {
     drop_in_place(b);
 }
 
-
 #[no_mangle]
 unsafe extern "C" fn MC_SCHEM_swap_error(a: *mut Error, b: *mut Error) {
     swap(&mut *a, &mut *b);
 }
 #[no_mangle]
-unsafe extern "C" fn MC_SCHEM_error_to_string(error: *const Error, dest: *mut c_char, capacity: usize, length: *mut usize) {
+unsafe extern "C" fn MC_SCHEM_error_to_string(
+    error: *const Error,
+    dest: *mut c_char,
+    capacity: usize,
+    length: *mut usize,
+) {
     let mut s = (*error).to_string();
     s.push('\0');
     if capacity < s.len() {
@@ -375,12 +394,12 @@ unsafe extern "C" fn MC_SCHEM_error_to_string(error: *const Error, dest: *mut c_
 }
 
 pub fn error_to_box(err: Option<Error>) -> Option<Box<Error>> {
-    sa::const_assert!(size_of::<Option<Box<Error>>>()==size_of::<usize>());
+    sa::const_assert!(size_of::<Option<Box<Error>>>() == size_of::<usize>());
     return if let Some(e) = err {
         Some(Box::from(e))
     } else {
         None
-    }
+    };
 }
 
 #[no_mangle]
@@ -390,12 +409,19 @@ extern "C" fn MC_SCHEM_error_test_none() -> Option<Box<Error>> {
 
 #[no_mangle]
 extern "C" fn MC_SCHEM_error_test_some() -> Option<Box<Error>> {
-    return error_to_box(Some(Error::UnsupportedVersion { data_version_i32: 0 }));
+    return error_to_box(Some(Error::UnsupportedVersion {
+        data_version_i32: 0,
+    }));
 }
 
-
-type ReadCallback = extern "C" fn(handle: *mut c_void, buffer: *mut u8, buffer_size: usize,
-                                  ok: *mut bool, error: *mut c_char, error_capacity: usize) -> usize;
+type ReadCallback = extern "C" fn(
+    handle: *mut c_void,
+    buffer: *mut u8,
+    buffer_size: usize,
+    ok: *mut bool,
+    error: *mut c_char,
+    error_capacity: usize,
+) -> usize;
 
 #[repr(C)]
 struct CReader {
@@ -403,6 +429,7 @@ struct CReader {
     read_fun: ReadCallback,
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 struct CReaderError(CString);
 
@@ -424,9 +451,14 @@ impl Read for CReader {
         let mut error_msg = [0 as c_char; 1024];
         let mut ok = false;
         let read_bytes;
-        read_bytes = (self.read_fun)(self.handle, buf.as_mut_ptr(), buf.len(),
-                                     &mut ok as *mut bool, error_msg.as_mut_ptr(), error_msg.len());
-
+        read_bytes = (self.read_fun)(
+            self.handle,
+            buf.as_mut_ptr(),
+            buf.len(),
+            &mut ok as *mut bool,
+            error_msg.as_mut_ptr(),
+            error_msg.len(),
+        );
 
         return if ok {
             Ok(read_bytes)
@@ -434,13 +466,11 @@ impl Read for CReader {
             unsafe {
                 let c_str = CStr::from_ptr(error_msg.as_ptr());
                 let s = CString::from(c_str);
-                Err(std::io::Error::new(ErrorKind::Other,
-                                        Box::new(CReaderError(s))).into())
+                Err(std::io::Error::new(ErrorKind::Other, Box::new(CReaderError(s))).into())
             }
-        }
+        };
     }
 }
-
 
 #[repr(C)]
 struct CSchemLoadResult {
@@ -451,25 +481,36 @@ struct CSchemLoadResult {
 impl CSchemLoadResult {
     pub fn new<T>(src: Result<(Schematic, T), Error>) -> CSchemLoadResult {
         return match src {
-            Ok((s, _)) => CSchemLoadResult { schematic: Some(Box::new(s)), error: None },
-            Err(e) => CSchemLoadResult { schematic: None, error: Some(Box::new(e)) },
-        }
+            Ok((s, _)) => CSchemLoadResult {
+                schematic: Some(Box::new(s)),
+                error: None,
+            },
+            Err(e) => CSchemLoadResult {
+                schematic: None,
+                error: Some(Box::new(e)),
+            },
+        };
     }
 }
 
 impl<T, U> From<Result<(Schematic, T, U), Error>> for CSchemLoadResult {
     fn from(value: Result<(Schematic, T, U), Error>) -> Self {
         return match value {
-            Ok((s, ..)) => CSchemLoadResult { schematic: Some(Box::new(s)), error: None },
-            Err(e) => CSchemLoadResult { schematic: None, error: Some(Box::new(e)) },
-        }
+            Ok((s, ..)) => CSchemLoadResult {
+                schematic: Some(Box::new(s)),
+                error: None,
+            },
+            Err(e) => CSchemLoadResult {
+                schematic: None,
+                error: Some(Box::new(e)),
+            },
+        };
     }
 }
 
-
 #[repr(C, align(512))]
 struct CLitematicaLoadOption {
-    reserved: [u8; 512]
+    reserved: [u8; 512],
 }
 
 sa::const_assert!(size_of::<CLitematicaLoadOption>() == 512);
@@ -483,16 +524,17 @@ impl CLitematicaLoadOption {
     }
 }
 
-
 #[repr(C, align(512))]
 struct CVanillaStructureLoadOption {
     pub background_block: CommonBlock,
 }
 
-sa::const_assert!(size_of::<CVanillaStructureLoadOption>()==512);
+sa::const_assert!(size_of::<CVanillaStructureLoadOption>() == 512);
 impl CVanillaStructureLoadOption {
     pub fn to_option(&self) -> VanillaStructureLoadOption {
-        return VanillaStructureLoadOption { background_block: self.background_block };
+        return VanillaStructureLoadOption {
+            background_block: self.background_block,
+        };
     }
     pub fn from_option(src: &VanillaStructureLoadOption) -> Self {
         return Self {
@@ -501,13 +543,12 @@ impl CVanillaStructureLoadOption {
     }
 }
 
-
 #[repr(C, align(512))]
 struct CWE13LoadOption {
-    reserved: [u8; 512]
+    reserved: [u8; 512],
 }
 
-sa::const_assert!(size_of::<CWE13LoadOption>()==512);
+sa::const_assert!(size_of::<CWE13LoadOption>() == 512);
 impl CWE13LoadOption {
     pub fn to_option(&self) -> WorldEdit13LoadOption {
         return WorldEdit13LoadOption {};
@@ -518,29 +559,35 @@ impl CWE13LoadOption {
     }
 }
 
-
 #[repr(C, align(512))]
 struct CWE12LoadOption {
-    pub data_version: DataVersion
+    pub data_version: DataVersion,
 }
-sa::const_assert!(size_of::<CWE12LoadOption>()==512);
+sa::const_assert!(size_of::<CWE12LoadOption>() == 512);
 
 impl CWE12LoadOption {
     pub fn to_option(&self) -> WorldEdit12LoadOption {
         return WorldEdit12LoadOption {
-            data_version: self.data_version
+            data_version: self.data_version,
         };
     }
     pub fn from_option(src: &WorldEdit12LoadOption) -> Self {
         return Self {
-            data_version: src.data_version
-        }
+            data_version: src.data_version,
+        };
     }
 }
 
-type CWriterWriterFun = extern "C" fn(handle: *mut c_void, buffer: *const u8, buffer_size: usize,
-                                      ok: *mut bool, error: *mut c_char, error_capacity: usize) -> usize;
-type CWriterFlushFun = extern "C" fn(handle: *mut c_void, ok: *mut bool, error: *mut c_char, error_capacity: usize);
+type CWriterWriterFun = extern "C" fn(
+    handle: *mut c_void,
+    buffer: *const u8,
+    buffer_size: usize,
+    ok: *mut bool,
+    error: *mut c_char,
+    error_capacity: usize,
+) -> usize;
+type CWriterFlushFun =
+    extern "C" fn(handle: *mut c_void, ok: *mut bool, error: *mut c_char, error_capacity: usize);
 
 #[repr(C)]
 struct CWriter {
@@ -553,34 +600,43 @@ impl Write for CWriter {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         let mut error_msg = [0 as c_char; 1024];
         let mut ok = false;
-        let write_bytes = (self.write_fun)(self.handle, buf.as_ptr(), buf.len(),
-                                           &mut ok, error_msg.as_mut_ptr(), error_msg.len());
+        let write_bytes = (self.write_fun)(
+            self.handle,
+            buf.as_ptr(),
+            buf.len(),
+            &mut ok,
+            error_msg.as_mut_ptr(),
+            error_msg.len(),
+        );
         return if ok {
             Ok(write_bytes)
         } else {
             unsafe {
                 let c_str = CStr::from_ptr(error_msg.as_ptr());
                 let s = CString::from(c_str);
-                Err(std::io::Error::new(ErrorKind::Other,
-                                        Box::new(CReaderError(s))).into())
+                Err(std::io::Error::new(ErrorKind::Other, Box::new(CReaderError(s))).into())
             }
-        }
+        };
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
         let mut error_msg = [0 as c_char; 1024];
         let mut ok = false;
-        (self.flush_fun)(self.handle, &mut ok, error_msg.as_mut_ptr(), error_msg.len());
+        (self.flush_fun)(
+            self.handle,
+            &mut ok,
+            error_msg.as_mut_ptr(),
+            error_msg.len(),
+        );
         return if ok {
             Ok(())
         } else {
             unsafe {
                 let c_str = CStr::from_ptr(error_msg.as_ptr());
                 let s = CString::from(c_str);
-                Err(std::io::Error::new(ErrorKind::Other,
-                                        Box::new(CReaderError(s))).into())
+                Err(std::io::Error::new(ErrorKind::Other, Box::new(CReaderError(s))).into())
             }
-        }
+        };
     }
 }
 
@@ -589,7 +645,7 @@ struct CLitematicaSaveOption {
     compress_level: u32,
     rename_duplicated_regions: bool,
 }
-sa::const_assert!(size_of::<CLitematicaSaveOption>()==512);
+sa::const_assert!(size_of::<CLitematicaSaveOption>() == 512);
 
 impl CLitematicaSaveOption {
     pub fn to_option(&self) -> LitematicaSaveOption {
@@ -612,20 +668,20 @@ struct CVanillaStructureSaveOption {
     compress_level: u32,
     keep_air: bool,
 }
-sa::const_assert!(size_of::<CVanillaStructureSaveOption>()==512);
+sa::const_assert!(size_of::<CVanillaStructureSaveOption>() == 512);
 
 impl CVanillaStructureSaveOption {
     pub fn to_option(&self) -> VanillaStructureSaveOption {
         return VanillaStructureSaveOption {
             compress_level: Compression::new(min(self.compress_level, 9)),
             keep_air: self.keep_air,
-        }
+        };
     }
     pub fn from_option(src: &VanillaStructureSaveOption) -> Self {
         return CVanillaStructureSaveOption {
             compress_level: src.compress_level.level(),
             keep_air: src.keep_air,
-        }
+        };
     }
 }
 
@@ -634,7 +690,7 @@ struct CWE13SaveOption {
     compress_level: u32,
     background_block: CommonBlock,
 }
-sa::const_assert!(size_of::<CWE13SaveOption>()==512);
+sa::const_assert!(size_of::<CWE13SaveOption>() == 512);
 
 impl CWE13SaveOption {
     pub fn to_option(&self) -> WorldEdit13SaveOption {
@@ -648,7 +704,7 @@ impl CWE13SaveOption {
         return CWE13SaveOption {
             compress_level: src.compress_level.level(),
             background_block: src.background_block,
-        }
+        };
     }
 }
 
@@ -660,32 +716,48 @@ struct COption<T> {
 }
 
 impl<T> COption<T>
-    where T: Clone {
+where
+    T: Clone,
+{
     pub fn to_option(&self) -> Option<T> {
         return if self.has_value {
             Some(self.value.clone())
         } else {
             None
-        }
+        };
     }
 }
 
 impl<T> From<Option<T>> for COption<T>
-    where T: Default {
+where
+    T: Default,
+{
     fn from(src: Option<T>) -> Self {
         return match src {
-            Some(val) => COption { value: val, has_value: true },
-            None => COption { value: T::default(), has_value: false },
-        }
+            Some(val) => COption {
+                value: val,
+                has_value: true,
+            },
+            None => COption {
+                value: T::default(),
+                has_value: false,
+            },
+        };
     }
 }
 
 impl From<&Option<String>> for COption<CStringView> {
     fn from(src: &Option<String>) -> Self {
         return match src {
-            Some(s) => COption { value: CStringView::from(&s), has_value: true },
-            None => COption { value: CStringView::from(""), has_value: false },
-        }
+            Some(s) => COption {
+                value: CStringView::from(&s),
+                has_value: true,
+            },
+            None => COption {
+                value: CStringView::from(""),
+                has_value: false,
+            },
+        };
     }
 }
 
@@ -695,7 +767,7 @@ impl COption<CStringView> {
             Some(self.value.to_string())
         } else {
             None
-        }
+        };
     }
 }
 
@@ -717,13 +789,12 @@ struct CMetadata {
     pub schem_we_offset: COption<[i32; 3]>,
 
     //pub date: COption<i64>,
-
     pub schem_world_edit_version: COption<CStringView>,
     pub schem_editing_platform: COption<CStringView>,
     pub schem_origin: COption<[i32; 3]>,
     pub schem_material: CStringView,
 }
-sa::const_assert!(size_of::<CMetadata>()==1024);
+sa::const_assert!(size_of::<CMetadata>() == 1024);
 
 impl CMetadata {
     pub fn new(src: &MetaDataIR) -> Self {
@@ -743,12 +814,10 @@ impl CMetadata {
             schem_we_offset: COption::from(src.schem_we_offset),
 
             //date: COption::from(src.date),
-
             schem_world_edit_version: COption::from(&src.schem_world_edit_version),
             schem_editing_platform: COption::from(&src.schem_editing_platform),
             schem_origin: COption::from(src.schem_origin),
             schem_material: CStringView::from(&src.schem_material),
-
         };
     }
 
@@ -769,7 +838,6 @@ impl CMetadata {
             schem_we_offset: self.schem_we_offset.to_option(),
 
             //date: self.date.to_option(),
-
             schem_world_edit_version: self.schem_world_edit_version.to_option_string(),
             schem_editing_platform: self.schem_editing_platform.to_option_string(),
             schem_origin: self.schem_origin.to_option(),
@@ -778,8 +846,14 @@ impl CMetadata {
     }
 }
 
-pub unsafe fn write_to_c_buffer<T>(src: &[T], dest_size: *mut usize, dest: *mut T, dest_capacity: usize)
-    where T: Copy {
+pub unsafe fn write_to_c_buffer<T>(
+    src: &[T],
+    dest_size: *mut usize,
+    dest: *mut T,
+    dest_capacity: usize,
+) where
+    T: Copy,
+{
     *dest_size = src.len();
     if dest_capacity >= src.len() {
         for (idx, t) in src.iter().enumerate() {

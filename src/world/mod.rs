@@ -166,7 +166,7 @@ pub struct SubDirectory<'a> {
 }
 
 pub trait FilesRead {
-    fn sub_directory(&self, dir: &str) -> SubDirectory;
+    fn sub_directory(&self, dir: &str) -> SubDirectory<'_>;
 
     fn path(&self) -> String;
     fn files(&self) -> Vec<FileInfo>;

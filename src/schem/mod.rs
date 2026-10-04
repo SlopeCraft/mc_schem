@@ -99,13 +99,10 @@ impl LitematicaMetaData {
                 data_version_i32: data_version,
             });
         }
-        #[cfg(not(target_arch = "wasm32"))]
         let time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_millis() as i64;
-        #[cfg(target_arch = "wasm32")]
-        let time = 0;
         let result = LitematicaMetaData {
             data_version,
             version: Self::data_version_to_lite_version(data_version).unwrap_or(-1),
@@ -183,15 +180,12 @@ pub struct WE13MetaDataV3Extra {
 impl Default for WE13MetaData {
     fn default() -> WE13MetaData {
         use web_time::{SystemTime, UNIX_EPOCH};
-        #[cfg(not(target_arch = "wasm32"))]
         let time = Some(
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
                 .as_millis() as i64,
         );
-        #[cfg(target_arch = "wasm32")]
-        let time = None;
         return WE13MetaData {
             data_version: DataVersion::new() as i32,
             version: 5,
@@ -321,13 +315,10 @@ impl MetaDataIR {
 
     pub fn from_data_version_i32(version: i32) -> Result<MetaDataIR, Error> {
         use web_time::{SystemTime, UNIX_EPOCH};
-        #[cfg(not(target_arch = "wasm32"))]
         let time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_millis() as i64;
-        #[cfg(target_arch = "wasm32")]
-        let time = 0;
 
         let result = MetaDataIR {
             mc_data_version: version,

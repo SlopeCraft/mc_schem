@@ -169,6 +169,29 @@ struct ostream_wrapper {
       return false;
     };
   }
+
+  explicit ostream_wrapper(std::vector<uint8_t>& vec) : custom_data{&vec} {
+    func_write = [](const uint8_t* buf, size_t buf_bytes, bool* ok,
+                    char* error_message_dest, size_t error_message_capacity,
+                    void* handle) -> size_t {
+      auto& dest = *static_cast<std::vector<uint8_t>*>(handle);
+      try {
+        dest.append_range(std::span{buf, buf_bytes});
+      } catch (const std::exception& e) {
+        // most possible: out of memory
+        internal::save_error_info(e.what(), error_message_dest,
+                                  error_message_capacity);
+      }
+      // std::vector is impossible to throw non-standard exceptions
+      return buf_bytes;
+    };
+    func_flush = [](void* handle [[maybe_unused]],
+                    char* error_message_dest [[maybe_unused]],
+                    size_t error_message_capacity [[maybe_unused]]) -> bool {
+      // nothing to do. Vector don't need to flush
+      return true;
+    };
+  }
 };
 
 extern "C" {
@@ -198,6 +221,19 @@ void mc_schem_destroy_nbt_hashmap(nbt_hashmap* hashmap);
 ////////////////////////////////////////////////////////////////////////////////
 /// Create empty hashmap
 [[nodiscard]] nbt_hashmap* mc_schem_create_nbt_hashmap();
+/// Create nbt hashmap from uncompressed binary (stored in memory)
+[[nodiscard]] nbt_hashmap* mc_schem_create_nbt_hashmap_from_binary(
+    const uint8_t* buffer, size_t bytes,
+    const rust_string_receiver* error_message_receiver);
+/// Create nbt hashmap from uncompressed binary (from istream)
+[[nodiscard]] nbt_hashmap* mc_schem_create_nbt_hashmap_from_binary_stream(
+    istream_wrapper* src, const rust_string_receiver* error_message_receiver);
+/// Size of this hashmap
+[[nodiscard]] size_t mc_schem_nbt_hashmap_get_size(const nbt_hashmap*);
+/// Dump nbt hashmap to ostream
+bool mc_schem_nbt_hashmap_dump_to_binary_stream(
+    const nbt_hashmap*, ostream_wrapper* dest,
+    const rust_string_receiver* error_message_receiver);
 // Block
 ////////////////////////////////////////////////////////////////////////////////
 [[nodiscard]] block* mc_schem_create_block();
@@ -398,6 +434,70 @@ class nbt_hashmap {
 
   [[nodiscard]] static std::unique_ptr<nbt_hashmap, deleter> create() {
     return std::unique_ptr<nbt_hashmap, deleter>{mc_schem_create_nbt_hashmap()};
+  }
+
+  [[nodiscard]] static std::expected<std::unique_ptr<nbt_hashmap, deleter>,
+                                     std::string>
+  create_from_binary(std::span<const uint8_t> buffer) {
+    std::string error_msg;
+    rust_string_receiver receiver{error_msg};
+
+    auto ptr = mc_schem_create_nbt_hashmap_from_binary(
+        buffer.data(), buffer.size(), &receiver);
+    if (ptr == nullptr) {
+      return std::unexpected(std::move(error_msg));
+    }
+    return std::unique_ptr<nbt_hashmap, deleter>{ptr};
+  }
+
+  [[nodiscard]] static std::expected<std::unique_ptr<nbt_hashmap, deleter>,
+                                     std::string>
+  create_from_binary_stream(std::istream& is) {
+    std::string error_msg;
+    rust_string_receiver receiver{error_msg};
+
+    istream_wrapper isw{is};
+
+    auto ptr = mc_schem_create_nbt_hashmap_from_binary_stream(&isw, &receiver);
+    if (ptr == nullptr) {
+      return std::unexpected(std::move(error_msg));
+    }
+    return std::unique_ptr<nbt_hashmap, deleter>{ptr};
+  }
+
+  [[nodiscard]] size_t size() const& {
+    return mc_schem_nbt_hashmap_get_size(this);
+  }
+
+  [[nodiscard]] std::expected<void, std::string> dump_to_stream(
+      std::ostream& os) const& {
+    std::string error_msg;
+    rust_string_receiver receiver{error_msg};
+    ostream_wrapper osw{os};
+    const bool ok =
+        mc_schem_nbt_hashmap_dump_to_binary_stream(this, &osw, &receiver);
+    if (not ok) {
+      return std::unexpected(std::move(error_msg));
+    }
+    return {};
+  }
+
+  void dump_to_vector(std::vector<uint8_t>& dest) const& {
+    dest.clear();
+    ostream_wrapper osw{dest};
+    std::string error_msg;
+    rust_string_receiver receiver{error_msg};
+    const bool ok =
+        mc_schem_nbt_hashmap_dump_to_binary_stream(this, &osw, &receiver);
+    if (not ok) {
+      throw std::runtime_error{error_msg};
+    }
+  }
+
+  [[nodiscard]] std::vector<uint8_t> dump() const& {
+    std::vector<uint8_t> result;
+    dump_to_vector(result);
+    return result;
   }
 };
 

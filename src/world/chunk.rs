@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Display, Formatter};
 use std::ops::Range;
-use std::time;
+use web_time;
 
 use fastnbt::Value;
 use math::round::{ceil, floor};
@@ -105,8 +105,8 @@ fn parse_pending_tick(
 impl Chunk {
     pub fn new() -> Chunk {
         Chunk {
-            time_stamp: time::SystemTime::now()
-                .duration_since(time::UNIX_EPOCH)
+            time_stamp: web_time::SystemTime::now()
+                .duration_since(web_time::UNIX_EPOCH)
                 .unwrap()
                 .as_secs() as u32,
             status: ChunkStatus::Empty,

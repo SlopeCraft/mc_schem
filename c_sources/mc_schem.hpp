@@ -83,6 +83,14 @@ struct rust_string_receiver {
       : func_receive_string{callback_receive_string}, custom_data{&dest} {}
 };
 
+namespace internal {
+inline void save_error_info(std::string_view msg, char* error_message_dest,
+                            size_t error_message_capacity) {
+  const size_t len = std::min(msg.size(), error_message_capacity);
+  std::copy_n(msg.data(), len, error_message_dest);
+}
+}  // namespace internal
+
 struct istream_wrapper {
   size_t (*func_read)(uint8_t* dest, size_t dest_capacity, bool* ok_nonnull,
                       char* error_message_dest, size_t error_message_capacity,
@@ -95,62 +103,73 @@ struct istream_wrapper {
                    void* custom_data) -> size_t {
       auto& is = *reinterpret_cast<std::istream*>(custom_data);
 
-      auto save_error_info = [&](std::string_view msg) {
-        const size_t len = std::min(msg.size(),error_message_capacity);
-        std::copy_n(msg.data(),len,error_message_dest);
-      };
       try {
-        const size_t read_bytes = is.readsome(
-            reinterpret_cast<char*>(dest), static_cast<size_t>(dest_capacity));
+        const size_t read_bytes =
+            is.readsome(reinterpret_cast<char*>(dest),
+                        static_cast<std::streamsize>(dest_capacity));
         *ok = is.good();
         return read_bytes;
       } catch (const std::exception& e) {
         *ok = false;
-        save_error_info(e.what());
+        internal::save_error_info(e.what(), error_message_dest,
+                                  error_message_capacity);
         return 0;
-      }
-      catch (...) {
-        *ok=false;
-        save_error_info("unknown error");
+      } catch (...) {
+        *ok = false;
+        internal::save_error_info("unknown error", error_message_dest,
+                                  error_message_capacity);
         return 0;
       }
     };
   }
 };
 
-// struct ostream_wrapper {
-//   size_t (*func_write)(const uint8_t* buf, size_t buf_bytes, bool*
-//   ok_nonnull,
-//                        void* custom_data){nullptr};
-//   bool (*func_flush)(void* custom_data){nullptr};
-//   void* custom_data{nullptr};
-//
-//   explicit ostream_wrapper(std::ostream& os) : custom_data{&os} {
-//     func_write = [](const uint8_t* buf, size_t buf_bytes, bool* ok,
-//                     void* custom_data) -> size_t {
-//       auto& os = *reinterpret_cast<std::ostream*>(custom_data);
-//       try {
-//         os.write(reinterpret_cast<const char*>(buf),
-//                  static_cast<std::streamsize>(buf_bytes));
-//         *ok = os.good();
-//         return buf_bytes;
-//       } catch (...) {
-//         *ok = false;
-//         return 0;
-//       }
-//     };
-//
-//     func_flush = [](void* custom_data) -> bool {
-//       auto& os = *reinterpret_cast<std::ostream*>(custom_data);
-//       try {
-//         os.flush();
-//       } catch (...) {
-//         return false;
-//       }
-//       return os.good();
-//     };
-//   }
-// };
+struct ostream_wrapper {
+  size_t (*func_write)(const uint8_t* buf, size_t buf_bytes, bool* ok_nonnull,
+                       char* error_message_dest, size_t error_message_capacity,
+                       void* custom_data){nullptr};
+  bool (*func_flush)(void* custom_data, char* error_message_dest,
+                     size_t error_message_capacity){nullptr};
+  void* custom_data{nullptr};
+
+  explicit ostream_wrapper(std::ostream& os) : custom_data{&os} {
+    func_write = [](const uint8_t* buf, size_t buf_bytes, bool* ok,
+                    char* error_message_dest, size_t error_message_capacity,
+                    void* handle) -> size_t {
+      auto& os = *static_cast<std::ostream*>(handle);
+
+      try {
+        os.write(reinterpret_cast<const char*>(buf),
+                 static_cast<std::streamsize>(buf_bytes));
+        *ok = os.good();
+        return buf_bytes;
+      } catch (const std::exception& e) {
+        internal::save_error_info(e.what(), error_message_dest,
+                                  error_message_capacity);
+      } catch (...) {
+        internal::save_error_info("unknown error", error_message_dest,
+                                  error_message_capacity);
+      }
+      *ok = false;
+      return 0;
+    };
+    func_flush = [](void* handle, char* error_message_dest,
+                    size_t error_message_capacity) {
+      auto& os = *static_cast<std::ostream*>(handle);
+      try {
+        os.flush();
+        return os.good();
+      } catch (const std::exception& e) {
+        internal::save_error_info(e.what(), error_message_dest,
+                                  error_message_capacity);
+      } catch (...) {
+        internal::save_error_info("unknown error", error_message_dest,
+                                  error_message_capacity);
+      }
+      return false;
+    };
+  }
+};
 
 extern "C" {
 // destroy

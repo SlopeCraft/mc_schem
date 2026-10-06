@@ -66,6 +66,42 @@ impl std::io::Read for istream_wrapper {
     }
 }
 
+#[repr(C)]
+pub struct ostream_wrapper {
+    func_write: extern "C" fn(*const u8, usize, *mut bool, *mut c_char, usize, *mut c_void) -> usize,
+    func_flush: extern "C" fn(*mut c_void, *mut c_char, usize) -> bool,
+    custom_data: *mut c_void,
+}
+
+impl std::io::Write for ostream_wrapper {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        let mut ok = false;
+        let mut error_message_buffer = ['\0' as c_char; 4096];
+
+        unsafe {
+            let bytes = (self.func_write)(buf.as_ptr(), buf.len(), &mut ok, error_message_buffer.as_mut_ptr(), error_message_buffer.len() - 1, self.custom_data);
+            if ok {
+                return Ok(bytes);
+            }
+            let error_msg = CStr::from_ptr(error_message_buffer.as_ptr()).to_string_lossy().to_string();
+            Err(std::io::Error::other(error_msg))
+        }
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        let mut error_message_buffer = ['\0' as c_char; 4096];
+
+        unsafe {
+            let ok = (self.func_flush)(self.custom_data, error_message_buffer.as_mut_ptr(), error_message_buffer.len() - 1);
+            if ok {
+                return Ok(());
+            }
+            let error_msg = CStr::from_ptr(error_message_buffer.as_ptr()).to_string_lossy().to_string();
+            Err(std::io::Error::other(error_msg))
+        }
+    }
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_destroy_block(ptr: *mut Block) {
     if ptr.is_null() {

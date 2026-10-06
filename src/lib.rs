@@ -40,6 +40,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use strum::Display;
 
+pub use fastnbt; // re-export since its types appear in the public API
+
 /// Implement minecraft block and string id parsing
 pub mod block;
 /// Errors in loading, saving and manipulating
@@ -54,6 +56,7 @@ pub mod schem;
 pub mod world;
 
 mod biome;
+#[cfg(not(target_arch = "wasm32"))] // c_ffi has compile errors on wasm32 so it is dissabled for now
 mod c_ffi;
 mod item;
 mod player;

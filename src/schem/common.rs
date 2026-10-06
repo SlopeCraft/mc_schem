@@ -24,8 +24,8 @@ use fastnbt::Value;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::ops::{Add, Range};
-use std::time;
-use std::time::SystemTime;
+use web_time;
+use web_time::SystemTime;
 
 pub fn size_to_compound<T>(size: &[T; 3]) -> HashMap<String, Value>
 where
@@ -169,7 +169,7 @@ where
 }
 
 pub fn i64_ms_timestamp_to_system_time(timestamp: i64) -> SystemTime {
-    let time = time::UNIX_EPOCH.add(time::Duration::from_millis(timestamp as u64));
+    let time = web_time::UNIX_EPOCH.add(web_time::Duration::from_millis(timestamp as u64));
     return time;
 }
 

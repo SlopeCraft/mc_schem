@@ -3,7 +3,7 @@ use crate::world::{Dimension, FilesInMemory, FilesRead, World, WorldLoadOption};
 use crate::Error;
 use std::collections::BTreeMap;
 #[allow(unused_imports)]
-use std::time;
+use web_time;
 
 impl Default for WorldLoadOption {
     fn default() -> Self {
@@ -66,12 +66,12 @@ fn load_all_worlds() {
 
     for file in files {
         println!("Parsing {file}...");
-        let begin = time::SystemTime::now();
+        let begin = web_time::SystemTime::now();
         let src = FilesInMemory::from_7z_file(file, "").expect("Read 7z file and decompress");
         let mut world = World::from_files(&src, &WorldLoadOption::default())
             .expect("Parse world from files in memory");
         world.parse_all_dimensions().expect("Parse all dimensions");
-        let parsed = time::SystemTime::now();
+        let parsed = web_time::SystemTime::now();
         let cost = parsed.duration_since(begin).unwrap().as_millis();
         println!("Spend {cost} milliseconds");
     }

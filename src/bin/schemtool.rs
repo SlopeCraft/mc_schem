@@ -83,7 +83,7 @@ fn main() {
             output,
             benchmark,
         } => {
-            let begin_time = std::time::SystemTime::now();
+            let begin_time = web_time::SystemTime::now();
             let schem = match Schematic::from_file(&input) {
                 Ok(s) => s.0,
                 Err(e) => {
@@ -92,7 +92,7 @@ fn main() {
                 }
             };
 
-            let parsed_time = std::time::SystemTime::now();
+            let parsed_time = web_time::SystemTime::now();
 
             match schem.save_to_file(&output) {
                 Ok(_) => {}
@@ -102,7 +102,7 @@ fn main() {
                 }
             }
 
-            let finish_time = std::time::SystemTime::now();
+            let finish_time = web_time::SystemTime::now();
             if benchmark {
                 let load_time = parsed_time
                     .duration_since(begin_time)

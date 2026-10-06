@@ -20,6 +20,7 @@ mod entity;
 mod error;
 mod meta_data;
 mod region;
+mod nbt_tags;
 
 use crate::block::Block;
 use crate::error::Error;
@@ -28,7 +29,7 @@ use crate::schem::{MetaDataIR, Schematic};
 use crate::{Entity, Region};
 use fastnbt::Value;
 use std::collections::HashMap;
-use std::ffi::c_void;
+use std::ffi::{c_char, c_void, CStr};
 use Box;
 
 #[repr(C)]
@@ -40,6 +41,28 @@ pub struct rust_string_receiver {
 impl rust_string_receiver {
     pub unsafe fn receive(&self, string: &str) {
         (self.func_receive_string)(string.as_ptr(), string.len(), self.custom_data);
+    }
+}
+
+#[repr(C)]
+pub struct istream_wrapper {
+    func_read: extern "C" fn(*mut u8, usize, *mut bool, *mut c_char, usize, *mut c_void) -> usize,
+    custom_data: *mut c_void,
+}
+
+impl std::io::Read for istream_wrapper {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let mut ok = false;
+        let mut error_message_buffer = ['\0' as c_char; 4096];
+
+        unsafe {
+            let bytes = (self.func_read)(buf.as_mut_ptr(), buf.len(), &mut ok, error_message_buffer.as_mut_ptr(), error_message_buffer.len() - 1, self.custom_data);
+            if ok {
+                return Ok(bytes);
+            }
+            let error_msg = CStr::from_ptr(error_message_buffer.as_ptr()).to_string_lossy().to_string();
+            Err(std::io::Error::other(error_msg))
+        }
     }
 }
 

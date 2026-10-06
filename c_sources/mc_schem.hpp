@@ -24,16 +24,16 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <cstdint>
 #include <expected>
 #include <format>
+#include <istream>
 #include <memory>
 #include <optional>
+#include <ostream>
 #include <span>
 #include <stdexcept>
 #include <string>
 #include <string_view>
 #include <type_traits>
 #include <vector>
-
-#include "mc_schem.hpp"
 
 namespace mc_schem {
 
@@ -83,6 +83,75 @@ struct rust_string_receiver {
       : func_receive_string{callback_receive_string}, custom_data{&dest} {}
 };
 
+struct istream_wrapper {
+  size_t (*func_read)(uint8_t* dest, size_t dest_capacity, bool* ok_nonnull,
+                      char* error_message_dest, size_t error_message_capacity,
+                      void* custom_data){nullptr};
+  void* custom_data{nullptr};
+
+  explicit istream_wrapper(std::istream& is) : custom_data{&is} {
+    func_read = [](uint8_t* dest, size_t dest_capacity, bool* ok,
+                      char* error_message_dest, size_t error_message_capacity,
+                   void* custom_data) -> size_t {
+      auto& is = *reinterpret_cast<std::istream*>(custom_data);
+
+      auto save_error_info = [&](std::string_view msg) {
+        const size_t len = std::min(msg.size(),error_message_capacity);
+        std::copy_n(msg.data(),len,error_message_dest);
+      };
+      try {
+        const size_t read_bytes = is.readsome(
+            reinterpret_cast<char*>(dest), static_cast<size_t>(dest_capacity));
+        *ok = is.good();
+        return read_bytes;
+      } catch (const std::exception& e) {
+        *ok = false;
+        save_error_info(e.what());
+        return 0;
+      }
+      catch (...) {
+        *ok=false;
+        save_error_info("unknown error");
+        return 0;
+      }
+    };
+  }
+};
+
+// struct ostream_wrapper {
+//   size_t (*func_write)(const uint8_t* buf, size_t buf_bytes, bool*
+//   ok_nonnull,
+//                        void* custom_data){nullptr};
+//   bool (*func_flush)(void* custom_data){nullptr};
+//   void* custom_data{nullptr};
+//
+//   explicit ostream_wrapper(std::ostream& os) : custom_data{&os} {
+//     func_write = [](const uint8_t* buf, size_t buf_bytes, bool* ok,
+//                     void* custom_data) -> size_t {
+//       auto& os = *reinterpret_cast<std::ostream*>(custom_data);
+//       try {
+//         os.write(reinterpret_cast<const char*>(buf),
+//                  static_cast<std::streamsize>(buf_bytes));
+//         *ok = os.good();
+//         return buf_bytes;
+//       } catch (...) {
+//         *ok = false;
+//         return 0;
+//       }
+//     };
+//
+//     func_flush = [](void* custom_data) -> bool {
+//       auto& os = *reinterpret_cast<std::ostream*>(custom_data);
+//       try {
+//         os.flush();
+//       } catch (...) {
+//         return false;
+//       }
+//       return os.good();
+//     };
+//   }
+// };
+
 extern "C" {
 // destroy
 void mc_schem_destroy_block(block* block);
@@ -106,6 +175,10 @@ void mc_schem_destroy_nbt_hashmap(nbt_hashmap* hashmap);
 [[nodiscard]] schematic* mc_schem_clone_schematic(const schematic*);
 [[nodiscard]] nbt_hashmap* mc_schem_clone_nbt_hashmap(const nbt_hashmap*);
 
+// NBT
+////////////////////////////////////////////////////////////////////////////////
+/// Create empty hashmap
+[[nodiscard]] nbt_hashmap* mc_schem_create_nbt_hashmap();
 // Block
 ////////////////////////////////////////////////////////////////////////////////
 [[nodiscard]] block* mc_schem_create_block();
@@ -289,6 +362,23 @@ class deleter {
   }
   static void operator()(nbt_hashmap* ptr) {
     mc_schem_destroy_nbt_hashmap(ptr);
+  }
+};
+
+/// Hashmap of nbt tags
+/// Note: sizeof is fake. Never construct from C/C++, only construct,
+/// allocate, destroy and deallocate in Rust. Always use `this` as handle.
+class nbt_hashmap {
+ public:
+  nbt_hashmap() = delete;
+  ~nbt_hashmap() = delete;
+  nbt_hashmap(const nbt_hashmap&) = delete;
+  nbt_hashmap(nbt_hashmap&&) = delete;
+  nbt_hashmap& operator=(const nbt_hashmap&) = delete;
+  nbt_hashmap& operator=(nbt_hashmap&&) = delete;
+
+  [[nodiscard]] static std::unique_ptr<nbt_hashmap, deleter> create() {
+    return std::unique_ptr<nbt_hashmap, deleter>{mc_schem_create_nbt_hashmap()};
   }
 };
 

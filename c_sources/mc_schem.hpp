@@ -507,7 +507,13 @@ void mc_schem_schematic_merge_regions(schematic*,
     const schematic*, rust_writer* dest, const vanilla_structure_save_option*);
 [[nodiscard]] error* mc_schem_schematic_save_world_edit13_to_writer(
     const schematic*, rust_writer* dest, const world_edit13_save_option*);
-#warning "TODO: load and write from/to file. With auto format"
+/// Load schematic from file, automatically identify format by filename
+/// extension
+[[nodiscard]] schematic* mc_schem_schematic_load_from_file(
+    const char* filename, error** error_dest_nonnull);
+/// Save schematic to file, auto identify format by filename extension
+[[nodiscard]] error* mc_schem_schematic_save_to_file(const schematic*,
+                                                     const char* filename);
 }
 
 class deleter {
@@ -1271,8 +1277,8 @@ class schematic {
   void merge_regions(const block& background_block) & {
     mc_schem_schematic_merge_regions(this, &background_block);
   }
-
-   [[nodiscard]] static std::expected<unique_schematic, unique_error>
+  /// Load schematic from litematica (*.litematic)
+  [[nodiscard]] static std::expected<unique_schematic, unique_error>
   load_litematica(std::istream& is, const litematica_load_option& opt) {
     error* err = nullptr;
     rust_reader isw{is};
@@ -1284,7 +1290,7 @@ class schematic {
     assert(err not_eq nullptr);
     return std::unexpected(unique_error{err});
   }
-
+  /// Load schematic from vanilla structure (*.nbt)
   [[nodiscard]] static std::expected<unique_schematic, unique_error>
   load_vanilla_structure(std::istream& is,
                          const vanilla_structure_load_option& opt) {
@@ -1299,7 +1305,7 @@ class schematic {
     assert(err not_eq nullptr);
     return std::unexpected(unique_error{err});
   }
-
+  /// Load schematic from world edit 1.13+ (*.schem)
   [[nodiscard]] static std::expected<unique_schematic, unique_error>
   load_world_edit13(std::istream& is, const world_edit13_load_option& opt) {
     error* err = nullptr;
@@ -1313,7 +1319,7 @@ class schematic {
     assert(err not_eq nullptr);
     return std::unexpected(unique_error{err});
   }
-
+  /// Load schematic from world edit 1.12 (*.schematic)
   [[nodiscard]] static std::expected<unique_schematic, unique_error>
   load_world_edit12(std::istream& is, const world_edit12_load_option& opt) {
     error* err = nullptr;
@@ -1327,7 +1333,20 @@ class schematic {
     assert(err not_eq nullptr);
     return std::unexpected(unique_error{err});
   }
-
+  /// Load schematic from file, identify format by filename extension
+  /// automatically
+  [[nodiscard]] static std::expected<unique_schematic, unique_error>
+  load_from_file(const char* filename) {
+    error* err = nullptr;
+    auto schem = mc_schem_schematic_load_from_file(filename, &err);
+    if (schem) {
+      assert(err == nullptr);
+      return unique_schematic{schem};
+    }
+    assert(err not_eq nullptr);
+    return std::unexpected(unique_error{err});
+  }
+  /// Save as litematica (*.litematic)
   std::expected<void, unique_error> save_litematica(
       std::ostream& os, const litematica_save_option& opt) const& {
     rust_writer osw{os};
@@ -1337,6 +1356,7 @@ class schematic {
     }
     return std::unexpected(unique_error{err});
   }
+  /// Save as world edit 1.13+ (*.schem)
   std::expected<void, unique_error> save_world_edit13(
       std::ostream& os, const world_edit13_save_option& opt) const& {
     rust_writer osw{os};
@@ -1346,6 +1366,7 @@ class schematic {
     }
     return std::unexpected(unique_error{err});
   }
+  /// Save to vanilla structure (*.nbt)
   std::expected<void, unique_error> save_vanilla_structure(
       std::ostream& os, const vanilla_structure_save_option& opt) const& {
     rust_writer osw{os};
@@ -1355,6 +1376,15 @@ class schematic {
       return {};
     }
     return std::unexpected(unique_error{err});
+  }
+  /// Save schematic to file, identify format by filename extension
+  /// automatically
+  std::expected<void, unique_error> save_to_file(const char* filename) const& {
+    auto error = mc_schem_schematic_save_to_file(this, filename);
+    if (not error) {
+      return {};
+    }
+    return std::unexpected(unique_error{error});
   }
 };
 

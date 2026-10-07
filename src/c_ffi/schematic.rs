@@ -1,5 +1,6 @@
 // [[nodiscard]] schematic* mc_schem_create_schematic();
 
+use std::ffi::{c_char, CStr};
 use std::ptr::{null, null_mut};
 use crate::block::Block;
 use crate::{BlockEntity, Error, LitematicaSaveOption, PendingTick, Region, VanillaStructureLoadOption, WorldEdit12LoadOption, WorldEdit13LoadOption, WorldEdit13SaveOption, LitematicaLoadOption, MetaDataIR, Schematic, VanillaStructureSaveOption};
@@ -263,5 +264,28 @@ pub unsafe extern "C" fn mc_schem_schematic_save_world_edit13_to_writer(schem: *
         Err(err) => {
             Box::into_raw(Box::from(err))
         }
+    }
+}
+
+// [[nodiscard]] schematic* mc_schem_schematic_load_from_file(const char* filename, error** error_dest_nonnull);
+pub unsafe extern "C" fn mc_schem_schematic_load_from_file(filename_c: *const c_char, error_dest: *mut *mut Error) -> *mut Schematic {
+    let filename = CStr::from_ptr(filename_c).to_string_lossy().to_string();
+    match Schematic::from_file(&filename) {
+        Ok(schem) => {
+            *error_dest = null_mut();
+            Box::into_raw(Box::from(schem.0))
+        },
+        Err(err) => {
+            *error_dest = Box::into_raw(Box::from(err));
+            null_mut()
+        }
+    }
+}
+// [[nodiscard]] error* mc_schem_schematic_save_to_file(const schematic*, const char* filename);
+pub unsafe extern "C" fn mc_schem_schematic_save_to_file(schem: *const Schematic, filename: *const c_char) -> *mut Error {
+    let filename = CStr::from_ptr(filename).to_string_lossy().to_string();
+    match schem.as_ref_unchecked().save_to_file(&filename) {
+        Ok(_) => null_mut(),
+        Err(e) => Box::into_raw(Box::from(e)),
     }
 }

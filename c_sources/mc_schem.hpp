@@ -35,6 +35,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <type_traits>
 #include <vector>
 
+#include "mc_schem.hpp"
+
 namespace mc_schem {
 
 enum class block_id_parse_error : uint8_t {
@@ -397,6 +399,29 @@ bool mc_schem_meta_data_ir_get_schem_origin(const meta_data_ir*,
                                             int32_t* dest_z);
 void mc_schem_meta_data_ir_get_schem_material(const meta_data_ir*,
                                               const rust_string_receiver*);
+// Schematic
+////////////////////////////////////////////////////////////////////////////////
+/// Create and return an empty schematic, with default metadata
+[[nodiscard]] schematic* mc_schem_create_schematic();
+[[nodiscard]] const meta_data_ir* mc_schem_schematic_get_meta_data(
+    const schematic*);
+[[nodiscard]] meta_data_ir* mc_schem_schematic_get_meta_data_mut(schematic*);
+/// Deep copy given meta data, move old value to heap and return
+meta_data_ir* mc_schem_schematic_set_meta_data(schematic*, const meta_data_ir*);
+[[nodiscard]] size_t mc_schem_schematic_get_regions_count(const schematic*);
+[[nodiscard]] const region* mc_schem_schematic_get_region(const schematic*,
+                                                          size_t idx);
+[[nodiscard]] region* mc_schem_schematic_get_region_mut(schematic*, size_t idx);
+/// Remove a region from schematic, move to heap and return its pointer.
+/// Transfer ownership.
+[[nodiscard]] region* mc_schem_schematic_remove_region(schematic*, size_t idx);
+/// Remove all regions from schematic
+void mc_schem_schematic_clear_all_regions(schematic*);
+/// Deep copy new_region into given index, return its pointer in schematic. If
+/// index out of range (for example, insert to index=4 with only 3 regions,
+/// nothing will be done and returns nullptr)
+region* mc_schem_schematic_insert_region(schematic*, const region* new_region,
+                                         size_t index);
 }
 
 class deleter {
@@ -1031,6 +1056,61 @@ class meta_data_ir {
     rust_string_receiver rsr{ret};
     mc_schem_meta_data_ir_get_schem_material(this, &rsr);
     return ret;
+  }
+};
+
+/// Schematic, a part of minecraft world
+/// Note: sizeof is fake. Never construct from C/C++, only construct,
+/// allocate, destroy and deallocate in Rust. Always use `this` as handle.
+class schematic {
+ public:
+  schematic() = delete;
+  ~schematic() = delete;
+  schematic(const schematic&) = delete;
+  schematic(schematic&&) = delete;
+  schematic& operator=(const schematic&) = delete;
+  schematic& operator=(schematic&&) = delete;
+
+  [[nodiscard]] static std::unique_ptr<schematic, deleter> create() {
+    return std::unique_ptr<schematic, deleter>{mc_schem_create_schematic()};
+  }
+
+  [[nodiscard]] std::unique_ptr<schematic, deleter> clone() const& {
+    return std::unique_ptr<schematic, deleter>{mc_schem_clone_schematic(this)};
+  }
+
+  [[nodiscard]] const meta_data_ir* metadata() const& {
+    return mc_schem_schematic_get_meta_data(this);
+  }
+  [[nodiscard]] meta_data_ir* metadata() & {
+    return mc_schem_schematic_get_meta_data_mut(this);
+  }
+  /// Deep copy given new value, move previous value onto heap and return
+  std::unique_ptr<meta_data_ir, deleter> set_meta_data(
+      const meta_data_ir& new_meta_data) & {
+    auto previous_value =
+        mc_schem_schematic_set_meta_data(this, &new_meta_data);
+    return std::unique_ptr<meta_data_ir, deleter>{previous_value};
+  }
+  [[nodiscard]] size_t regions_count() const& {
+    return mc_schem_schematic_get_regions_count(this);
+  }
+  [[nodiscard]] const region* get_region(size_t region_index) const& {
+    return mc_schem_schematic_get_region(this, region_index);
+  }
+  [[nodiscard]] region* get_region(size_t region_index) & {
+    return mc_schem_schematic_get_region_mut(this, region_index);
+  }
+  std::unique_ptr<region, deleter> remove_region(size_t region_index) & {
+    return std::unique_ptr<region, deleter>{
+        mc_schem_schematic_remove_region(this, region_index)};
+  }
+  void clear_all_regions() & { mc_schem_schematic_clear_all_regions(this); }
+  region* insert_region(const region* new_r, size_t region_index) & {
+    return mc_schem_schematic_insert_region(this, new_r, region_index);
+  }
+  region* append_region(const region* new_r) & {
+    return mc_schem_schematic_insert_region(this, new_r, this->regions_count());
   }
 };
 

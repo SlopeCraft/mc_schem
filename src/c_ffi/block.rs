@@ -1,4 +1,4 @@
-use crate::block::{Block, BlockIdParseError};
+use crate::block::{Block, BlockIdParseError, CommonBlock};
 use crate::c_ffi::rust_string_receiver;
 use std::ffi::{c_char, c_void, CStr};
 use std::ptr::null_mut;
@@ -9,6 +9,16 @@ pub extern "C" fn mc_schem_create_block() -> *mut Block {
 
     Box::into_raw(ret)
 }
+
+// [[nodiscard]] block* mc_schem_create_block_from_common(common_block blk);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_create_block_from_common(common: CommonBlock) -> *mut Block {
+    return Box::into_raw(Box::from(common.to_block()));
+    // if let Some(common) = CommonBlock::try_from(blk_val) {
+    // }
+    // null_mut()
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_block_get_id(
     ptr: *const Block,

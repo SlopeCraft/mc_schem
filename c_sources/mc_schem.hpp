@@ -55,6 +55,11 @@ enum class block_id_parse_error : uint8_t {
   InvalidCharacter = 12,
 };
 
+enum class common_block : uint16_t {
+  air = 0,
+  structure_void = 1,
+};
+
 // Forward declarations
 class block;
 class error;
@@ -239,6 +244,7 @@ bool mc_schem_nbt_hashmap_dump_to_binary_stream(
 // Block
 ////////////////////////////////////////////////////////////////////////////////
 [[nodiscard]] block* mc_schem_create_block();
+[[nodiscard]] block* mc_schem_create_block_from_common(common_block blk);
 void mc_schem_block_get_id(const block*, const rust_string_receiver* receiver);
 void mc_schem_block_get_namespace(const block*,
                                   const rust_string_receiver* receiver);
@@ -572,6 +578,13 @@ class block {
   [[nodiscard]] static std::unique_ptr<block, deleter> create() {
     return std::unique_ptr<block, deleter>{mc_schem_create_block()};
   }
+
+  [[nodiscard]] static std::unique_ptr<block, deleter> from_common(
+      common_block cb) {
+    return std::unique_ptr<block, deleter>{
+        mc_schem_create_block_from_common(cb)};
+  }
+
   [[nodiscard]] auto clone() const& {
     return std::unique_ptr<block, deleter>{mc_schem_clone_block(this)};
   }

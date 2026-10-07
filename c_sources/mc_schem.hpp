@@ -522,6 +522,16 @@ class deleter {
   }
 };
 
+using unique_block = std::unique_ptr<block, deleter>;
+using unique_entity = std::unique_ptr<entity, deleter>;
+using unique_block_entity = std::unique_ptr<block_entity, deleter>;
+using unique_pending_tick = std::unique_ptr<pending_tick, deleter>;
+using unique_schematic = std::unique_ptr<schematic, deleter>;
+using unique_error = std::unique_ptr<error, deleter>;
+using unique_region = std::unique_ptr<region, deleter>;
+using unique_meta_data_ir = std::unique_ptr<meta_data_ir, deleter>;
+using unique_nbt_hashmap = std::unique_ptr<nbt_hashmap, deleter>;
+
 /// Hashmap of nbt tags
 /// Note: sizeof is fake. Never construct from C/C++, only construct,
 /// allocate, destroy and deallocate in Rust. Always use `this` as handle.
@@ -534,12 +544,11 @@ class nbt_hashmap {
   nbt_hashmap& operator=(const nbt_hashmap&) = delete;
   nbt_hashmap& operator=(nbt_hashmap&&) = delete;
 
-  [[nodiscard]] static std::unique_ptr<nbt_hashmap, deleter> create() {
-    return std::unique_ptr<nbt_hashmap, deleter>{mc_schem_create_nbt_hashmap()};
+  [[nodiscard]] static unique_nbt_hashmap create() {
+    return unique_nbt_hashmap{mc_schem_create_nbt_hashmap()};
   }
 
-  [[nodiscard]] static std::expected<std::unique_ptr<nbt_hashmap, deleter>,
-                                     std::string>
+  [[nodiscard]] static std::expected<unique_nbt_hashmap, std::string>
   create_from_binary(std::span<const uint8_t> buffer) {
     std::string error_msg;
     rust_string_receiver receiver{error_msg};
@@ -549,11 +558,10 @@ class nbt_hashmap {
     if (ptr == nullptr) {
       return std::unexpected(std::move(error_msg));
     }
-    return std::unique_ptr<nbt_hashmap, deleter>{ptr};
+    return unique_nbt_hashmap{ptr};
   }
 
-  [[nodiscard]] static std::expected<std::unique_ptr<nbt_hashmap, deleter>,
-                                     std::string>
+  [[nodiscard]] static std::expected<unique_nbt_hashmap, std::string>
   create_from_binary_stream(std::istream& is) {
     std::string error_msg;
     rust_string_receiver receiver{error_msg};
@@ -564,7 +572,7 @@ class nbt_hashmap {
     if (ptr == nullptr) {
       return std::unexpected(std::move(error_msg));
     }
-    return std::unique_ptr<nbt_hashmap, deleter>{ptr};
+    return unique_nbt_hashmap{ptr};
   }
 
   [[nodiscard]] size_t size() const& {
@@ -615,18 +623,16 @@ class block {
   block& operator=(const block&) = delete;
   block& operator=(block&&) = delete;
 
-  [[nodiscard]] static std::unique_ptr<block, deleter> create() {
-    return std::unique_ptr<block, deleter>{mc_schem_create_block()};
+  [[nodiscard]] static unique_block create() {
+    return unique_block{mc_schem_create_block()};
   }
 
-  [[nodiscard]] static std::unique_ptr<block, deleter> from_common(
-      common_block cb) {
-    return std::unique_ptr<block, deleter>{
-        mc_schem_create_block_from_common(cb)};
+  [[nodiscard]] static unique_block from_common(common_block cb) {
+    return unique_block{mc_schem_create_block_from_common(cb)};
   }
 
   [[nodiscard]] auto clone() const& {
-    return std::unique_ptr<block, deleter>{mc_schem_clone_block(this)};
+    return unique_block{mc_schem_clone_block(this)};
   }
 
   [[nodiscard]] std::string id() const& {
@@ -730,14 +736,14 @@ class region {
   region& operator=(const region&) = delete;
   region& operator=(region&&) = delete;
 
-  [[nodiscard]] static std::unique_ptr<region, deleter> create(
-      int32_t shape_x, int32_t shape_y, int32_t shape_z) {
-    return std::unique_ptr<region, deleter>{
+  [[nodiscard]] static unique_region create(
+      int32_t shape_x, int32_t shape_y,
+                                            int32_t shape_z) {
+    return unique_region{
         mc_schem_create_region(shape_x, shape_y, shape_z)};
   }
 
-  [[nodiscard]] static std::expected<std::unique_ptr<region, deleter>,
-                                     std::unique_ptr<error, deleter>>
+  [[nodiscard]] static std::expected<unique_region, unique_error>
   create_with_palette(const std::array<int32_t, 3>& shape,
                       const std::span<const block*> palette) {
     const auto [x, y, z] = shape;
@@ -747,14 +753,14 @@ class region {
                                                       palette.size(), &err);
     if (result) {
       assert(err == nullptr);
-      return std::unique_ptr<region, deleter>{result};
+      return unique_region{result};
     }
     assert(err);
-    return std::unexpected{std::unique_ptr<error, deleter>{err}};
+    return std::unexpected{unique_error{err}};
   }
 
   [[nodiscard]] auto clone() const& {
-    return std::unique_ptr<region, deleter>{mc_schem_clone_region(this)};
+    return unique_region{mc_schem_clone_region(this)};
   }
 
   [[nodiscard]] std::string name() const& {
@@ -840,9 +846,9 @@ class region {
   [[nodiscard]] entity* get_entity(size_t index) & {
     return mc_schem_region_get_entity_mut(this, index);
   }
-  std::unique_ptr<entity, deleter> erase_entity(size_t index) & {
+  unique_entity erase_entity(size_t index) & {
     auto ptr = mc_schem_region_erase_entity(this, index);
-    return std::unique_ptr<entity, deleter>{ptr};
+    return unique_entity{ptr};
   }
   [[nodiscard]] size_t add_entity(const entity& entity) & {
     return mc_schem_region_add_entity(this, &entity);
@@ -871,18 +877,17 @@ class region {
     return mc_schem_region_get_block_entity_mut(this, pos[0], pos[1], pos[2]);
   }
   /// Insert new, returns previous value (if exist)
-  std::unique_ptr<block_entity, deleter> add_block_entity(
-      const std::array<int32_t, 3>& pos, const block_entity& e) & {
+  unique_block_entity add_block_entity(const std::array<int32_t, 3>& pos,
+                                       const block_entity& e) & {
     auto ret =
         mc_schem_region_add_block_entity(this, pos[0], pos[1], pos[2], &e);
-    return std::unique_ptr<block_entity, deleter>{ret};
+    return unique_block_entity{ret};
   }
   /// Returns previous value (if exist)
-  std::unique_ptr<block_entity, deleter> erase_block_entity(
-      const std::array<int32_t, 3>& pos) & {
+  unique_block_entity erase_block_entity(const std::array<int32_t, 3>& pos) & {
     auto ret =
         mc_schem_region_add_block_entity(this, pos[0], pos[1], pos[2], nullptr);
-    return std::unique_ptr<block_entity, deleter>{ret};
+    return unique_block_entity{ret};
   }
 
   [[nodiscard]] size_t pending_ticks_count_at(
@@ -982,9 +987,8 @@ class region {
     }
   }
 
-  std::expected<void, std::unique_ptr<error, deleter>> shrink_palette() & {
-    auto err =
-        std::unique_ptr<error, deleter>{mc_schem_region_shrink_palette(this)};
+  std::expected<void, unique_error> shrink_palette() & {
+    auto err = unique_error{mc_schem_region_shrink_palette(this)};
     if (err) {
       return std::unexpected{std::move(err)};
     }
@@ -1022,7 +1026,7 @@ class entity {
   ~entity() = delete;
 
   [[nodiscard]] auto clone() const& {
-    return std::unique_ptr<entity, deleter>{mc_schem_clone_entity(this)};
+    return unique_entity{mc_schem_clone_entity(this)};
   }
 
   [[nodiscard]] std::pair<std::array<int32_t, 3>, std::array<double, 3>>
@@ -1041,9 +1045,9 @@ class entity {
     return mc_schem_entity_get_tags_mut(this);
   }
   /// Deep copy src, move old value onto heap and returns (transfer ownership)
-  std::unique_ptr<nbt_hashmap, deleter> set_tags(const nbt_hashmap& src) & {
+  unique_nbt_hashmap set_tags(const nbt_hashmap& src) & {
     auto old_value = mc_schem_entity_set_tags(this, &src);
-    return std::unique_ptr<nbt_hashmap, deleter>{old_value};
+    return unique_nbt_hashmap{old_value};
   }
 };
 /// Intermediate representation of schematic meta data
@@ -1058,20 +1062,19 @@ class meta_data_ir {
   meta_data_ir& operator=(meta_data_ir&&) = delete;
   ~meta_data_ir() = delete;
 
-  [[nodiscard]] static std::expected<std::unique_ptr<meta_data_ir, deleter>,
-                                     std::unique_ptr<error, deleter>>
-  create(int32_t data_version) {
+  [[nodiscard]] static std::expected<unique_meta_data_ir, unique_error> create(
+      int32_t data_version) {
     error* dest_err = nullptr;
     if (auto result = mc_schem_create_meta_data_ir(data_version, &dest_err)) {
       assert(dest_err == nullptr);
-      return std::unique_ptr<meta_data_ir, deleter>{result};
+      return unique_meta_data_ir{result};
     }
     assert(dest_err);
-    return std::unexpected{std::unique_ptr<error, deleter>{dest_err}};
+    return std::unexpected{unique_error{dest_err}};
   }
 
   [[nodiscard]] auto clone() const& {
-    return std::unique_ptr<meta_data_ir, deleter>{
+    return unique_meta_data_ir{
         mc_schem_clone_meta_data_ir(this)};
   }
 
@@ -1155,12 +1158,12 @@ class schematic {
   schematic& operator=(const schematic&) = delete;
   schematic& operator=(schematic&&) = delete;
 
-  [[nodiscard]] static std::unique_ptr<schematic, deleter> create() {
-    return std::unique_ptr<schematic, deleter>{mc_schem_create_schematic()};
+  [[nodiscard]] static unique_schematic create() {
+    return unique_schematic{mc_schem_create_schematic()};
   }
 
-  [[nodiscard]] std::unique_ptr<schematic, deleter> clone() const& {
-    return std::unique_ptr<schematic, deleter>{mc_schem_clone_schematic(this)};
+  [[nodiscard]] unique_schematic clone() const& {
+    return unique_schematic{mc_schem_clone_schematic(this)};
   }
 
   [[nodiscard]] const meta_data_ir* metadata() const& {
@@ -1170,11 +1173,11 @@ class schematic {
     return mc_schem_schematic_get_meta_data_mut(this);
   }
   /// Deep copy given new value, move previous value onto heap and return
-  std::unique_ptr<meta_data_ir, deleter> set_meta_data(
+  unique_meta_data_ir set_meta_data(
       const meta_data_ir& new_meta_data) & {
     auto previous_value =
         mc_schem_schematic_set_meta_data(this, &new_meta_data);
-    return std::unique_ptr<meta_data_ir, deleter>{previous_value};
+    return unique_meta_data_ir{previous_value};
   }
   [[nodiscard]] size_t regions_count() const& {
     return mc_schem_schematic_get_regions_count(this);
@@ -1185,9 +1188,8 @@ class schematic {
   [[nodiscard]] region* get_region(size_t region_index) & {
     return mc_schem_schematic_get_region_mut(this, region_index);
   }
-  std::unique_ptr<region, deleter> remove_region(size_t region_index) & {
-    return std::unique_ptr<region, deleter>{
-        mc_schem_schematic_remove_region(this, region_index)};
+  unique_region remove_region(size_t region_index) & {
+    return unique_region{mc_schem_schematic_remove_region(this, region_index)};
   }
   void clear_all_regions() & { mc_schem_schematic_clear_all_regions(this); }
   region* insert_region(const region* new_r, size_t region_index) & {
@@ -1251,9 +1253,9 @@ class schematic {
     return mc_schem_schematic_get_total_blocks(this, include_air);
   }
   /// Merge all regions without changing original schematic
-  [[nodiscard]] std::unique_ptr<region, deleter> to_single_region(
+  [[nodiscard]] unique_region to_single_region(
       const block& background_block) const& {
-    return std::unique_ptr<region, deleter>{
+    return unique_region{
         mc_schem_schematic_to_single_region(this, &background_block)};
   }
   /// Merge all regions in place
@@ -1261,22 +1263,20 @@ class schematic {
     mc_schem_schematic_merge_regions(this, &background_block);
   }
 
-   [[nodiscard]] static std::expected<std::unique_ptr<schematic, deleter>,
-                                     std::unique_ptr<error, deleter>>
+   [[nodiscard]] static std::expected<unique_schematic, unique_error>
   load_litematica(std::istream& is, const litematica_load_option& opt) {
     error* err = nullptr;
     rust_reader isw{is};
     auto ret = mc_schem_schematic_load_litematica_from_reader(&isw, &opt, &err);
     if (ret) {
       assert(err == nullptr);
-      return std::unique_ptr<schematic, deleter>{ret};
+      return unique_schematic{ret};
     }
     assert(err not_eq nullptr);
-    return std::unexpected(std::unique_ptr<error, deleter>{err});
+    return std::unexpected(unique_error{err});
   }
 
-  [[nodiscard]] static std::expected<std::unique_ptr<schematic, deleter>,
-                                     std::unique_ptr<error, deleter>>
+  [[nodiscard]] static std::expected<unique_schematic, unique_error>
   load_vanilla_structure(std::istream& is,
                          const vanilla_structure_load_option& opt) {
     error* err = nullptr;
@@ -1285,14 +1285,13 @@ class schematic {
         mc_schem_schematic_load_vanilla_structure_from_reader(&isw, &opt, &err);
     if (ret) {
       assert(err == nullptr);
-      return std::unique_ptr<schematic, deleter>{ret};
+      return unique_schematic{ret};
     }
     assert(err not_eq nullptr);
-    return std::unexpected(std::unique_ptr<error, deleter>{err});
+    return std::unexpected(unique_error{err});
   }
 
-  [[nodiscard]] static std::expected<std::unique_ptr<schematic, deleter>,
-                                     std::unique_ptr<error, deleter>>
+  [[nodiscard]] static std::expected<unique_schematic, unique_error>
   load_world_edit13(std::istream& is, const world_edit13_load_option& opt) {
     error* err = nullptr;
     rust_reader isw{is};
@@ -1300,14 +1299,13 @@ class schematic {
         mc_schem_schematic_load_world_edit13_from_reader(&isw, &opt, &err);
     if (ret) {
       assert(err == nullptr);
-      return std::unique_ptr<schematic, deleter>{ret};
+      return unique_schematic{ret};
     }
     assert(err not_eq nullptr);
-    return std::unexpected(std::unique_ptr<error, deleter>{err});
+    return std::unexpected(unique_error{err});
   }
 
-  [[nodiscard]] static std::expected<std::unique_ptr<schematic, deleter>,
-                                     std::unique_ptr<error, deleter>>
+  [[nodiscard]] static std::expected<unique_schematic, unique_error>
   load_world_edit12(std::istream& is, const world_edit12_load_option& opt) {
     error* err = nullptr;
     rust_reader isw{is};
@@ -1315,10 +1313,10 @@ class schematic {
         mc_schem_schematic_load_world_edit12_from_reader(&isw, &opt, &err);
     if (ret) {
       assert(err == nullptr);
-      return std::unique_ptr<schematic, deleter>{ret};
+      return unique_schematic{ret};
     }
     assert(err not_eq nullptr);
-    return std::unexpected(std::unique_ptr<error, deleter>{err});
+    return std::unexpected(unique_error{err});
   }
 };
 

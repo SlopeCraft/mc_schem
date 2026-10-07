@@ -2,8 +2,9 @@
 
 use std::ptr::{null, null_mut};
 use crate::block::Block;
-use crate::{BlockEntity, PendingTick, Region};
-use crate::schem::{MetaDataIR, Schematic};
+use crate::{BlockEntity, Error, PendingTick, Region, VanillaStructureLoadOption, WorldEdit12LoadOption, WorldEdit13LoadOption};
+use crate::c_ffi::rust_reader;
+use crate::schem::{LitematicaLoadOption, MetaDataIR, Schematic};
 
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_create_schematic() -> *mut Schematic {
@@ -173,4 +174,66 @@ pub unsafe extern "C" fn mc_schem_schematic_to_single_region(schem: *const Schem
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_schematic_merge_regions(schem: *mut Schematic, background_blk: *const Block) {
     schem.as_mut_unchecked().merge_regions(background_blk.as_ref_unchecked());
+}
+
+/// Load litematica (*litematic). Returns schematic if ok. Otherwise returns
+/// null and sets error dest
+// [[nodiscard]] schematic* mc_schem_schematic_load_litematica_from_reader(rust_reader* src, const litematica_load_option &,error* * error_dest_nonnull);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_schematic_load_litematica_from_reader(src: *mut rust_reader, option: *const LitematicaLoadOption, error_dest: *mut *mut Error) -> *mut Schematic {
+    match Schematic::from_litematica_reader(src.as_mut_unchecked(), option.as_ref_unchecked()) {
+        Ok(schem) => {
+            *error_dest = null_mut();
+            Box::into_raw(Box::from(schem.0))
+        },
+        Err(err) => {
+            *error_dest = Box::into_raw(Box::from(err));
+            null_mut()
+        }
+    }
+}
+// /// Load vanilla structure file (*.nbt)
+// [[nodiscard]] schematic* mc_schem_schematic_load_vanilla_structure_from_reader(rust_reader* src, const vanilla_structure_load_option &,error* * error_dest_nonnull);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_schematic_load_vanilla_structure_from_reader(src: *mut rust_reader, option: *const VanillaStructureLoadOption, error_dest: *mut *mut Error) -> *mut Schematic {
+    match Schematic::from_vanilla_structure_reader(src.as_mut_unchecked(), option.as_ref_unchecked()) {
+        Ok(schem) => {
+            *error_dest = null_mut();
+            Box::into_raw(Box::from(schem.0))
+        },
+        Err(err) => {
+            *error_dest = Box::into_raw(Box::from(err));
+            null_mut()
+        }
+    }
+}
+// /// Load WorldEdit 1.13+ (*.schem)
+// [[nodiscard]] schematic* mc_schem_schematic_load_world_edit13_from_reader(rust_reader* src, const world_edit13_load_option &,error* * error_dest_nonnull);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_schematic_load_world_edit13_from_reader(src: *mut rust_reader, option: *const WorldEdit13LoadOption, error_dest: *mut *mut Error) -> *mut Schematic {
+    match Schematic::from_world_edit_13_reader(src.as_mut_unchecked(), option.as_ref_unchecked()) {
+        Ok(schem) => {
+            *error_dest = null_mut();
+            Box::into_raw(Box::from(schem.0))
+        },
+        Err(err) => {
+            *error_dest = Box::into_raw(Box::from(err));
+            null_mut()
+        }
+    }
+}
+// /// Load WorldEdit 1.12 (*.schematic)
+// [[nodiscard]] schematic* mc_schem_schematic_load_world_edit12_from_reader(rust_reader* src, const world_edit12_load_option &,error* * error_dest_nonnull);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_schematic_load_world_edit12_from_reader(src: *mut rust_reader, option: *const WorldEdit12LoadOption, error_dest: *mut *mut Error) -> *mut Schematic {
+    match Schematic::from_world_edit_12_reader(src.as_mut_unchecked(), option.as_ref_unchecked()) {
+        Ok(schem) => {
+            *error_dest = null_mut();
+            Box::into_raw(Box::from(schem.0))
+        },
+        Err(err) => {
+            *error_dest = Box::into_raw(Box::from(err));
+            null_mut()
+        }
+    }
 }

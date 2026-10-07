@@ -201,6 +201,29 @@ struct rust_writer {
   }
 };
 
+struct vanilla_structure_load_option {
+  common_block background_block{common_block::structure_void};
+};
+struct vanilla_structure_save_option {
+  uint32_t compress_level{9};
+  bool keep_air{true};
+};
+struct litematica_load_option {};
+struct litematica_save_option {
+  uint32_t compress_level{9};
+  bool rename_duplicated_regions{true};
+};
+struct world_edit13_load_option {};
+struct world_edit13_save_option {
+  uint32_t compress_level{9};
+  common_block background_block{common_block::air};
+};
+struct world_edit12_load_option {
+  /// Data version of this schematic. Data version is not stored in
+  /// `.schematic`, so we should assign it.
+  int32_t data_version{1343};  // Java_1_12_2
+};
+
 extern "C" {
 // destroy
 void mc_schem_destroy_block(block* block);
@@ -458,6 +481,23 @@ void mc_schem_schematic_get_shape(const schematic*, int32_t* x, int32_t* y,
 void mc_schem_schematic_merge_regions(schematic*,
                                       const block* background_block);
 #warning "TODO: load and write to reader with given format"
+/// Load litematica (*litematic). Returns schematic if ok. Otherwise returns
+/// null and sets error dest
+[[nodiscard]] schematic* mc_schem_schematic_load_litematica_from_reader(
+    rust_reader* src, const litematica_load_option*,
+    error** error_dest_nonnull);
+/// Load vanilla structure file (*.nbt)
+[[nodiscard]] schematic* mc_schem_schematic_load_vanilla_structure_from_reader(
+    rust_reader* src, const vanilla_structure_load_option*,
+    error** error_dest_nonnull);
+/// Load WorldEdit 1.13+ (*.schem)
+[[nodiscard]] schematic* mc_schem_schematic_load_world_edit13_from_reader(
+    rust_reader* src, const world_edit13_load_option*,
+    error** error_dest_nonnull);
+/// Load WorldEdit 1.12 (*.schematic)
+[[nodiscard]] schematic* mc_schem_schematic_load_world_edit12_from_reader(
+    rust_reader* src, const world_edit12_load_option*,
+    error** error_dest_nonnull);
 #warning "TODO: load and write from/to file. With auto format"
 }
 
@@ -1196,6 +1236,7 @@ class schematic {
           this, pos[0], pos[1], pos[2], pti));
       assert(ret.back() not_eq nullptr);
     }
+    return ret;
   }
 
   [[nodiscard]] std::array<int32_t, 3> shape() const& {
@@ -1218,6 +1259,66 @@ class schematic {
   /// Merge all regions in place
   void merge_regions(const block& background_block) & {
     mc_schem_schematic_merge_regions(this, &background_block);
+  }
+
+   [[nodiscard]] static std::expected<std::unique_ptr<schematic, deleter>,
+                                     std::unique_ptr<error, deleter>>
+  load_litematica(std::istream& is, const litematica_load_option& opt) {
+    error* err = nullptr;
+    rust_reader isw{is};
+    auto ret = mc_schem_schematic_load_litematica_from_reader(&isw, &opt, &err);
+    if (ret) {
+      assert(err == nullptr);
+      return std::unique_ptr<schematic, deleter>{ret};
+    }
+    assert(err not_eq nullptr);
+    return std::unexpected(std::unique_ptr<error, deleter>{err});
+  }
+
+  [[nodiscard]] static std::expected<std::unique_ptr<schematic, deleter>,
+                                     std::unique_ptr<error, deleter>>
+  load_vanilla_structure(std::istream& is,
+                         const vanilla_structure_load_option& opt) {
+    error* err = nullptr;
+    rust_reader isw{is};
+    auto ret =
+        mc_schem_schematic_load_vanilla_structure_from_reader(&isw, &opt, &err);
+    if (ret) {
+      assert(err == nullptr);
+      return std::unique_ptr<schematic, deleter>{ret};
+    }
+    assert(err not_eq nullptr);
+    return std::unexpected(std::unique_ptr<error, deleter>{err});
+  }
+
+  [[nodiscard]] static std::expected<std::unique_ptr<schematic, deleter>,
+                                     std::unique_ptr<error, deleter>>
+  load_world_edit13(std::istream& is, const world_edit13_load_option& opt) {
+    error* err = nullptr;
+    rust_reader isw{is};
+    auto ret =
+        mc_schem_schematic_load_world_edit13_from_reader(&isw, &opt, &err);
+    if (ret) {
+      assert(err == nullptr);
+      return std::unique_ptr<schematic, deleter>{ret};
+    }
+    assert(err not_eq nullptr);
+    return std::unexpected(std::unique_ptr<error, deleter>{err});
+  }
+
+  [[nodiscard]] static std::expected<std::unique_ptr<schematic, deleter>,
+                                     std::unique_ptr<error, deleter>>
+  load_world_edit12(std::istream& is, const world_edit12_load_option& opt) {
+    error* err = nullptr;
+    rust_reader isw{is};
+    auto ret =
+        mc_schem_schematic_load_world_edit12_from_reader(&isw, &opt, &err);
+    if (ret) {
+      assert(err == nullptr);
+      return std::unique_ptr<schematic, deleter>{ret};
+    }
+    assert(err not_eq nullptr);
+    return std::unexpected(std::unique_ptr<error, deleter>{err});
   }
 };
 

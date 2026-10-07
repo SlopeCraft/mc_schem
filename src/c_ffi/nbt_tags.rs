@@ -18,6 +18,7 @@ pub unsafe extern "C" fn mc_schem_nbt_hashmap_get_size(ptr: *const HashMap<Strin
 
 
 //[[nodiscard]] nbt_hashmap* mc_schem_create_nbt_hashmap_from_binary( const uint8_t* buffer, size_t bytes, const rust_string_receiver* error_message_receiver);#[no_mangle]
+#[no_mangle]
 pub unsafe extern "C" fn mc_schem_create_nbt_hashmap_from_binary(buffer: *const u8, len: usize, error_msg_receiver: *const rust_string_receiver) -> *mut HashMap<String, Value> {
     match fastnbt::from_bytes::<HashMap<String, Value>>(std::slice::from_raw_parts(buffer, len)) {
         Err(e) => {

@@ -4,6 +4,7 @@ project(mc_schem VERSION 0.1.0 LANGUAGES C CXX)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(MC_SCHEM_INSTALL "Install binaries" ON)
+option(MC_SCHEM_ENABLE_TESTS "Build the C++ wrapper unit tests" ON)
 set(MC_SCHEM_RUST_TARGET "default" CACHE STRING "Target to build rust codes. Should be consistent with C compiler. Valid values: default;guess; or any other triplet")
 
 find_program(cargo_exe NAMES "cargo" REQUIRED)
@@ -96,12 +97,11 @@ else ()
             $<INSTALL_INTERFACE:${export_lib_name}>)
 endif ()
 
-target_compile_features(mc_schem INTERFACE c_std_23)
+target_compile_features(mc_schem INTERFACE cxx_std_23)
 
-
-add_executable(cpp_test tests/test_c_ffi.cpp)
-target_compile_features(cpp_test PRIVATE cxx_std_23)
-target_link_libraries(cpp_test PRIVATE mc_schem)
+if (${MC_SCHEM_ENABLE_TESTS})
+    add_subdirectory(c_sources/unit_test)
+endif ()
 
 if (${MC_SCHEM_INSTALL})
     include(CMakePackageConfigHelpers)

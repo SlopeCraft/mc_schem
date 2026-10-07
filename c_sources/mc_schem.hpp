@@ -35,8 +35,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <type_traits>
 #include <vector>
 
-#include "mc_schem.hpp"
-
 namespace mc_schem {
 
 enum class block_id_parse_error : uint8_t {
@@ -114,7 +112,7 @@ struct rust_reader {
         const size_t read_bytes =
             is.readsome(reinterpret_cast<char*>(dest),
                         static_cast<std::streamsize>(dest_capacity));
-        *ok = is.good();
+        *ok = is.good() or is.eof();
         return read_bytes;
       } catch (const std::exception& e) {
         *ok = false;
@@ -148,7 +146,7 @@ struct rust_writer {
       try {
         os.write(reinterpret_cast<const char*>(buf),
                  static_cast<std::streamsize>(buf_bytes));
-        *ok = os.good();
+        *ok = os.good() or os.eof();
         return buf_bytes;
       } catch (const std::exception& e) {
         internal::save_error_info(e.what(), error_message_dest,
@@ -165,7 +163,7 @@ struct rust_writer {
       auto& os = *static_cast<std::ostream*>(handle);
       try {
         os.flush();
-        return os.good();
+        return os.good() or os.eof();
       } catch (const std::exception& e) {
         internal::save_error_info(e.what(), error_message_dest,
                                   error_message_capacity);
@@ -184,13 +182,16 @@ struct rust_writer {
       auto& dest = *static_cast<std::vector<uint8_t>*>(handle);
       try {
         dest.append_range(std::span{buf, buf_bytes});
+        *ok = true;
+        return buf_bytes;
       } catch (const std::exception& e) {
         // most possible: out of memory
+        *ok = false;
         internal::save_error_info(e.what(), error_message_dest,
                                   error_message_capacity);
+        return 0;
       }
       // std::vector is impossible to throw non-standard exceptions
-      return buf_bytes;
     };
     func_flush = [](void* handle [[maybe_unused]],
                     char* error_message_dest [[maybe_unused]],

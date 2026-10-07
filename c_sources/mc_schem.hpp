@@ -422,6 +422,37 @@ void mc_schem_schematic_clear_all_regions(schematic*);
 /// nothing will be done and returns nullptr)
 region* mc_schem_schematic_insert_region(schematic*, const region* new_region,
                                          size_t index);
+/// Returns positive value if coordinate hits a region. Otherwise return -1. All
+/// negative value should be considered as invalid
+/// The word "first" means first hit region. Schematic have multiple regions,
+/// usually no overlap is expected. If multiple regions overlaps, blocks in
+/// first region will live
+[[nodiscard]] ptrdiff_t mc_schem_schematic_get_first_region_index_at(
+    const schematic*, int32_t x, int32_t y, int32_t z);
+[[nodiscard]] uint16_t mc_schem_schematic_get_first_block_index_at(
+    const schematic*, int32_t x, int32_t y, int32_t z, bool* ok_nonnull);
+[[nodiscard]] const block* mc_schem_schematic_get_first_block_at(
+    const schematic*, int32_t x, int32_t y, int32_t z);
+[[nodiscard]] const block_entity* mc_schem_schematic_get_first_block_entity_at(
+    const schematic*, int32_t x, int32_t y, int32_t z);
+[[nodiscard]] size_t mc_schem_schematic_get_first_pending_ticks_count_at(
+    const schematic*, int32_t x, int32_t y, int32_t z);
+[[nodiscard]] const pending_tick* mc_schem_schematic_get_first_pending_ticks_at(
+    const schematic*, int32_t x, int32_t y, int32_t z,
+    size_t pending_tick_index);
+void mc_schem_schematic_get_shape(const schematic*, int32_t* x, int32_t* y,
+                                  int32_t* z);
+[[nodiscard]] uint64_t mc_schem_schematic_get_volume(const schematic*);
+[[nodiscard]] uint64_t mc_schem_schematic_get_total_blocks(const schematic*,
+                                                           bool include_dir);
+/// Merge all regions without changing original schematic
+[[nodiscard]] region* mc_schem_schematic_to_single_region(
+    const schematic*, const block* background_block);
+/// Merge all regions in place
+void mc_schem_schematic_merge_regions(schematic*,
+                                      const block* background_block);
+#warning "TODO: load and write to reader with given format"
+#warning "TODO: load and write from/to file. With auto format"
 }
 
 class deleter {
@@ -1111,6 +1142,69 @@ class schematic {
   }
   region* append_region(const region* new_r) & {
     return mc_schem_schematic_insert_region(this, new_r, this->regions_count());
+  }
+
+  [[nodiscard]] std::optional<size_t> first_region_index_at(
+      const std::array<int32_t, 3>& pos) const& {
+    const ptrdiff_t ret = mc_schem_schematic_get_first_region_index_at(
+        this, pos[0], pos[1], pos[2]);
+    if (ret >= 0) {
+      return ret;
+    }
+    return std::nullopt;
+  }
+  [[nodiscard]] std::optional<uint16_t> first_block_index_at(
+      const std::array<int32_t, 3>& pos) const& {
+    bool ok = false;
+    const auto ret = mc_schem_schematic_get_first_block_index_at(
+        this, pos[0], pos[1], pos[2], &ok);
+    if (not ok) {
+      return std::nullopt;
+    }
+    return ret;
+  }
+  [[nodiscard]] const block* first_block_at(
+      const std::array<int32_t, 3>& pos) const& {
+    return mc_schem_schematic_get_first_block_at(this, pos[0], pos[1], pos[2]);
+  }
+  [[nodiscard]] const block_entity* first_block_entity_at(
+      const std::array<int32_t, 3>& pos) const& {
+    return mc_schem_schematic_get_first_block_entity_at(this, pos[0], pos[1],
+                                                        pos[2]);
+  }
+  [[nodiscard]] std::vector<const pending_tick*> first_pending_ticks_at(
+      const std::array<int32_t, 3>& pos) const& {
+    const size_t num = mc_schem_schematic_get_first_pending_ticks_count_at(
+        this, pos[0], pos[1], pos[2]);
+    std::vector<const pending_tick*> ret;
+    ret.reserve(num);
+    for (size_t pti = 0; pti < num; ++pti) {
+      ret.emplace_back(mc_schem_schematic_get_first_pending_ticks_at(
+          this, pos[0], pos[1], pos[2], pti));
+      assert(ret.back() not_eq nullptr);
+    }
+  }
+
+  [[nodiscard]] std::array<int32_t, 3> shape() const& {
+    int32_t x = -1, y = -1, z = -1;
+    mc_schem_schematic_get_shape(this, &x, &y, &z);
+    return {x, y, z};
+  }
+  [[nodiscard]] uint64_t volume() const& {
+    return mc_schem_schematic_get_volume(this);
+  }
+  [[nodiscard]] uint64_t total_blocks(bool include_air) const& {
+    return mc_schem_schematic_get_total_blocks(this, include_air);
+  }
+  /// Merge all regions without changing original schematic
+  [[nodiscard]] std::unique_ptr<region, deleter> to_single_region(
+      const block& background_block) const& {
+    return std::unique_ptr<region, deleter>{
+        mc_schem_schematic_to_single_region(this, &background_block)};
+  }
+  /// Merge all regions in place
+  void merge_regions(const block& background_block) & {
+    mc_schem_schematic_merge_regions(this, &background_block);
   }
 };
 

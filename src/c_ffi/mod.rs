@@ -46,12 +46,12 @@ impl rust_string_receiver {
 }
 
 #[repr(C)]
-pub struct istream_wrapper {
+pub struct rust_reader {
     func_read: extern "C" fn(*mut u8, usize, *mut bool, *mut c_char, usize, *mut c_void) -> usize,
     custom_data: *mut c_void,
 }
 
-impl std::io::Read for istream_wrapper {
+impl std::io::Read for rust_reader {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         let mut ok = false;
         let mut error_message_buffer = ['\0' as c_char; 4096];
@@ -68,13 +68,13 @@ impl std::io::Read for istream_wrapper {
 }
 
 #[repr(C)]
-pub struct ostream_wrapper {
+pub struct rust_writer {
     func_write: extern "C" fn(*const u8, usize, *mut bool, *mut c_char, usize, *mut c_void) -> usize,
     func_flush: extern "C" fn(*mut c_void, *mut c_char, usize) -> bool,
     custom_data: *mut c_void,
 }
 
-impl std::io::Write for ostream_wrapper {
+impl std::io::Write for rust_writer {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         let mut ok = false;
         let mut error_message_buffer = ['\0' as c_char; 4096];

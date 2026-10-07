@@ -93,13 +93,13 @@ inline void save_error_info(std::string_view msg, char* error_message_dest,
 }
 }  // namespace internal
 
-struct istream_wrapper {
+struct rust_reader {
   size_t (*func_read)(uint8_t* dest, size_t dest_capacity, bool* ok_nonnull,
                       char* error_message_dest, size_t error_message_capacity,
                       void* custom_data){nullptr};
   void* custom_data{nullptr};
 
-  explicit istream_wrapper(std::istream& is) : custom_data{&is} {
+  explicit rust_reader(std::istream& is) : custom_data{&is} {
     func_read = [](uint8_t* dest, size_t dest_capacity, bool* ok,
                       char* error_message_dest, size_t error_message_capacity,
                    void* custom_data) -> size_t {
@@ -126,7 +126,7 @@ struct istream_wrapper {
   }
 };
 
-struct ostream_wrapper {
+struct rust_writer {
   size_t (*func_write)(const uint8_t* buf, size_t buf_bytes, bool* ok_nonnull,
                        char* error_message_dest, size_t error_message_capacity,
                        void* custom_data){nullptr};
@@ -134,7 +134,7 @@ struct ostream_wrapper {
                      size_t error_message_capacity){nullptr};
   void* custom_data{nullptr};
 
-  explicit ostream_wrapper(std::ostream& os) : custom_data{&os} {
+  explicit rust_writer(std::ostream& os) : custom_data{&os} {
     func_write = [](const uint8_t* buf, size_t buf_bytes, bool* ok,
                     char* error_message_dest, size_t error_message_capacity,
                     void* handle) -> size_t {
@@ -172,7 +172,7 @@ struct ostream_wrapper {
     };
   }
 
-  explicit ostream_wrapper(std::vector<uint8_t>& vec) : custom_data{&vec} {
+  explicit rust_writer(std::vector<uint8_t>& vec) : custom_data{&vec} {
     func_write = [](const uint8_t* buf, size_t buf_bytes, bool* ok,
                     char* error_message_dest, size_t error_message_capacity,
                     void* handle) -> size_t {
@@ -229,12 +229,12 @@ void mc_schem_destroy_nbt_hashmap(nbt_hashmap* hashmap);
     const rust_string_receiver* error_message_receiver);
 /// Create nbt hashmap from uncompressed binary (from istream)
 [[nodiscard]] nbt_hashmap* mc_schem_create_nbt_hashmap_from_binary_stream(
-    istream_wrapper* src, const rust_string_receiver* error_message_receiver);
+    rust_reader* src, const rust_string_receiver* error_message_receiver);
 /// Size of this hashmap
 [[nodiscard]] size_t mc_schem_nbt_hashmap_get_size(const nbt_hashmap*);
 /// Dump nbt hashmap to ostream
 bool mc_schem_nbt_hashmap_dump_to_binary_stream(
-    const nbt_hashmap*, ostream_wrapper* dest,
+    const nbt_hashmap*, rust_writer* dest,
     const rust_string_receiver* error_message_receiver);
 // Block
 ////////////////////////////////////////////////////////////////////////////////
@@ -481,7 +481,7 @@ class nbt_hashmap {
     std::string error_msg;
     rust_string_receiver receiver{error_msg};
 
-    istream_wrapper isw{is};
+    rust_reader isw{is};
 
     auto ptr = mc_schem_create_nbt_hashmap_from_binary_stream(&isw, &receiver);
     if (ptr == nullptr) {
@@ -498,7 +498,7 @@ class nbt_hashmap {
       std::ostream& os) const& {
     std::string error_msg;
     rust_string_receiver receiver{error_msg};
-    ostream_wrapper osw{os};
+    rust_writer osw{os};
     const bool ok =
         mc_schem_nbt_hashmap_dump_to_binary_stream(this, &osw, &receiver);
     if (not ok) {
@@ -509,7 +509,7 @@ class nbt_hashmap {
 
   void dump_to_vector(std::vector<uint8_t>& dest) const& {
     dest.clear();
-    ostream_wrapper osw{dest};
+    rust_writer osw{dest};
     std::string error_msg;
     rust_string_receiver receiver{error_msg};
     const bool ok =

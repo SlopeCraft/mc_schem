@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 use std::ptr::null_mut;
 use fastnbt::Value;
-use rand::rngs::adapter::ReseedingRng;
-use crate::c_ffi::{istream_wrapper, ostream_wrapper, rust_string_receiver};
+use crate::c_ffi::{rust_reader, rust_string_receiver, rust_writer};
 
 //nbt_hashmap* mc_schem_create_nbt_hashmap()
 #[no_mangle]
@@ -34,7 +33,7 @@ pub unsafe extern "C" fn mc_schem_create_nbt_hashmap_from_binary(buffer: *const 
 
 // [[nodiscard]] nbt_hashmap* mc_schem_create_nbt_hashmap_from_binary_stream(istream_wrapper* src, const rust_string_receiver* error_message_receiver);
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_create_nbt_hashmap_from_binary_stream(src: *mut istream_wrapper, error_msg_receiver: *const rust_string_receiver) -> *mut HashMap<String, Value> {
+pub unsafe extern "C" fn mc_schem_create_nbt_hashmap_from_binary_stream(src: *mut rust_reader, error_msg_receiver: *const rust_string_receiver) -> *mut HashMap<String, Value> {
     let nbt: Result<HashMap<String, Value>, _> = fastnbt::from_reader(src.as_mut_unchecked());
     match nbt {
         Err(e) => {
@@ -48,7 +47,7 @@ pub unsafe extern "C" fn mc_schem_create_nbt_hashmap_from_binary_stream(src: *mu
 }
 // bool mc_schem_nbt_hashmap_dump_to_binary_stream(const nbt_hashmap*, ostream_wrapper* dest, const rust_string_receiver* error_message_receiver);
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_nbt_hashmap_dump_to_binary_stream(nbt: *const HashMap<String, Value>, os: *mut ostream_wrapper, error_msg_receiver: *const rust_string_receiver) -> bool {
+pub unsafe extern "C" fn mc_schem_nbt_hashmap_dump_to_binary_stream(nbt: *const HashMap<String, Value>, os: *mut rust_writer, error_msg_receiver: *const rust_string_receiver) -> bool {
     let result = fastnbt::to_writer(os.as_mut_unchecked(), nbt.as_ref_unchecked());
     if let Err(e) = &result {
         error_msg_receiver.as_ref_unchecked().receive(&e.to_string())

@@ -61,11 +61,14 @@ pub unsafe extern "C" fn mc_schem_schematic_get_region_mut(schem: *mut Schematic
 // [[nodiscard]] region* mc_schem_schematic_remove_region(schematic*,size_t idx);
 
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_remove_region(schem: *mut Schematic, idx: usize) -> *mut Schematic {
-    if let Some(r) = schem.as_mut_unchecked().regions.remove(idx) {
-        return Box::into_raw(Box::from(r));
+pub unsafe extern "C" fn mc_schem_schematic_remove_region(schem: *mut Schematic, idx: usize) -> *mut Region {
+    let regions = &mut (schem.as_mut_unchecked().regions);
+    if idx >= regions.len() {
+        return null_mut();
     }
-    null_mut()
+    let removed = regions.remove(idx);
+    Box::into_raw(Box::from(removed))
+
 }
 // /// Remove all regions from schematic
 // void mc_schem_schematic_clear_all_regions(schematic*);
@@ -162,7 +165,7 @@ pub unsafe extern "C" fn mc_schem_schematic_get_total_blocks(schem: *const Schem
 // [[nodiscard]] region* mc_schem_schematic_to_single_region(const schematic*, const block* background_block);
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_schematic_to_single_region(schem: *const Schematic, background_blk: *const Block) -> *mut Region {
-    let mut new_reg = schem.as_ref_unchecked().to_single_region(background_blk.as_ref_unchecked());
+    let new_reg = schem.as_ref_unchecked().to_single_region(background_blk.as_ref_unchecked());
     Box::into_raw(Box::new(new_reg))
 }
 // /// Merge all regions in place

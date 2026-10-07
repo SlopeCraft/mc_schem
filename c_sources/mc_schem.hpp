@@ -480,7 +480,7 @@ void mc_schem_schematic_get_shape(const schematic*, int32_t* x, int32_t* y,
 /// Merge all regions in place
 void mc_schem_schematic_merge_regions(schematic*,
                                       const block* background_block);
-#warning "TODO: load and write to reader with given format"
+
 /// Load litematica (*litematic). Returns schematic if ok. Otherwise returns
 /// null and sets error dest
 [[nodiscard]] schematic* mc_schem_schematic_load_litematica_from_reader(
@@ -498,6 +498,15 @@ void mc_schem_schematic_merge_regions(schematic*,
 [[nodiscard]] schematic* mc_schem_schematic_load_world_edit12_from_reader(
     rust_reader* src, const world_edit12_load_option*,
     error** error_dest_nonnull);
+
+/// Write as litematica (*.litematic). Returns null if ok. Otherwise return an
+/// error
+[[nodiscard]] error* mc_schem_schematic_save_litematica_to_writer(
+    const schematic*, rust_writer* dest, const litematica_save_option*);
+[[nodiscard]] error* mc_schem_schematic_save_vanilla_structure_to_writer(
+    const schematic*, rust_writer* dest, const vanilla_structure_save_option*);
+[[nodiscard]] error* mc_schem_schematic_save_world_edit13_to_writer(
+    const schematic*, rust_writer* dest, const world_edit13_save_option*);
 #warning "TODO: load and write from/to file. With auto format"
 }
 
@@ -1316,6 +1325,35 @@ class schematic {
       return unique_schematic{ret};
     }
     assert(err not_eq nullptr);
+    return std::unexpected(unique_error{err});
+  }
+
+  std::expected<void, unique_error> save_litematica(
+      std::ostream& os, const litematica_save_option& opt) const& {
+    rust_writer osw{os};
+    auto err = mc_schem_schematic_save_litematica_to_writer(this, &osw, &opt);
+    if (not err) {
+      return {};
+    }
+    return std::unexpected(unique_error{err});
+  }
+  std::expected<void, unique_error> save_world_edit13(
+      std::ostream& os, const world_edit13_save_option& opt) const& {
+    rust_writer osw{os};
+    auto err = mc_schem_schematic_save_world_edit13_to_writer(this, &osw, &opt);
+    if (not err) {
+      return {};
+    }
+    return std::unexpected(unique_error{err});
+  }
+  std::expected<void, unique_error> save_vanilla_structure(
+      std::ostream& os, const vanilla_structure_save_option& opt) const& {
+    rust_writer osw{os};
+    auto err =
+        mc_schem_schematic_save_vanilla_structure_to_writer(this, &osw, &opt);
+    if (not err) {
+      return {};
+    }
     return std::unexpected(unique_error{err});
   }
 };

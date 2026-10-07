@@ -2,9 +2,8 @@
 
 use std::ptr::{null, null_mut};
 use crate::block::Block;
-use crate::{BlockEntity, Error, PendingTick, Region, VanillaStructureLoadOption, WorldEdit12LoadOption, WorldEdit13LoadOption};
-use crate::c_ffi::rust_reader;
-use crate::schem::{LitematicaLoadOption, MetaDataIR, Schematic};
+use crate::{BlockEntity, Error, LitematicaSaveOption, PendingTick, Region, VanillaStructureLoadOption, WorldEdit12LoadOption, WorldEdit13LoadOption, WorldEdit13SaveOption, LitematicaLoadOption, MetaDataIR, Schematic, VanillaStructureSaveOption};
+use crate::c_ffi::{rust_reader, rust_writer};
 
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_create_schematic() -> *mut Schematic {
@@ -234,6 +233,35 @@ pub unsafe extern "C" fn mc_schem_schematic_load_world_edit12_from_reader(src: *
         Err(err) => {
             *error_dest = Box::into_raw(Box::from(err));
             null_mut()
+        }
+    }
+}
+
+
+// [[nodiscard]] error* mc_schem_schematic_save_litematica_to_writer(const schematic*, rust_writer* dest, const litematica_save_option*);#[no_mangle]
+pub unsafe extern "C" fn mc_schem_schematic_save_litematica_to_writer(schem: *const Schematic, dest: *mut rust_writer, option: *const LitematicaSaveOption) -> *mut Error {
+    match schem.as_ref_unchecked().save_litematica_writer(dest.as_mut_unchecked(), option.as_ref_unchecked()) {
+        Ok(_) => null_mut(),
+        Err(err) => {
+            Box::into_raw(Box::from(err))
+        }
+    }
+}
+// [[nodiscard]] error* mc_schem_schematic_save_vanilla_structure_to_writer(const schematic*, rust_writer* dest, const vanilla_structure_save_option*);#[no_mangle]
+pub unsafe extern "C" fn mc_schem_schematic_save_vanilla_structure_to_writer(schem: *const Schematic, dest: *mut rust_writer, option: *const VanillaStructureSaveOption) -> *mut Error {
+    match schem.as_ref_unchecked().save_vanilla_structure_writer(dest.as_mut_unchecked(), option.as_ref_unchecked()) {
+        Ok(_) => null_mut(),
+        Err(err) => {
+            Box::into_raw(Box::from(err))
+        }
+    }
+}
+// [[nodiscard]] error* mc_schem_schematic_save_world_edit13_to_writer(const schematic*, rust_writer* dest, const world_edit13_save_option*);#[no_mangle]
+pub unsafe extern "C" fn mc_schem_schematic_save_world_edit13_to_writer(schem: *const Schematic, dest: *mut rust_writer, option: *const WorldEdit13SaveOption) -> *mut Error {
+    match schem.as_ref_unchecked().save_world_edit_13_writer(dest.as_mut_unchecked(), option.as_ref_unchecked()) {
+        Ok(_) => null_mut(),
+        Err(err) => {
+            Box::into_raw(Box::from(err))
         }
     }
 }

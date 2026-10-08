@@ -761,7 +761,7 @@ class region {
 
   [[nodiscard]] static std::expected<unique_region, unique_error>
   create_with_palette(const std::array<int32_t, 3>& shape,
-                      const std::span<const block*> palette) {
+                      const std::span<const block* const> palette) {
     const auto [x, y, z] = shape;
 
     error* err{nullptr};
@@ -1027,6 +1027,10 @@ class region {
       vis(pos, blkid, *blkp, be);
     };
     mc_schem_region_visit_blocks(this, explicit_only, func, &visitor);
+  }
+
+  [[nodiscard]] uint64_t total_blocks(bool include_air) const& {
+    return mc_schem_region_total_blocks(this, include_air);
   }
 };
 /// Entity in Minecraft

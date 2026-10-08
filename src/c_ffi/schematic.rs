@@ -240,6 +240,7 @@ pub unsafe extern "C" fn mc_schem_schematic_load_world_edit12_from_reader(src: *
 
 
 // [[nodiscard]] error* mc_schem_schematic_save_litematica_to_writer(const schematic*, rust_writer* dest, const litematica_save_option*);#[no_mangle]
+#[no_mangle]
 pub unsafe extern "C" fn mc_schem_schematic_save_litematica_to_writer(schem: *const Schematic, dest: *mut rust_writer, option: *const LitematicaSaveOption) -> *mut Error {
     match schem.as_ref_unchecked().save_litematica_writer(dest.as_mut_unchecked(), option.as_ref_unchecked()) {
         Ok(_) => null_mut(),
@@ -249,6 +250,7 @@ pub unsafe extern "C" fn mc_schem_schematic_save_litematica_to_writer(schem: *co
     }
 }
 // [[nodiscard]] error* mc_schem_schematic_save_vanilla_structure_to_writer(const schematic*, rust_writer* dest, const vanilla_structure_save_option*);#[no_mangle]
+#[no_mangle]
 pub unsafe extern "C" fn mc_schem_schematic_save_vanilla_structure_to_writer(schem: *const Schematic, dest: *mut rust_writer, option: *const VanillaStructureSaveOption) -> *mut Error {
     match schem.as_ref_unchecked().save_vanilla_structure_writer(dest.as_mut_unchecked(), option.as_ref_unchecked()) {
         Ok(_) => null_mut(),
@@ -258,6 +260,7 @@ pub unsafe extern "C" fn mc_schem_schematic_save_vanilla_structure_to_writer(sch
     }
 }
 // [[nodiscard]] error* mc_schem_schematic_save_world_edit13_to_writer(const schematic*, rust_writer* dest, const world_edit13_save_option*);#[no_mangle]
+#[no_mangle]
 pub unsafe extern "C" fn mc_schem_schematic_save_world_edit13_to_writer(schem: *const Schematic, dest: *mut rust_writer, option: *const WorldEdit13SaveOption) -> *mut Error {
     match schem.as_ref_unchecked().save_world_edit_13_writer(dest.as_mut_unchecked(), option.as_ref_unchecked()) {
         Ok(_) => null_mut(),
@@ -268,6 +271,7 @@ pub unsafe extern "C" fn mc_schem_schematic_save_world_edit13_to_writer(schem: *
 }
 
 // [[nodiscard]] schematic* mc_schem_schematic_load_from_file(const char* filename, error** error_dest_nonnull);
+#[no_mangle]
 pub unsafe extern "C" fn mc_schem_schematic_load_from_file(filename_c: *const c_char, error_dest: *mut *mut Error) -> *mut Schematic {
     let filename = CStr::from_ptr(filename_c).to_string_lossy().to_string();
     match Schematic::from_file(&filename) {
@@ -282,6 +286,7 @@ pub unsafe extern "C" fn mc_schem_schematic_load_from_file(filename_c: *const c_
     }
 }
 // [[nodiscard]] error* mc_schem_schematic_save_to_file(const schematic*, const char* filename);
+#[no_mangle]
 pub unsafe extern "C" fn mc_schem_schematic_save_to_file(schem: *const Schematic, filename: *const c_char) -> *mut Error {
     let filename = CStr::from_ptr(filename).to_string_lossy().to_string();
     match schem.as_ref_unchecked().save_to_file(&filename) {

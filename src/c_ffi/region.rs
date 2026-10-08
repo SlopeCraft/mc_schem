@@ -126,7 +126,7 @@ pub unsafe extern "C" fn mc_schem_region_palette_get_block(
 // palette, don't copy; otherwise append. Returns index of this block in palette
 // uint16_t mc_schem_region_find_or_append_to_palette(region* region, const block* block);
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_region_add_to_palette(
+pub unsafe extern "C" fn mc_schem_region_find_or_append_to_palette(
     region: *mut Region,
     new_blk: *const Block,
 ) -> u16 {

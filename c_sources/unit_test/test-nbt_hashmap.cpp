@@ -21,6 +21,8 @@
 #include <sstream>
 #include <vector>
 
+#include "utils.hpp"
+
 extern const std::vector<uint8_t> test_nbt_file;
 
 int main(int, char**) {
@@ -28,14 +30,14 @@ int main(int, char**) {
   {
     auto empty = nbt_hashmap::create();
     [[maybe_unused]] auto len = empty->size();
-    assert(len == 0);
+    MC_SCHEM_CHECK(len == 0);
   }
 
   {
     [[maybe_unused]] auto nbt =
         nbt_hashmap::create_from_binary(test_nbt_file).value();
     [[maybe_unused]] auto vec = nbt->dump();
-    assert(vec.size() == test_nbt_file.size());
+    MC_SCHEM_CHECK(vec.size() == test_nbt_file.size());
   }
 
   {
@@ -50,7 +52,7 @@ int main(int, char**) {
 
     std::vector<uint8_t> vec;
     nbt->dump_to_vector(vec);
-    assert(vec.size() == test_nbt_file.size());
+    MC_SCHEM_CHECK(vec.size() == test_nbt_file.size());
   }
 
   return 0;

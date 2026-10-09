@@ -1,0 +1,473 @@
+use crate::block::Block;
+use crate::c_ffi::rust_string_receiver;
+use crate::error::Error;
+use crate::region::{BlockEntity, HasPalette, WorldSlice};
+use crate::{Entity, PendingTick, Region};
+use std::ffi::{c_char, c_void, CStr};
+use std::ptr::{null, null_mut, slice_from_raw_parts};
+
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_create_region(
+    size_x: i32,
+    size_y: i32,
+    size_z: i32,
+) -> *mut Region {
+    let shape = [size_x, size_y, size_z];
+    let box_ptr = Box::from(Region::with_shape(shape));
+    Box::into_raw(box_ptr)
+}
+/// Create region with given palette. If error, error_dest is box of error and returns null;
+/// Otherwise error_dest is null.
+// [[nodiscard]] region* mc_schem_create_region_with_palette(
+// int32_t size_x, int32_t size_y, int32_t size_z,
+// const block* const palette[], size_t palette_size, error** error_dest);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_create_region_with_palette(
+    size_x: i32,
+    size_y: i32,
+    size_z: i32,
+    blocks_ptr: *const *const Block,
+    palette_size: usize,
+    error: *mut *mut Error,
+) -> *mut Region {
+    if palette_size <= 0 {
+        let err = Box::new(Error::PaletteIsEmpty {
+            tag_path: "From API".to_string(),
+        });
+        *error = Box::into_raw(err);
+        return null_mut();
+    }
+
+    let shape = [size_x, size_y, size_z];
+    let mut box_ptr = Box::from(Region::with_shape(shape));
+    box_ptr.palette.clear();
+    let blocks_ptr = &*slice_from_raw_parts(blocks_ptr, palette_size);
+    for ptr in blocks_ptr {
+        box_ptr.palette.push((**ptr).clone());
+    }
+    *error = null_mut();
+    Box::into_raw(box_ptr)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_get_name(
+    region: *const Region,
+    receiver: *const rust_string_receiver,
+) {
+    (*receiver).receive(&(*region).name);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_get_offset(
+    region: *const Region,
+    dest_x: *mut i32,
+    dest_y: *mut i32,
+    dest_z: *mut i32,
+) {
+    let [x, y, z] = (*region).offset;
+    *dest_x = x;
+    *dest_y = y;
+    *dest_z = z;
+}
+
+//void mc_schem_region_set_name(region*,const char* str);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_set_name(region: *mut Region, name_c: *const c_char) {
+    (*region).name = CStr::from_ptr(name_c).to_string_lossy().to_string();
+}
+// void mc_schem_region_set_offset(region*, int32_t x, int32_t y, int32_t z);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_set_offset(region: *mut Region, x: i32, y: i32, z: i32) {
+    (*region).offset = [x, y, z];
+}
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_get_size(
+    region: *const Region,
+    dest_x: *mut i32,
+    dest_y: *mut i32,
+    dest_z: *mut i32,
+) {
+    let [y, z, x] = (*region).shape_yzx();
+    *dest_x = x;
+    *dest_y = y;
+    *dest_z = z;
+}
+//bool mc_schem_region_is_dense(const region*)
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_is_dense(region: *const Region) -> bool {
+    (*region).is_dense()
+}
+
+//size_t mc_schem_region_palette_get_size(const region*);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_palette_get_size(region: *const Region) -> usize {
+    (*region).palette.len()
+}
+
+//void mc_schem_region_reshape(region*, int32_t x, int32_t y, int32_t z);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_reshape(region: *mut Region, x: i32, y: i32, z: i32) {
+    (*region).reshape(&[x, y, z]);
+}
+
+//const block* mc_schem_region_palette_get_block(const region*, size_t index);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_palette_get_block(
+    region: *const Region,
+    index: usize,
+) -> *const Block {
+    if index >= (*region).palette().len() {
+        return null();
+    }
+    (*region).palette.as_ptr().add(index)
+}
+
+// Add block into palette (deep copy). If identical block already exist in
+// palette, don't copy; otherwise append. Returns index of this block in palette
+// uint16_t mc_schem_region_find_or_append_to_palette(region* region, const block* block);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_find_or_append_to_palette(
+    region: *mut Region,
+    new_blk: *const Block,
+) -> u16 {
+    (*region).find_or_append_to_palette(&*new_blk)
+}
+
+//uint16_t mc_schem_region_find_in_palette(const region*, const block*, bool* ok);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_find_in_palette(
+    region: *const Region,
+    blk: *const Block,
+    dest_ok: *mut bool,
+) -> u16 {
+    let result = (*region).find_in_palette(&*blk);
+    *dest_ok = result.is_some();
+    if let Some(idx) = result {
+        return idx;
+    }
+    u16::MAX
+}
+
+//size_t mc_schem_region_get_entities_count(const region*);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_get_entities_count(region: *const Region) -> usize {
+    (*region).entities.len()
+}
+//const entity* mc_schem_region_get_entity(const region*, size_t index);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_get_entity(
+    region: *const Region,
+    idx: usize,
+) -> *const Entity {
+    if idx >= (*region).entities.len() {
+        return null();
+    }
+    &(&(*region).entities)[idx]
+}
+//entity* mc_schem_region_get_entity_mut(region*, size_t index);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_get_entity_mut(
+    region: *mut Region,
+    idx: usize,
+) -> *mut Entity {
+    if idx >= (*region).entities.len() {
+        return null_mut();
+    }
+    &mut (&mut (*region).entities)[idx]
+}
+//entity* mc_schem_region_erase_entity(region*, size_t index);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_erase_entity(
+    region: *mut Region,
+    idx: usize,
+) -> *mut Entity {
+    let old = (*region).entities.remove(idx);
+    let ret = Box::from(old);
+    Box::into_raw(ret)
+}
+/// Clone entity into region, returns index
+//size_t mc_schem_region_add_entity(region*, const entity*);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_add_entity(
+    region: *mut Region,
+    entity_ptr: *const Entity,
+) -> usize {
+    assert!(!entity_ptr.is_null());
+    (*region).entities.push((*entity_ptr).clone());
+
+    (*region).entities.len() - 1
+}
+/// Move entity (must from box) into region, returns index. new_entity moved and
+/// released in this operation.
+// size_t mc_schem_region_add_entity_move(region*, entity* new_entity)
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_add_entity_move(region: *mut Region, new_entity: *mut Entity) -> usize {
+    assert!(!new_entity.is_null());
+    let new_entity_box = Box::from_raw(new_entity);
+    region.as_mut_unchecked().entities.push(*new_entity_box);
+
+    (*region).entities.len() - 1
+}
+
+
+// size_t mc_schem_region_get_block_entities_count(const region*);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_get_block_entities_count(region: *const Region) -> usize {
+    (*region).block_entities.len()
+}
+// void mc_schem_region_visit_block_entities(const region*, void (*callback)(int32_t x, int32_t y, const block_entity*, void*), void* custom_data);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_visit_block_entities(
+    region: *const Region,
+    callback: extern "C" fn(
+        x: i32,
+        y: i32,
+        z: i32,
+        be: *const BlockEntity,
+        custom_data: *mut c_void,
+    ),
+    custom_data: *mut c_void,
+) {
+    for (pos, be) in &(*region).block_entities {
+        let [x, y, z] = *pos;
+        callback(x, y, z, be, custom_data);
+    }
+}
+// const block_entity* mc_schem_region_get_block_entity(const region*, int32_t x, int32_t y, int32_t z);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_get_block_entity(
+    region: *const Region,
+    x: i32,
+    y: i32,
+    z: i32,
+) -> *const BlockEntity {
+    let be = (*region).block_entities.get(&[x, y, z]);
+
+    if let Some(ret) = be {
+        return ret;
+    }
+    null()
+}
+// block_entity* mc_schem_region_get_block_entity_mut(region*, int32_t x, int32_t y, int32_t z);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_get_block_entity_mut(
+    region: *mut Region,
+    x: i32,
+    y: i32,
+    z: i32,
+) -> *mut BlockEntity {
+    let be = (*region).block_entities.get_mut(&[x, y, z]);
+
+    if let Some(ret) = be {
+        return ret;
+    }
+    null_mut()
+}
+
+/// Copy and insert block entity into given coordinate. If previous BE exists, it
+/// will be moved out and boxed and returned as ptr. If be is null, erase old value
+// block_entity* mc_schem_region_add_block_entity(region*, int32_t x, int32_t y, int32_t z, const block_entity*nullable);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_add_block_entity(
+    region: *mut Region,
+    x: i32,
+    y: i32,
+    z: i32,
+    new_be_nullable: *const BlockEntity,
+) -> *mut BlockEntity {
+    let old;
+    if new_be_nullable.is_null() {
+        old = (*region).block_entities.remove(&[x, y, z]);
+    } else {
+        old = (*region)
+            .block_entities
+            .insert([x, y, z], (*new_be_nullable).clone());
+    }
+
+    if let Some(old) = old {
+        let ret = Box::new(old);
+        return Box::into_raw(ret);
+    }
+    null_mut()
+}
+
+/// Move and insert block entity into given coordinate. If previous BE exists,
+/// it will be moved out and boxed and returned as ptr. If be is null, erase old
+/// value
+// block_entity* mc_schem_region_add_block_entity_move(region*, int32_t x, int32_t y, int32_t z, block_entity* new_be_nullable);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_add_block_entity_move(region: *mut Region,
+                                                               x: i32,
+                                                               y: i32,
+                                                               z: i32,
+                                                               new_be_nullable: *mut BlockEntity) -> *mut BlockEntity {
+    let old: Option<BlockEntity>;
+    if new_be_nullable.is_null() {
+        old = region.as_mut_unchecked().block_entities.remove(&[x, y, z]);
+    } else {
+        let new_be_box = Box::from_raw(new_be_nullable);
+        old = region.as_mut_unchecked().block_entities.insert([x, y, z], *new_be_box);
+    }
+
+    if let Some(old) = old {
+        let ret = Box::new(old);
+        return Box::into_raw(ret);
+    }
+    null_mut()
+}
+
+// size_t mc_schem_region_get_pending_ticks_count(const region*, int32_t x, int32_t y, int32_t z);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_get_pending_ticks_count(
+    region: *const Region,
+    x: i32,
+    y: i32,
+    z: i32,
+) -> usize {
+    (*region)
+        .pending_ticks
+        .get(&[x, y, z])
+        .unwrap_or(&vec![])
+        .len()
+}
+// const pending_tick* mc_schem_region_get_pending_tick(const region*, int32_t x, int32_t y, int32_t z, size_t idx);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_get_pending_tick(
+    region: *const Region,
+    x: i32,
+    y: i32,
+    z: i32,
+    idx: usize,
+) -> *const PendingTick {
+    let opt = (*region).pending_ticks.get(&[x, y, z]);
+    if let Some(val) = opt {
+        if idx < val.len() {
+            return &val[idx];
+        }
+    }
+    null()
+}
+// pending_tick* mc_schem_region_get_pending_tick_mut(region*, int32_t x, int32_t y, int32_t z, size_t idx);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_get_pending_tick_mut(
+    region: *mut Region,
+    x: i32,
+    y: i32,
+    z: i32,
+    idx: usize,
+) -> *mut PendingTick {
+    let opt = (*region).pending_ticks.get_mut(&[x, y, z]);
+    if let Some(val) = opt {
+        if idx < val.len() {
+            return &mut val[idx];
+        }
+    }
+    null_mut()
+}
+
+//uint16_t mc_schem_region_get_block_index(const region*, int32_t x, int32_t y, int32_t z, bool* ok)
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_get_block_index(
+    region: *const Region,
+    x: i32,
+    y: i32,
+    z: i32,
+    ok_dest: *mut bool,
+) -> u16 {
+    let result = (*region).block_index_at([x, y, z]);
+    *ok_dest = result.is_some();
+
+    result.unwrap_or_else(|| u16::MAX)
+}
+
+// error* mc_schem_region_set_block_by_index(region*, int32_t x, int32_t y, int32_t z, uint16_t idx);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_set_block_by_index(
+    region: *mut Region,
+    x: i32,
+    y: i32,
+    z: i32,
+    idx: u16,
+) -> bool {
+    let result = (*region).set_block_id([x, y, z], idx);
+    result.is_ok()
+}
+// error* mc_schem_region_set_block_by_block(region*, int32_t x, int32_t y, int32_t z, const block* blk);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_set_block_by_block(
+    region: *mut Region,
+    x: i32,
+    y: i32,
+    z: i32,
+    blk: *const Block,
+) -> bool {
+    let result = (*region).set_block([x, y, z], &*blk);
+    result.is_ok()
+}
+
+// error* mc_schem_region_shrink_palette(region*);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_shrink_palette(region: *mut Region) -> *mut Error {
+    let result = (*region).shrink_palette();
+    if let Err(err) = result {
+        return Box::into_raw(Box::from(err));
+    }
+    null_mut()
+}
+// void mc_schem_region_fill_with(region*, const block* blk);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_fill_with(region: *mut Region, blk: *const Block) {
+    (*region).fill_with(&*blk);
+}
+// void mc_schem_region_convert_to_sparse(region*);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_convert_to_sparse(region: *mut Region) {
+    (*region).convert_to_sparse();
+}
+// void mc_schem_region_convert_to_dense(region*);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_convert_to_dense(region: *mut Region) {
+    (*region).convert_to_dense();
+}
+// uint64_t mc_schem_region_total_blocks(const region*, bool include_air)
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_total_blocks(
+    region: *const Region,
+    include_air: bool,
+) -> u64 {
+    (*region).total_blocks(include_air)
+}
+/// Visit all blocks in region. If explicit-only, skip background blocks for
+/// sparse region
+// void mc_schem_region_visit_blocks(const region*, bool explicit_only, void (*callback)(int32_t x, int32_t y, int32_t z, uint16_t block_idx, const block*, const block_entity*, void* custom_data),void* custom_data);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_visit_blocks(
+    region: *const Region,
+    explicit_only: bool,
+    callback: extern "C" fn(
+        x: i32,
+        y: i32,
+        z: i32,
+        block_idx: u16,
+        blk: *const Block,
+        be: *const BlockEntity,
+        data: *mut c_void,
+    ),
+    custom_data: *mut c_void,
+) {
+    let mut func = |pos: &[i32; 3], blkid, blk: &Block, be: Option<&BlockEntity>, _pts: &[PendingTick]| {
+        let [x, y, z] = *pos;
+        let beptr = if let Some(be) = be {
+            be as *const BlockEntity
+        } else {
+            null()
+        };
+        callback(x, y, z, blkid, blk as *const Block, beptr, custom_data);
+    };
+
+    if explicit_only {
+        (*region).visit_explicit(&mut func);
+    } else {
+        (*region).visit_dense(&mut func);
+    }
+}

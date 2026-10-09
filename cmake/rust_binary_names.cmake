@@ -15,8 +15,6 @@ function(rust_binary_names manually_assigned_target out_var_shared_lib out_var_e
         set(${out_var_export_lib} "mc_schem.dll.lib" PARENT_SCOPE)
         set(${out_var_link_shared_lib} OFF PARENT_SCOPE)
         return()
-
-
     endif ()
 
 

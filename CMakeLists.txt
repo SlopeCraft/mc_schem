@@ -4,6 +4,7 @@ project(mc_schem VERSION 0.1.0 LANGUAGES C CXX)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(MC_SCHEM_INSTALL "Install binaries" ON)
+option(MC_SCHEM_ENABLE_TESTS "Build the C++ wrapper unit tests" ON)
 set(MC_SCHEM_RUST_TARGET "default" CACHE STRING "Target to build rust codes. Should be consistent with C compiler. Valid values: default;guess; or any other triplet")
 
 find_program(cargo_exe NAMES "cargo" REQUIRED)
@@ -60,7 +61,8 @@ add_custom_target(mc_schem_rs ALL
         COMMAND ${cargo_exe} build ${cargo_build_flags} --target-dir=${rust_build_dir}
         SOURCES ${rust_sources} Cargo.toml
         COMMENT "Building all rust binaries"
-        BYPRODUCTS ${shared_lib_loc} ${export_lib_loc} ${schemtool_loc})
+    BYPRODUCTS ${shared_lib_loc} ${export_lib_loc} ${schemtool_loc}
+)
 
 message(STATUS "shared_lib_loc = ${shared_lib_loc}")
 message(STATUS "export_lib_loc = ${export_lib_loc}")
@@ -75,53 +77,32 @@ if (${WIN32})
             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 endif ()
 
-file(GLOB_RECURSE headers "c_sources/*.h")
-add_library(mc_schem STATIC
-        c_sources/mc_schem.c
-        ${headers})
-add_library(mc_schem::mc_schem ALIAS mc_schem)
+add_library(mc_schem INTERFACE)
+target_sources(mc_schem INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/c_sources/mc_schem.hpp>
+)
 add_dependencies(mc_schem mc_schem_rs)
-include(GenerateExportHeader)
-generate_export_header(mc_schem)
-target_include_directories(mc_schem PUBLIC
-        $<BUILD_INTERFACE: "${CMAKE_SOURCE_DIR}/c_sources;${CMAKE_BINARY_DIR}" >
-        $<INSTALL_INTERFACE:"include">)
+
+target_include_directories(mc_schem INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/c_sources>
+    $<INSTALL_INTERFACE:include>
+)
 if (${link_shared_lib_directly})    # link to shared lib directly
-    target_link_libraries(mc_schem PUBLIC
+    target_link_libraries(mc_schem INTERFACE
             $<BUILD_INTERFACE:${shared_lib_loc}>
             $<INSTALL_INTERFACE:${shared_lib_name}>)
 else ()
-    target_link_libraries(mc_schem PUBLIC
+    target_link_libraries(mc_schem INTERFACE
             $<BUILD_INTERFACE:${export_lib_loc}>
             $<INSTALL_INTERFACE:${export_lib_name}>)
 endif ()
 
-if (${CMAKE_C_COMPILER_ID} STREQUAL "MSVC")
-    message(WARNING "Up til 2024/2/4, MSVC doesn't support c23, build may fail. It's suggested to use clang-cl 17+ instead")
+target_compile_features(mc_schem INTERFACE cxx_std_23)
+
+if (${MC_SCHEM_ENABLE_TESTS})
+    enable_testing()
+    add_subdirectory(c_sources/unit_test)
 endif ()
-
-if (MSVC)
-    target_compile_options(mc_schem PUBLIC "/Zc:__cplusplus")
-    target_compile_options(mc_schem PRIVATE "/std:clatest")
-    target_compile_options(mc_schem PRIVATE "/std:c17")
-else ()
-    target_compile_features(mc_schem PUBLIC c_std_23)
-endif ()
-
-add_library(mc_schem_hpp INTERFACE
-    c_sources/mc_schem.hpp)
-target_link_libraries(mc_schem_hpp INTERFACE mc_schem)
-target_compile_features(mc_schem_hpp INTERFACE cxx_std_23)
-
-add_executable(c_test c_sources/c_test.c)
-target_link_libraries(c_test PRIVATE mc_schem)
-if (MSVC)
-    target_compile_options(c_test PRIVATE "/std:clatest")
-endif ()
-
-add_executable(cpp_test c_sources/cpp_test.cpp)
-target_compile_features(cpp_test PRIVATE cxx_std_23)
-target_link_libraries(cpp_test PRIVATE mc_schem_hpp)
 
 if (${MC_SCHEM_INSTALL})
     include(CMakePackageConfigHelpers)

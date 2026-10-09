@@ -167,6 +167,26 @@ int main(int argc, char** argv) {
     MC_SCHEM_CHECK(cr.get_block_entity(pos)->tags()->size() == stored_size);
   }
 
+  // mc_schem_swap_block_entity
+  {
+    auto fresh = block_entity::create();
+    MC_SCHEM_CHECK(fresh);
+    MC_SCHEM_CHECK(fresh->tags()->size() == 0);
+
+    const block_entity* stored = cr.get_block_entity(positions.front());
+    MC_SCHEM_CHECK(stored not_eq nullptr);
+    auto copy = stored->clone();
+    MC_SCHEM_CHECK(copy);
+    const size_t stored_size = copy->tags()->size();
+    // Every tile entity of the fixture carries at least one tag, so the swap
+    // below is observable
+    MC_SCHEM_CHECK(stored_size >= 1);
+
+    fresh->swap(*copy);
+    MC_SCHEM_CHECK(fresh->tags()->size() == stored_size);
+    MC_SCHEM_CHECK(copy->tags()->size() == 0);
+  }
+
   // Walking the whole region must report the same block entities as the
   // dedicated lookups. This runs over every cell of the fixture.
   {

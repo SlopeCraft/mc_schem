@@ -156,5 +156,22 @@ int main(int argc, char** argv) {
     MC_SCHEM_CHECK(snapshot_of(*copy) == snapshot_of(*loaded));
   }
 
+  // mc_schem_swap_meta_data_ir
+  {
+    auto first = meta_data_ir::create(111);
+    MC_SCHEM_CHECK(first.has_value());
+    auto second = meta_data_ir::create(222);
+    MC_SCHEM_CHECK(second.has_value());
+
+    const unique_meta_data_ir& first_handle = *first;
+    const unique_meta_data_ir& second_handle = *second;
+    MC_SCHEM_CHECK(first_handle->mc_data_version() == 111);
+    MC_SCHEM_CHECK(second_handle->mc_data_version() == 222);
+
+    first_handle->swap(*second_handle);
+    MC_SCHEM_CHECK(first_handle->mc_data_version() == 222);
+    MC_SCHEM_CHECK(second_handle->mc_data_version() == 111);
+  }
+
   return 0;
 }

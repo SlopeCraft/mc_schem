@@ -55,6 +55,20 @@ int main(int, char**) {
     MC_SCHEM_CHECK(vec.size() == test_nbt_file.size());
   }
 
+  // mc_schem_swap_nbt_hashmap
+  {
+    auto empty = nbt_hashmap::create();
+    MC_SCHEM_CHECK(empty);
+    auto loaded = nbt_hashmap::create_from_binary(test_nbt_file).value();
+    const size_t loaded_size = loaded->size();
+    MC_SCHEM_CHECK(loaded_size >= 1);
+    MC_SCHEM_CHECK(empty->size() == 0);
+
+    empty->swap(*loaded);
+    MC_SCHEM_CHECK(empty->size() == loaded_size);
+    MC_SCHEM_CHECK(loaded->size() == 0);
+  }
+
   return 0;
 }
 

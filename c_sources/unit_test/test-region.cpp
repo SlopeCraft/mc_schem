@@ -159,6 +159,26 @@ int main(int argc, char** argv) {
     MC_SCHEM_CHECK(copy->block_index_at({1, 1, 1}).value() == 1);
   }
 
+  // mc_schem_swap_region
+  {
+    auto small = region::create(1, 1, 1);
+    MC_SCHEM_CHECK(small);
+    small->set_name("small");
+    auto stone = make_block("minecraft:stone");
+    small->set_block({0, 0, 0}, *stone);
+
+    auto large = region::create(2, 2, 2);
+    MC_SCHEM_CHECK(large);
+    large->set_name("large");
+
+    small->swap(*large);
+    MC_SCHEM_CHECK(small->name() == "large");
+    MC_SCHEM_CHECK(large->name() == "small");
+    MC_SCHEM_CHECK((small->size_xyz() == pos_t{2, 2, 2}));
+    MC_SCHEM_CHECK((large->size_xyz() == pos_t{1, 1, 1}));
+    MC_SCHEM_CHECK(large->palette(1)->full_id() == "minecraft:stone");
+  }
+
   // mc_schem_region_get_block_index, set_block_by_block, set_block_by_index,
   // block_at, block_info_at, find_in_palette, find_or_append_to_palette,
   // palette_get_block

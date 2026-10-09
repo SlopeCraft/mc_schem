@@ -451,6 +451,26 @@ int main(int argc, char** argv) {
     check_aggregates(*schem);
   }
 
+  // mc_schem_swap_schematic
+  {
+    auto with_region = schematic::create();
+    MC_SCHEM_CHECK(with_region);
+    auto empty = schematic::create();
+    MC_SCHEM_CHECK(empty);
+
+    auto reg = region::create(2, 3, 4);
+    MC_SCHEM_CHECK(reg);
+    MC_SCHEM_CHECK(with_region->append_region(reg.get()) not_eq nullptr);
+    MC_SCHEM_CHECK(with_region->regions_count() == 1);
+    MC_SCHEM_CHECK(empty->regions_count() == 0);
+
+    with_region->swap(*empty);
+    MC_SCHEM_CHECK(with_region->regions_count() == 0);
+    MC_SCHEM_CHECK(empty->regions_count() == 1);
+    MC_SCHEM_CHECK((empty->shape() == pos_t{2, 3, 4}));
+    MC_SCHEM_CHECK((with_region->shape() == pos_t{0, 0, 0}));
+  }
+
   // Every supported format: parsing, the aggregates and the first hit lookups
   {
     const char* const fixtures[] = {

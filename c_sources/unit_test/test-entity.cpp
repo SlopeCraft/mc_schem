@@ -192,5 +192,27 @@ int main(int argc, char** argv) {
     MC_SCHEM_CHECK(src->tags()->size() == src_size);
   }
 
+  // mc_schem_swap_entity
+  {
+    const entity* stored = cr.get_entity(0);
+    MC_SCHEM_CHECK(stored not_eq nullptr);
+    auto first = stored->clone();
+    auto second = stored->clone();
+    MC_SCHEM_CHECK(first);
+    MC_SCHEM_CHECK(second);
+
+    // Empty the tags of one copy so that the swap is observable
+    auto empty = nbt_hashmap::create();
+    MC_SCHEM_CHECK(second->set_tags(*empty) not_eq nullptr);
+    const size_t first_size = first->tags()->size();
+    MC_SCHEM_CHECK(second->tags()->size() == 0);
+
+    first->swap(*second);
+    MC_SCHEM_CHECK(first->tags()->size() == 0);
+    MC_SCHEM_CHECK(second->tags()->size() == first_size);
+    // The entity the copies were made from is left alone
+    MC_SCHEM_CHECK(stored->tags()->size() == first_size);
+  }
+
   return 0;
 }

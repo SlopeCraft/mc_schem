@@ -80,6 +80,18 @@ int main(int, char**) {
     MC_SCHEM_CHECK(copy->full_id() == "minecraft:spruce_stairs[facing=south]");
   }
 
+  // mc_schem_swap_block
+  {
+    auto stone = block::create();
+    MC_SCHEM_CHECK(stone->reset("minecraft:stone").has_value());
+    auto dirt = block::create();
+    MC_SCHEM_CHECK(dirt->reset("minecraft:dirt").has_value());
+
+    stone->swap(*dirt);
+    MC_SCHEM_CHECK(stone->full_id() == "minecraft:dirt");
+    MC_SCHEM_CHECK(dirt->full_id() == "minecraft:stone");
+  }
+
   // mc_schem_block_get_id / mc_schem_block_set_id /
   // mc_schem_block_get_namespace / mc_schem_block_set_namespace
   {

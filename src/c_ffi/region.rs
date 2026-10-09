@@ -192,6 +192,7 @@ pub unsafe extern "C" fn mc_schem_region_add_entity(
     region: *mut Region,
     entity_ptr: *const Entity,
 ) -> usize {
+    assert!(!entity_ptr.is_null());
     (*region).entities.push((*entity_ptr).clone());
 
     (*region).entities.len() - 1
@@ -201,6 +202,7 @@ pub unsafe extern "C" fn mc_schem_region_add_entity(
 // size_t mc_schem_region_add_entity_move(region*, entity* new_entity)
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_region_add_entity_move(region: *mut Region, new_entity: *mut Entity) -> usize {
+    assert!(!new_entity.is_null());
     let new_entity_box = Box::from_raw(new_entity);
     region.as_mut_unchecked().entities.push(*new_entity_box);
 

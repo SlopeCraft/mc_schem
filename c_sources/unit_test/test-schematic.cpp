@@ -294,6 +294,7 @@ void check_reader_rejects_gzip(const std::string& path) {
 ///   mc_schem_schematic_get_regions_count, mc_schem_schematic_get_region,
 ///   mc_schem_schematic_get_region_mut, mc_schem_schematic_remove_region,
 ///   mc_schem_schematic_clear_all_regions, mc_schem_schematic_insert_region,
+///   mc_schem_schematic_insert_region_move,
 ///   mc_schem_schematic_get_first_region_index_at,
 ///   mc_schem_schematic_get_first_block_index_at,
 ///   mc_schem_schematic_get_first_block_at,
@@ -449,6 +450,51 @@ int main(int argc, char** argv) {
     MC_SCHEM_CHECK(schem->regions_count() == 0);
     MC_SCHEM_CHECK((schem->shape() == pos_t{0, 0, 0}));
     check_aggregates(*schem);
+  }
+
+  // Moving a region in, the round trip through remove_region, and the contract
+  // that the handle is consumed even when the index is refused
+  {
+    auto schem = schematic::create();
+    MC_SCHEM_CHECK(schem);
+
+    auto first = region::create(1, 1, 1);
+    MC_SCHEM_CHECK(first);
+    first->set_name("first");
+    MC_SCHEM_CHECK(schem->insert_region(std::move(first), 0) not_eq nullptr);
+    MC_SCHEM_CHECK(first == nullptr);  // the handle went into the schematic
+    MC_SCHEM_CHECK(schem->regions_count() == 1);
+    MC_SCHEM_CHECK(schem->get_region(0)->name() == "first");
+
+    // Appending by move puts the region at the end
+    auto second = region::create(2, 2, 2);
+    MC_SCHEM_CHECK(second);
+    second->set_name("second");
+    MC_SCHEM_CHECK(schem->append_region(std::move(second)) not_eq nullptr);
+    MC_SCHEM_CHECK(second == nullptr);
+    MC_SCHEM_CHECK(schem->regions_count() == 2);
+    MC_SCHEM_CHECK(schem->get_region(1)->name() == "second");
+
+    // Taking a region out and moving it back in keeps its contents, and hands
+    // out a reference into the schematic
+    auto taken = schem->remove_region(0);
+    MC_SCHEM_CHECK(taken);
+    MC_SCHEM_CHECK(taken->name() == "first");
+    MC_SCHEM_CHECK(schem->regions_count() == 1);
+    region* moved_back = schem->insert_region(std::move(taken), 1);
+    MC_SCHEM_CHECK(moved_back not_eq nullptr);
+    MC_SCHEM_CHECK(taken == nullptr);
+    MC_SCHEM_CHECK(schem->regions_count() == 2);
+    MC_SCHEM_CHECK(moved_back == schem->get_region(1));
+    MC_SCHEM_CHECK(moved_back->name() == "first");
+    MC_SCHEM_CHECK((moved_back->size_xyz() == pos_t{1, 1, 1}));
+
+    // An index past the end is refused, and the region is consumed anyway
+    auto third = region::create(3, 3, 3);
+    MC_SCHEM_CHECK(third);
+    MC_SCHEM_CHECK(schem->insert_region(std::move(third), 3) == nullptr);
+    MC_SCHEM_CHECK(third == nullptr);
+    MC_SCHEM_CHECK(schem->regions_count() == 2);
   }
 
   // mc_schem_swap_schematic

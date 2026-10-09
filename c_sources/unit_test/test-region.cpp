@@ -57,10 +57,11 @@ mc_schem::unique_block make_block(const std::string& full_id) {
 ///   mc_schem_region_find_or_append_to_palette, mc_schem_region_find_in_palette,
 ///   mc_schem_region_get_entities_count, mc_schem_region_get_entity,
 ///   mc_schem_region_get_entity_mut, mc_schem_region_erase_entity,
-///   mc_schem_region_add_entity,
+///   mc_schem_region_add_entity, mc_schem_region_add_entity_move,
 ///   mc_schem_region_get_block_entities_count,
 ///   mc_schem_region_visit_block_entities, mc_schem_region_get_block_entity,
 ///   mc_schem_region_get_block_entity_mut, mc_schem_region_add_block_entity,
+///   mc_schem_region_add_block_entity_move,
 ///   mc_schem_region_get_pending_ticks_count,
 ///   mc_schem_region_get_pending_tick, mc_schem_region_get_pending_tick_mut,
 ///   mc_schem_region_get_block_index, mc_schem_region_set_block_by_index,
@@ -468,7 +469,8 @@ int main(int argc, char** argv) {
   }
 
   // mc_schem_region_get_entities_count, get_entity, get_entity_mut,
-  // add_entity, erase_entity
+  // mc_schem_region_get_entities_count, get_entity, get_entity_mut,
+  // add_entity, add_entity_move, erase_entity
   {
     auto schem =
         load_schematic_or_abort(test_files_dir, "litematica/test02.litematic");
@@ -498,10 +500,19 @@ int main(int argc, char** argv) {
     MC_SCHEM_CHECK(erased not_eq nullptr);
     MC_SCHEM_CHECK(r.entities_count() == count);
     MC_SCHEM_CHECK(r.get_entity(added) == nullptr);
+
+    // add_entity_move takes that ownership and reports the new index, leaving
+    // the handle empty
+    const size_t moved_in = r.add_entity(std::move(erased));
+    MC_SCHEM_CHECK(erased == nullptr);
+    MC_SCHEM_CHECK(moved_in == added);
+    MC_SCHEM_CHECK(r.entities_count() == count + 1);
+    MC_SCHEM_CHECK(r.get_entity(moved_in) not_eq nullptr);
   }
 
   // mc_schem_region_get_block_entities_count, visit_block_entities,
   // get_block_entity, get_block_entity_mut, add_block_entity,
+  // add_block_entity_move,
   // get_pending_ticks_count, get_pending_tick, get_pending_tick_mut
   // `test03.litematic` is used because it carries both block entities and
   // pending ticks. Their number and position are not assumed, only that at
@@ -558,6 +569,14 @@ int main(int argc, char** argv) {
     auto nothing = r.erase_block_entity(be_pos);
     MC_SCHEM_CHECK(nothing == nullptr);
     MC_SCHEM_CHECK(r.get_block_entity(be_pos) == nullptr);
+
+    // add_block_entity_move puts the erased one back: the position is empty, so
+    // nothing comes back, and the handle is consumed
+    auto previous = r.add_block_entity(be_pos, std::move(removed));
+    MC_SCHEM_CHECK(previous == nullptr);
+    MC_SCHEM_CHECK(removed == nullptr);
+    MC_SCHEM_CHECK(r.block_entities_count() == be_count);
+    MC_SCHEM_CHECK(r.get_block_entity(be_pos) not_eq nullptr);
 
     // Pending ticks are keyed by region relative position, so walk the region
     // to find a cell that carries some

@@ -1313,6 +1313,11 @@ class schematic {
         mc_schem_schematic_set_meta_data(this, &new_meta_data);
     return unique_meta_data_ir{previous_value};
   }
+  unique_meta_data_ir set_meta_data(unique_meta_data_ir new_meta_data) & {
+    new_meta_data->swap(*this->metadata());
+    return new_meta_data;
+  }
+
   [[nodiscard]] size_t regions_count() const& {
     return mc_schem_schematic_get_regions_count(this);
   }

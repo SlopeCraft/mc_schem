@@ -15,3 +15,7 @@ add_test(NAME mc_schem-region COMMAND test-region "${CMAKE_SOURCE_DIR}/test_file
 add_executable(test-entity test-entity.cpp)
 target_link_libraries(test-entity PRIVATE mc_schem)
 add_test(NAME mc_schem-entity COMMAND test-entity "${CMAKE_SOURCE_DIR}/test_files")
+
+add_executable(test-block_entity test-block_entity.cpp)
+target_link_libraries(test-block_entity PRIVATE mc_schem)
+add_test(NAME mc_schem-block_entity COMMAND test-block_entity "${CMAKE_SOURCE_DIR}/test_files")

@@ -19,7 +19,7 @@ mod block;
 mod block_entity;
 mod entity;
 mod error;
-mod meta_data;
+mod metadata;
 mod nbt_tags;
 mod region;
 mod schematic;
@@ -175,9 +175,9 @@ pub unsafe extern "C" fn mc_schem_destroy_pending_tick(ptr: *mut PendingTick) {
 pub unsafe extern "C" fn mc_schem_destroy_schematic(ptr: *mut Schematic) {
     let _ = Box::from_raw(ptr);
 }
-// void mc_schem_destroy_meta_data_ir(meta_data_ir* mdata);
+// void mc_schem_destroy_metadata_ir(metadata_ir* mdata);
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_destroy_meta_data_ir(ptr: *mut MetaDataIR) {
+pub unsafe extern "C" fn mc_schem_destroy_metadata_ir(ptr: *mut MetaDataIR) {
     let _ = Box::from_raw(ptr);
 }
 
@@ -211,9 +211,9 @@ pub unsafe extern "C" fn mc_schem_clone_block_entity(ptr: *const BlockEntity) ->
 pub unsafe extern "C" fn mc_schem_clone_pending_tick(ptr: *const PendingTick) -> *mut PendingTick {
     Box::into_raw(Box::from(ptr.as_ref_unchecked().clone()))
 }
-// [[nodiscard]] meta_data_ir* mc_schem_clone_meta_data_ir(const meta_data_ir*);
+// [[nodiscard]] metadata_ir* mc_schem_clone_metadata_ir(const metadata_ir*);
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_clone_meta_data_ir(ptr: *const MetaDataIR) -> *mut MetaDataIR {
+pub unsafe extern "C" fn mc_schem_clone_metadata_ir(ptr: *const MetaDataIR) -> *mut MetaDataIR {
     Box::into_raw(Box::from(ptr.as_ref_unchecked().clone()))
 }
 // [[nodiscard]] schematic* mc_schem_clone_schematic(const schematic*);
@@ -285,10 +285,10 @@ pub unsafe extern "C" fn mc_schem_swap_pending_tick(a: *mut PendingTick, b: *mut
     assert_ne!(b, null_mut());
     std::mem::swap(a.as_mut_unchecked(), b.as_mut_unchecked());
 }
-// void mc_schem_swap_meta_data_ir(meta_data_ir* a, meta_data_ir* b);
+// void mc_schem_swap_metadata_ir(metadata_ir* a, metadata_ir* b);
 
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_swap_meta_data_ir(a: *mut MetaDataIR, b: *mut MetaDataIR) {
+pub unsafe extern "C" fn mc_schem_swap_metadata_ir(a: *mut MetaDataIR, b: *mut MetaDataIR) {
     if a == b {
         return;
     }

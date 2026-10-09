@@ -12,22 +12,22 @@ pub unsafe extern "C" fn mc_schem_create_schematic() -> *mut Schematic {
 }
 
 
-// [[nodiscard]] const meta_data_ir* mc_schem_schematic_get_meta_data(const schematic*);
+// [[nodiscard]] const metadata_ir* mc_schem_schematic_get_metadata(const schematic*);
 
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_get_meta_data(schem: *const Schematic) -> *const MetaDataIR {
+pub unsafe extern "C" fn mc_schem_schematic_get_metadata(schem: *const Schematic) -> *const MetaDataIR {
     &(schem.as_ref_unchecked().metadata)
 }
-// [[nodiscard]] meta_data_ir* mc_schem_schematic_get_meta_data_mut(schematic*);
+// [[nodiscard]] metadata_ir* mc_schem_schematic_get_metadata_mut(schematic*);
 
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_get_meta_data_mut(schem: *mut Schematic) -> *mut MetaDataIR {
+pub unsafe extern "C" fn mc_schem_schematic_get_metadata_mut(schem: *mut Schematic) -> *mut MetaDataIR {
     &mut (schem.as_mut_unchecked().metadata)
 }
 // /// Deep copy given metadata, move old value to heap and return
-// meta_data_ir* mc_schem_schematic_set_meta_data(schematic*, const meta_data_ir*);
+// metadata_ir* mc_schem_schematic_set_metadata(schematic*, const metadata_ir*);
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_set_meta_data(schem: *mut Schematic, new_ir: *const MetaDataIR) -> *mut MetaDataIR {
+pub unsafe extern "C" fn mc_schem_schematic_set_metadata(schem: *mut Schematic, new_ir: *const MetaDataIR) -> *mut MetaDataIR {
     let mut val = new_ir.as_ref_unchecked().clone();
     std::mem::swap(&mut val, &mut (schem.as_mut_unchecked().metadata));
     Box::into_raw(Box::from(val))

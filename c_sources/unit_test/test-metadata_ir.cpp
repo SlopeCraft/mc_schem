@@ -47,7 +47,7 @@ struct meta_snapshot {
   bool operator==(const meta_snapshot&) const = default;
 };
 
-meta_snapshot snapshot_of(const mc_schem::meta_data_ir& md) {
+meta_snapshot snapshot_of(const mc_schem::metadata_ir& md) {
   return meta_snapshot{
       .mc_data_version = md.mc_data_version(),
       .time_created = md.time_created(),
@@ -72,22 +72,22 @@ meta_snapshot snapshot_of(const mc_schem::meta_data_ir& md) {
 /// the meta data of a real file; nothing below depends on the values it happens
 /// to carry, apart from the fields that a litematica file always has.
 /// C functions behind every section:
-///   mc_schem_create_meta_data_ir,
-///   mc_schem_destroy_meta_data_ir (deleter of unique_meta_data_ir),
-///   mc_schem_clone_meta_data_ir,
-///   mc_schem_meta_data_ir_get_mc_data_version,
-///   mc_schem_meta_data_ir_get_time_created,
-///   mc_schem_meta_data_ir_get_time_modified,
-///   mc_schem_meta_data_ir_get_author, mc_schem_meta_data_ir_get_name,
-///   mc_schem_meta_data_ir_get_litematica_version,
-///   mc_schem_meta_data_ir_get_litematica_subversion,
-///   mc_schem_meta_data_ir_get_schem_version,
-///   mc_schem_meta_data_ir_get_schem_offset,
-///   mc_schem_meta_data_ir_get_schem_we_offset,
-///   mc_schem_meta_data_ir_get_schem_world_edit_version,
-///   mc_schem_meta_data_ir_get_schem_editing_platform,
-///   mc_schem_meta_data_ir_get_schem_origin,
-///   mc_schem_meta_data_ir_get_schem_material
+///   mc_schem_create_metadata_ir,
+///   mc_schem_destroy_metadata_ir (deleter of unique_metadata_ir),
+///   mc_schem_clone_metadata_ir,
+///   mc_schem_metadata_ir_get_mc_data_version,
+///   mc_schem_metadata_ir_get_time_created,
+///   mc_schem_metadata_ir_get_time_modified,
+///   mc_schem_metadata_ir_get_author, mc_schem_metadata_ir_get_name,
+///   mc_schem_metadata_ir_get_litematica_version,
+///   mc_schem_metadata_ir_get_litematica_subversion,
+///   mc_schem_metadata_ir_get_schem_version,
+///   mc_schem_metadata_ir_get_schem_offset,
+///   mc_schem_metadata_ir_get_schem_we_offset,
+///   mc_schem_metadata_ir_get_schem_world_edit_version,
+///   mc_schem_metadata_ir_get_schem_editing_platform,
+///   mc_schem_metadata_ir_get_schem_origin,
+///   mc_schem_metadata_ir_get_schem_material
 int main(int argc, char** argv) {
   using namespace mc_schem;
 
@@ -97,9 +97,9 @@ int main(int argc, char** argv) {
   MC_SCHEM_CHECK(argc >= 2);
   const std::filesystem::path test_files_dir{argv[1]};
 
-  // mc_schem_create_meta_data_ir: whatever data version goes in comes back out
+  // mc_schem_create_metadata_ir: whatever data version goes in comes back out
   for (const int32_t data_version : {0, 1, 1343, 3578}) {
-    auto created = meta_data_ir::create(data_version);
+    auto created = metadata_ir::create(data_version);
     MC_SCHEM_CHECK(created.has_value());
     MC_SCHEM_CHECK((*created)->mc_data_version() == data_version);
   }
@@ -107,9 +107,9 @@ int main(int argc, char** argv) {
   // The other fields of a created meta data are the defaults of the Rust side
   // constructor
   {
-    auto created = meta_data_ir::create(3578);
+    auto created = metadata_ir::create(3578);
     MC_SCHEM_CHECK(created.has_value());
-    const meta_data_ir& md = **created;
+    const metadata_ir& md = **created;
 
     // Both timestamps are set to the current time in milliseconds
     MC_SCHEM_CHECK(md.time_created() > 0);
@@ -125,7 +125,7 @@ int main(int argc, char** argv) {
     MC_SCHEM_CHECK(md.schem_material() == "Alpha");
     MC_SCHEM_CHECK(not md.schem_editing_platform().has_value());
 
-    // mc_schem_clone_meta_data_ir: a copy reports the very same values
+    // mc_schem_clone_metadata_ir: a copy reports the very same values
     auto copy = md.clone();
     MC_SCHEM_CHECK(copy);
     MC_SCHEM_CHECK(snapshot_of(*copy) == snapshot_of(md));
@@ -136,7 +136,7 @@ int main(int argc, char** argv) {
     auto schem = load_schematic_or_abort(
         test_files_dir, "litematica/multi-region01.litematic");
     const schematic& cs = *schem;
-    const meta_data_ir* loaded = cs.metadata();
+    const metadata_ir* loaded = cs.metadata();
     MC_SCHEM_CHECK(loaded not_eq nullptr);
 
     // A litematica file always carries its data version and litematica version
@@ -156,15 +156,15 @@ int main(int argc, char** argv) {
     MC_SCHEM_CHECK(snapshot_of(*copy) == snapshot_of(*loaded));
   }
 
-  // mc_schem_swap_meta_data_ir
+  // mc_schem_swap_metadata_ir
   {
-    auto first = meta_data_ir::create(111);
+    auto first = metadata_ir::create(111);
     MC_SCHEM_CHECK(first.has_value());
-    auto second = meta_data_ir::create(222);
+    auto second = metadata_ir::create(222);
     MC_SCHEM_CHECK(second.has_value());
 
-    const unique_meta_data_ir& first_handle = *first;
-    const unique_meta_data_ir& second_handle = *second;
+    const unique_metadata_ir& first_handle = *first;
+    const unique_metadata_ir& second_handle = *second;
     MC_SCHEM_CHECK(first_handle->mc_data_version() == 111);
     MC_SCHEM_CHECK(second_handle->mc_data_version() == 222);
 

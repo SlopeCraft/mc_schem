@@ -67,7 +67,7 @@ class entity;
 class block_entity;
 class pending_tick;
 class region;
-class meta_data_ir;
+class metadata_ir;
 class schematic;
 class nbt_hashmap;
 
@@ -235,7 +235,7 @@ void mc_schem_destroy_region(region* region);
 void mc_schem_destroy_entity(entity* entity);
 void mc_schem_destroy_block_entity(block_entity* be);
 void mc_schem_destroy_pending_tick(pending_tick* tick);
-void mc_schem_destroy_meta_data_ir(meta_data_ir* mdata);
+void mc_schem_destroy_metadata_ir(metadata_ir* mdata);
 void mc_schem_destroy_schematic(schematic* schematic);
 void mc_schem_destroy_nbt_hashmap(nbt_hashmap* hashmap);
 
@@ -246,7 +246,7 @@ void mc_schem_destroy_nbt_hashmap(nbt_hashmap* hashmap);
 [[nodiscard]] entity* mc_schem_clone_entity(const entity*);
 [[nodiscard]] block_entity* mc_schem_clone_block_entity(const block_entity*);
 [[nodiscard]] pending_tick* mc_schem_clone_pending_tick(const pending_tick*);
-[[nodiscard]] meta_data_ir* mc_schem_clone_meta_data_ir(const meta_data_ir*);
+[[nodiscard]] metadata_ir* mc_schem_clone_metadata_ir(const metadata_ir*);
 [[nodiscard]] schematic* mc_schem_clone_schematic(const schematic*);
 [[nodiscard]] nbt_hashmap* mc_schem_clone_nbt_hashmap(const nbt_hashmap*);
 
@@ -256,7 +256,7 @@ void mc_schem_swap_region(region* a, region* b);
 void mc_schem_swap_entity(entity* a, entity* b);
 void mc_schem_swap_block_entity(block_entity* a, block_entity* b);
 void mc_schem_swap_pending_tick(pending_tick* a, pending_tick* b);
-void mc_schem_swap_meta_data_ir(meta_data_ir* a, meta_data_ir* b);
+void mc_schem_swap_metadata_ir(metadata_ir* a, metadata_ir* b);
 void mc_schem_swap_nbt_hashmap(nbt_hashmap* a, nbt_hashmap* b);
 void mc_schem_swap_schematic(schematic* a, schematic* b);
 
@@ -430,44 +430,44 @@ nbt_hashmap* mc_schem_block_entity_set_tags(block_entity*,
                                             const nbt_hashmap* new_value);
 // Meta data ir
 ////////////////////////////////////////////////////////////////////////////////
-[[nodiscard]] meta_data_ir* mc_schem_create_meta_data_ir(
+[[nodiscard]] metadata_ir* mc_schem_create_metadata_ir(
     int32_t data_version, error** dest_err_non_null);
 
-int32_t mc_schem_meta_data_ir_get_mc_data_version(const meta_data_ir*);
-int64_t mc_schem_meta_data_ir_get_time_created(const meta_data_ir*);
-int64_t mc_schem_meta_data_ir_get_time_modified(const meta_data_ir*);
-void mc_schem_meta_data_ir_get_author(const meta_data_ir*,
+int32_t mc_schem_metadata_ir_get_mc_data_version(const metadata_ir*);
+int64_t mc_schem_metadata_ir_get_time_created(const metadata_ir*);
+int64_t mc_schem_metadata_ir_get_time_modified(const metadata_ir*);
+void mc_schem_metadata_ir_get_author(const metadata_ir*,
                                       const rust_string_receiver* dest);
-void mc_schem_meta_data_ir_get_name(const meta_data_ir*,
+void mc_schem_metadata_ir_get_name(const metadata_ir*,
                                     const rust_string_receiver* dest);
-int32_t mc_schem_meta_data_ir_get_litematica_version(const meta_data_ir*);
-int32_t mc_schem_meta_data_ir_get_litematica_subversion(
-    const meta_data_ir*, bool* dest_exist_non_null);
-int32_t mc_schem_meta_data_ir_get_schem_version(const meta_data_ir*);
-void mc_schem_meta_data_ir_get_schem_offset(const meta_data_ir*,
+int32_t mc_schem_metadata_ir_get_litematica_version(const metadata_ir*);
+int32_t mc_schem_metadata_ir_get_litematica_subversion(
+    const metadata_ir*, bool* dest_exist_non_null);
+int32_t mc_schem_metadata_ir_get_schem_version(const metadata_ir*);
+void mc_schem_metadata_ir_get_schem_offset(const metadata_ir*,
                                             int32_t* dest_x, int32_t* dest_y,
                                             int32_t* dest_z);
-bool mc_schem_meta_data_ir_get_schem_we_offset(const meta_data_ir*,
+bool mc_schem_metadata_ir_get_schem_we_offset(const metadata_ir*,
                                                int32_t* dest_x, int32_t* dest_y,
                                                int32_t* dest_z);
-bool mc_schem_meta_data_ir_get_schem_world_edit_version(
-    const meta_data_ir*, const rust_string_receiver*);
-bool mc_schem_meta_data_ir_get_schem_editing_platform(
-    const meta_data_ir*, const rust_string_receiver*);
-bool mc_schem_meta_data_ir_get_schem_origin(const meta_data_ir*,
+bool mc_schem_metadata_ir_get_schem_world_edit_version(
+    const metadata_ir*, const rust_string_receiver*);
+bool mc_schem_metadata_ir_get_schem_editing_platform(
+    const metadata_ir*, const rust_string_receiver*);
+bool mc_schem_metadata_ir_get_schem_origin(const metadata_ir*,
                                             int32_t* dest_x, int32_t* dest_y,
                                             int32_t* dest_z);
-void mc_schem_meta_data_ir_get_schem_material(const meta_data_ir*,
+void mc_schem_metadata_ir_get_schem_material(const metadata_ir*,
                                               const rust_string_receiver*);
 // Schematic
 ////////////////////////////////////////////////////////////////////////////////
 /// Create and return an empty schematic, with default metadata
 [[nodiscard]] schematic* mc_schem_create_schematic();
-[[nodiscard]] const meta_data_ir* mc_schem_schematic_get_meta_data(
+[[nodiscard]] const metadata_ir* mc_schem_schematic_get_metadata(
     const schematic*);
-[[nodiscard]] meta_data_ir* mc_schem_schematic_get_meta_data_mut(schematic*);
+[[nodiscard]] metadata_ir* mc_schem_schematic_get_metadata_mut(schematic*);
 /// Deep copy given meta data, move old value to heap and return
-meta_data_ir* mc_schem_schematic_set_meta_data(schematic*, const meta_data_ir*);
+metadata_ir* mc_schem_schematic_set_metadata(schematic*, const metadata_ir*);
 [[nodiscard]] size_t mc_schem_schematic_get_regions_count(const schematic*);
 [[nodiscard]] const region* mc_schem_schematic_get_region(const schematic*,
                                                           size_t idx);
@@ -565,8 +565,8 @@ class deleter {
     mc_schem_destroy_pending_tick(ptr);
   }
   static void operator()(schematic* ptr) { mc_schem_destroy_schematic(ptr); }
-  static void operator()(meta_data_ir* ptr) {
-    mc_schem_destroy_meta_data_ir(ptr);
+  static void operator()(metadata_ir* ptr) {
+    mc_schem_destroy_metadata_ir(ptr);
   }
   static void operator()(nbt_hashmap* ptr) {
     mc_schem_destroy_nbt_hashmap(ptr);
@@ -580,7 +580,7 @@ using unique_pending_tick = std::unique_ptr<pending_tick, deleter>;
 using unique_schematic = std::unique_ptr<schematic, deleter>;
 using unique_error = std::unique_ptr<error, deleter>;
 using unique_region = std::unique_ptr<region, deleter>;
-using unique_meta_data_ir = std::unique_ptr<meta_data_ir, deleter>;
+using unique_metadata_ir = std::unique_ptr<metadata_ir, deleter>;
 using unique_nbt_hashmap = std::unique_ptr<nbt_hashmap, deleter>;
 
 /// Hashmap of nbt tags
@@ -1175,77 +1175,77 @@ class block_entity {
 /// Intermediate representation of schematic meta data
 /// Note: sizeof is fake. Never construct from C/C++, only construct,
 /// allocate, destroy and deallocate in Rust. Always use `this` as handle.
-class meta_data_ir {
+class metadata_ir {
  public:
-  meta_data_ir() = delete;
-  meta_data_ir(const meta_data_ir&) = delete;
-  meta_data_ir(meta_data_ir&&) = delete;
-  meta_data_ir& operator=(const meta_data_ir&) = delete;
-  meta_data_ir& operator=(meta_data_ir&&) = delete;
-  ~meta_data_ir() = delete;
+  metadata_ir() = delete;
+  metadata_ir(const metadata_ir&) = delete;
+  metadata_ir(metadata_ir&&) = delete;
+  metadata_ir& operator=(const metadata_ir&) = delete;
+  metadata_ir& operator=(metadata_ir&&) = delete;
+  ~metadata_ir() = delete;
 
-  [[nodiscard]] static std::expected<unique_meta_data_ir, unique_error> create(
+  [[nodiscard]] static std::expected<unique_metadata_ir, unique_error> create(
       int32_t data_version) {
     error* dest_err = nullptr;
-    if (auto result = mc_schem_create_meta_data_ir(data_version, &dest_err)) {
+    if (auto result = mc_schem_create_metadata_ir(data_version, &dest_err)) {
       assert(dest_err == nullptr);
-      return unique_meta_data_ir{result};
+      return unique_metadata_ir{result};
     }
     assert(dest_err);
     return std::unexpected{unique_error{dest_err}};
   }
 
   [[nodiscard]] auto clone() const& {
-    return unique_meta_data_ir{mc_schem_clone_meta_data_ir(this)};
+    return unique_metadata_ir{mc_schem_clone_metadata_ir(this)};
   }
 
-  void swap(meta_data_ir& another) & {
-    mc_schem_swap_meta_data_ir(this, &another);
+  void swap(metadata_ir& another) & {
+    mc_schem_swap_metadata_ir(this, &another);
   }
 
   [[nodiscard]] int32_t mc_data_version() const& {
-    return mc_schem_meta_data_ir_get_mc_data_version(this);
+    return mc_schem_metadata_ir_get_mc_data_version(this);
   }
   [[nodiscard]] int64_t time_created() const& {
-    return mc_schem_meta_data_ir_get_time_created(this);
+    return mc_schem_metadata_ir_get_time_created(this);
   }
   [[nodiscard]] int64_t time_modified() const& {
-    return mc_schem_meta_data_ir_get_time_modified(this);
+    return mc_schem_metadata_ir_get_time_modified(this);
   }
   [[nodiscard]] std::string author() const& {
     std::string ret;
     rust_string_receiver rsr{ret};
-    mc_schem_meta_data_ir_get_author(this, &rsr);
+    mc_schem_metadata_ir_get_author(this, &rsr);
     return ret;
   }
   [[nodiscard]] std::string name() const& {
     std::string ret;
     rust_string_receiver rsr{ret};
-    mc_schem_meta_data_ir_get_name(this, &rsr);
+    mc_schem_metadata_ir_get_name(this, &rsr);
     return ret;
   }
   [[nodiscard]] int32_t litematica_version() const& {
-    return mc_schem_meta_data_ir_get_litematica_version(this);
+    return mc_schem_metadata_ir_get_litematica_version(this);
   }
   [[nodiscard]] std::optional<int32_t> litematica_subversion() const& {
     bool exist{false};
     const auto ret =
-        mc_schem_meta_data_ir_get_litematica_subversion(this, &exist);
+        mc_schem_metadata_ir_get_litematica_subversion(this, &exist);
     if (exist) return ret;
     return std::nullopt;
   }
   [[nodiscard]] int32_t schem_version() const& {
-    return mc_schem_meta_data_ir_get_schem_version(this);
+    return mc_schem_metadata_ir_get_schem_version(this);
   }
   [[nodiscard]] std::array<int32_t, 3> schem_offset() const& {
     int32_t x, y, z;
-    mc_schem_meta_data_ir_get_schem_offset(this, &x, &y, &z);
+    mc_schem_metadata_ir_get_schem_offset(this, &x, &y, &z);
     return {x, y, z};
   }
   [[nodiscard]] std::optional<std::array<int32_t, 3>> schem_we_offset() const& {
     int32_t x, y, z;
     const bool exist =
-        mc_schem_meta_data_ir_get_schem_we_offset(this, &x, &y, &z);
+        mc_schem_metadata_ir_get_schem_we_offset(this, &x, &y, &z);
     if (exist) return std::array<int32_t, 3>{x, y, z};
     return std::nullopt;
   }
@@ -1253,27 +1253,27 @@ class meta_data_ir {
     std::string ret;
     rust_string_receiver rsr{ret};
     const bool exist =
-        mc_schem_meta_data_ir_get_schem_world_edit_version(this, &rsr);
+        mc_schem_metadata_ir_get_schem_world_edit_version(this, &rsr);
     if (exist) return ret;
     return std::nullopt;
   }
   [[nodiscard]] std::optional<std::array<int32_t, 3>> schem_origin() const& {
     int32_t x, y, z;
-    const bool exist = mc_schem_meta_data_ir_get_schem_origin(this, &x, &y, &z);
+    const bool exist = mc_schem_metadata_ir_get_schem_origin(this, &x, &y, &z);
     if (exist) return std::array<int32_t, 3>{x, y, z};
     return std::nullopt;
   }
   [[nodiscard]] std::string schem_material() const& {
     std::string ret;
     rust_string_receiver rsr{ret};
-    mc_schem_meta_data_ir_get_schem_material(this, &rsr);
+    mc_schem_metadata_ir_get_schem_material(this, &rsr);
     return ret;
   }
   [[nodiscard]] std::optional<std::string> schem_editing_platform() const& {
     std::string ret;
     rust_string_receiver rsr{ret};
     const bool exist =
-        mc_schem_meta_data_ir_get_schem_editing_platform(this, &rsr);
+        mc_schem_metadata_ir_get_schem_editing_platform(this, &rsr);
     if (exist) return ret;
     return std::nullopt;
   }
@@ -1301,21 +1301,21 @@ class schematic {
 
   void swap(schematic& another) & { mc_schem_swap_schematic(this, &another); }
 
-  [[nodiscard]] const meta_data_ir* metadata() const& {
-    return mc_schem_schematic_get_meta_data(this);
+  [[nodiscard]] const metadata_ir* metadata() const& {
+    return mc_schem_schematic_get_metadata(this);
   }
-  [[nodiscard]] meta_data_ir* metadata() & {
-    return mc_schem_schematic_get_meta_data_mut(this);
+  [[nodiscard]] metadata_ir* metadata() & {
+    return mc_schem_schematic_get_metadata_mut(this);
   }
   /// Deep copy given new value, move previous value onto heap and return
-  unique_meta_data_ir set_meta_data(const meta_data_ir& new_meta_data) & {
+  unique_metadata_ir set_metadata(const metadata_ir& new_metadata) & {
     auto previous_value =
-        mc_schem_schematic_set_meta_data(this, &new_meta_data);
-    return unique_meta_data_ir{previous_value};
+        mc_schem_schematic_set_metadata(this, &new_metadata);
+    return unique_metadata_ir{previous_value};
   }
-  unique_meta_data_ir set_meta_data(unique_meta_data_ir new_meta_data) & {
-    new_meta_data->swap(*this->metadata());
-    return new_meta_data;
+  unique_metadata_ir set_metadata(unique_metadata_ir new_metadata) & {
+    new_metadata->swap(*this->metadata());
+    return new_metadata;
   }
 
   [[nodiscard]] size_t regions_count() const& {

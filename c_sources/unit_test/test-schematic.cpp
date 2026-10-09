@@ -289,8 +289,8 @@ void check_reader_rejects_gzip(const std::string& path) {
 /// C functions behind every section:
 ///   mc_schem_create_schematic, mc_schem_destroy_schematic (deleter),
 ///   mc_schem_clone_schematic,
-///   mc_schem_schematic_get_meta_data, mc_schem_schematic_get_meta_data_mut,
-///   mc_schem_schematic_set_meta_data,
+///   mc_schem_schematic_get_metadata, mc_schem_schematic_get_metadata_mut,
+///   mc_schem_schematic_set_metadata,
 ///   mc_schem_schematic_get_regions_count, mc_schem_schematic_get_region,
 ///   mc_schem_schematic_get_region_mut, mc_schem_schematic_remove_region,
 ///   mc_schem_schematic_clear_all_regions, mc_schem_schematic_insert_region,
@@ -428,13 +428,13 @@ int main(int argc, char** argv) {
     MC_SCHEM_CHECK(schem->get_region(0)->name() == "first");
 
     // the meta data accessors: setting deep copies and hands the old one back
-    auto fresh_meta = meta_data_ir::create(111);
+    auto fresh_meta = metadata_ir::create(111);
     MC_SCHEM_CHECK(fresh_meta.has_value());
-    auto other_meta = meta_data_ir::create(222);
+    auto other_meta = metadata_ir::create(222);
     MC_SCHEM_CHECK(other_meta.has_value());
 
     const int32_t original_version = schem->metadata()->mc_data_version();
-    auto previous = schem->set_meta_data(**other_meta);
+    auto previous = schem->set_metadata(**other_meta);
     MC_SCHEM_CHECK(previous not_eq nullptr);
     MC_SCHEM_CHECK(previous->mc_data_version() == original_version);
     MC_SCHEM_CHECK(schem->metadata()->mc_data_version() == 222);
@@ -443,7 +443,7 @@ int main(int argc, char** argv) {
     // and the mutable accessor hands out the very same object
     MC_SCHEM_CHECK(schem->metadata() == std::as_const(*schem).metadata());
 
-    MC_SCHEM_CHECK(schem->set_meta_data(**fresh_meta) not_eq nullptr);
+    MC_SCHEM_CHECK(schem->set_metadata(**fresh_meta) not_eq nullptr);
     MC_SCHEM_CHECK(schem->metadata()->mc_data_version() == 111);
 
     schem->clear_all_regions();

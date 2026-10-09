@@ -22,6 +22,9 @@ pub unsafe extern "C" fn mc_schem_block_entity_get_tags_mut(be: *mut BlockEntity
 // nbt_hashmap* mc_schem_block_entity_set_tags(block_entity*,const nbt_hashmap* new_value);
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_block_entity_set_tags(be: *mut BlockEntity, new_value: *const HashMap<String, Value>) -> *mut HashMap<String, Value> {
+    assert!(!new_value.is_null());
+    // Prevent self-copy
+    assert_ne!(new_value, &(be.as_ref_unchecked().tags));
     let mut ret = new_value.as_ref_unchecked().clone();
     std::mem::swap(&mut ret, &mut (be.as_mut_unchecked().tags));
     Box::into_raw(Box::new(ret))

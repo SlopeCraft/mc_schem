@@ -52,16 +52,3 @@ pub unsafe extern "C" fn mc_schem_entity_set_tags(entity: *mut Entity, new_value
     let b = Box::from(new);
     Box::into_raw(b)
 }
-
-/// Move new_value into entity, returns old value by box. new_value must be from
-/// box, and will be invalid after this operation. This prevents deep copy
-// nbt_hashmap* mc_schem_entity_set_tags_move(entity*, nbt_hashmap* new_value);
-#[no_mangle]
-pub unsafe extern "C" fn mc_schem_entity_set_tags_move(entity: *mut Entity, new_value: *mut HashMap<String, Value>) -> *mut HashMap<String, Value> {
-    assert!(!new_value.is_null());
-    // Prevent self-swapping
-    assert_ne!(new_value as *const HashMap<String, Value>, &(entity.as_ref_unchecked().tags));
-    let mut ret = Box::from_raw(new_value);
-    std::mem::swap(ret.as_mut(), &mut (entity.as_mut_unchecked().tags));
-    Box::into_raw(ret)
-}

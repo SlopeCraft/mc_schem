@@ -1100,9 +1100,11 @@ class entity {
     return unique_nbt_hashmap{old_value};
   }
   /// Move new_value into entity, move old value to box and return it.
+  /// Expected usage: set_tags(std::move(new-value-in-unique))
   unique_nbt_hashmap set_tags(unique_nbt_hashmap new_value) & {
     assert(new_value);
-#warning "TODO: rewrite"
+    this->tags()->swap(*new_value);
+    return new_value;
   }
 };
 /// Block entity in Minecraft (also known as tile entity)
@@ -1138,6 +1140,13 @@ class block_entity {
   unique_nbt_hashmap set_tags(const nbt_hashmap& new_value) & {
     auto old_value = mc_schem_block_entity_set_tags(this, &new_value);
     return unique_nbt_hashmap{old_value};
+  }
+  /// Move new_value into entity, move old value to box and return it.
+  /// Expected usage: set_tags(std::move(new-value-in-unique))
+  unique_nbt_hashmap set_tags(unique_nbt_hashmap new_value) & {
+    assert(new_value);
+    this->tags()->swap(*new_value);
+    return new_value;
   }
 };
 /// Intermediate representation of schematic meta data

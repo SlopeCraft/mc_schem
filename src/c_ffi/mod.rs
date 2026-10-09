@@ -27,7 +27,7 @@ mod schematic;
 use crate::block::Block;
 use crate::error::Error;
 use crate::region::{BlockEntity, HasPalette, PendingTick};
-use crate::schem::{MetaDataIR, Schematic};
+use crate::schem::{LitematicaMetaData, MetaDataIR, Schematic, VanillaStructureMetaData, WE12MetaData, WE13MetaData};
 use crate::{Entity, Region};
 use fastnbt::Value;
 use std::collections::HashMap;
@@ -183,6 +183,28 @@ pub unsafe extern "C" fn mc_schem_destroy_metadata_ir(ptr: *mut MetaDataIR) {
 
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_destroy_nbt_hashmap(ptr: *mut HashMap<String, Value>) {
+    let _ = Box::from_raw(ptr);
+}
+
+
+// void mc_schem_destroy_litematica_metadata(litematica_metadata* mdata);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_destroy_litematica_metadata(ptr: *mut LitematicaMetaData) {
+    let _ = Box::from_raw(ptr);
+}
+// void mc_schem_destroy_world_edit12_metadata(world_edit12_metadata* mdata);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_destroy_world_edit12_metadata(ptr: *mut WE12MetaData) {
+    let _ = Box::from_raw(ptr);
+}
+// void mc_schem_destroy_world_edit13_metadata(world_edit13_metadata* mdata);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_destroy_world_edit13_metadata(ptr: *mut WE13MetaData) {
+    let _ = Box::from_raw(ptr);
+}
+// void mc_schem_destroy_vanilla_structure_metadata(vanilla_structure_metadata* mdata);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_destroy_vanilla_structure_metadata(ptr: *mut VanillaStructureMetaData) {
     let _ = Box::from_raw(ptr);
 }
 

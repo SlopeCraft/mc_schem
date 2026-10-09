@@ -5,6 +5,7 @@ use std::ptr::{null, null_mut};
 use crate::block::Block;
 use crate::{BlockEntity, Error, LitematicaSaveOption, PendingTick, Region, VanillaStructureLoadOption, WorldEdit12LoadOption, WorldEdit13LoadOption, WorldEdit13SaveOption, LitematicaLoadOption, MetaDataIR, Schematic, VanillaStructureSaveOption};
 use crate::c_ffi::{rust_reader, rust_writer};
+use crate::schem::{LitematicaMetaData, VanillaStructureMetaData, WE12MetaData, WE13MetaData};
 
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_create_schematic() -> *mut Schematic {
@@ -193,14 +194,16 @@ pub unsafe extern "C" fn mc_schem_schematic_merge_regions(schem: *mut Schematic,
 /// null and sets error dest
 // [[nodiscard]] schematic* mc_schem_schematic_load_litematica_from_reader(rust_reader* src, const litematica_load_option &,error* * error_dest_nonnull);
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_load_litematica_from_reader(src: *mut rust_reader, option: *const LitematicaLoadOption, error_dest: *mut *mut Error) -> *mut Schematic {
+pub unsafe extern "C" fn mc_schem_schematic_load_litematica_from_reader(src: *mut rust_reader, option: *const LitematicaLoadOption, error_dest: *mut *mut Error, raw_metadata_dest: *mut *mut LitematicaMetaData) -> *mut Schematic {
     match Schematic::from_litematica_reader(src.as_mut_unchecked(), option.as_ref_unchecked()) {
-        Ok(schem) => {
+        Ok((schem, md)) => {
             *error_dest = null_mut();
-            Box::into_raw(Box::from(schem.0))
+            *raw_metadata_dest = Box::into_raw(Box::from(md));
+            Box::into_raw(Box::from(schem))
         },
         Err(err) => {
             *error_dest = Box::into_raw(Box::from(err));
+            *raw_metadata_dest = null_mut();
             null_mut()
         }
     }
@@ -208,14 +211,16 @@ pub unsafe extern "C" fn mc_schem_schematic_load_litematica_from_reader(src: *mu
 // /// Load vanilla structure file (*.nbt)
 // [[nodiscard]] schematic* mc_schem_schematic_load_vanilla_structure_from_reader(rust_reader* src, const vanilla_structure_load_option &,error* * error_dest_nonnull);
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_load_vanilla_structure_from_reader(src: *mut rust_reader, option: *const VanillaStructureLoadOption, error_dest: *mut *mut Error) -> *mut Schematic {
+pub unsafe extern "C" fn mc_schem_schematic_load_vanilla_structure_from_reader(src: *mut rust_reader, option: *const VanillaStructureLoadOption, error_dest: *mut *mut Error, raw_metadata_dest: *mut *mut VanillaStructureMetaData) -> *mut Schematic {
     match Schematic::from_vanilla_structure_reader(src.as_mut_unchecked(), option.as_ref_unchecked()) {
-        Ok(schem) => {
+        Ok((schem, md)) => {
             *error_dest = null_mut();
-            Box::into_raw(Box::from(schem.0))
+            *raw_metadata_dest = Box::into_raw(Box::from(md));
+            Box::into_raw(Box::from(schem))
         },
         Err(err) => {
             *error_dest = Box::into_raw(Box::from(err));
+            *raw_metadata_dest = null_mut();
             null_mut()
         }
     }
@@ -223,14 +228,16 @@ pub unsafe extern "C" fn mc_schem_schematic_load_vanilla_structure_from_reader(s
 // /// Load WorldEdit 1.13+ (*.schem)
 // [[nodiscard]] schematic* mc_schem_schematic_load_world_edit13_from_reader(rust_reader* src, const world_edit13_load_option &,error* * error_dest_nonnull);
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_load_world_edit13_from_reader(src: *mut rust_reader, option: *const WorldEdit13LoadOption, error_dest: *mut *mut Error) -> *mut Schematic {
+pub unsafe extern "C" fn mc_schem_schematic_load_world_edit13_from_reader(src: *mut rust_reader, option: *const WorldEdit13LoadOption, error_dest: *mut *mut Error, raw_metadata_dest: *mut *mut WE13MetaData) -> *mut Schematic {
     match Schematic::from_world_edit_13_reader(src.as_mut_unchecked(), option.as_ref_unchecked()) {
-        Ok(schem) => {
+        Ok((schem, md)) => {
             *error_dest = null_mut();
-            Box::into_raw(Box::from(schem.0))
+            *raw_metadata_dest = Box::into_raw(Box::from(md));
+            Box::into_raw(Box::from(schem))
         },
         Err(err) => {
             *error_dest = Box::into_raw(Box::from(err));
+            *raw_metadata_dest = null_mut();
             null_mut()
         }
     }
@@ -238,14 +245,16 @@ pub unsafe extern "C" fn mc_schem_schematic_load_world_edit13_from_reader(src: *
 // /// Load WorldEdit 1.12 (*.schematic)
 // [[nodiscard]] schematic* mc_schem_schematic_load_world_edit12_from_reader(rust_reader* src, const world_edit12_load_option &,error* * error_dest_nonnull);
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_load_world_edit12_from_reader(src: *mut rust_reader, option: *const WorldEdit12LoadOption, error_dest: *mut *mut Error) -> *mut Schematic {
+pub unsafe extern "C" fn mc_schem_schematic_load_world_edit12_from_reader(src: *mut rust_reader, option: *const WorldEdit12LoadOption, error_dest: *mut *mut Error, raw_metadata_dest: *mut *mut WE12MetaData) -> *mut Schematic {
     match Schematic::from_world_edit_12_reader(src.as_mut_unchecked(), option.as_ref_unchecked()) {
-        Ok(schem) => {
+        Ok((schem, md, _)) => {
             *error_dest = null_mut();
-            Box::into_raw(Box::from(schem.0))
+            *raw_metadata_dest = Box::into_raw(Box::from(md));
+            Box::into_raw(Box::from(schem))
         },
         Err(err) => {
             *error_dest = Box::into_raw(Box::from(err));
+            *raw_metadata_dest = null_mut();
             null_mut()
         }
     }

@@ -32,6 +32,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <type_traits>
 #include <vector>
 
@@ -70,6 +71,11 @@ class region;
 class metadata_ir;
 class schematic;
 class nbt_hashmap;
+// Place holders for raw metadata. TODO: add real APIs for them
+class litematica_metadata;
+class world_edit12_metadata;
+class world_edit13_metadata;
+class vanilla_structure_metadata;
 
 /// Copy rust str to std::string
 struct rust_string_receiver {
@@ -238,6 +244,11 @@ void mc_schem_destroy_pending_tick(pending_tick* tick);
 void mc_schem_destroy_metadata_ir(metadata_ir* mdata);
 void mc_schem_destroy_schematic(schematic* schematic);
 void mc_schem_destroy_nbt_hashmap(nbt_hashmap* hashmap);
+void mc_schem_destroy_litematica_metadata(litematica_metadata* mdata);
+void mc_schem_destroy_world_edit12_metadata(world_edit12_metadata* mdata);
+void mc_schem_destroy_world_edit13_metadata(world_edit13_metadata* mdata);
+void mc_schem_destroy_vanilla_structure_metadata(
+    vanilla_structure_metadata* mdata);
 
 // clone
 [[nodiscard]] block* mc_schem_clone_block(const block*);
@@ -437,28 +448,26 @@ int32_t mc_schem_metadata_ir_get_mc_data_version(const metadata_ir*);
 int64_t mc_schem_metadata_ir_get_time_created(const metadata_ir*);
 int64_t mc_schem_metadata_ir_get_time_modified(const metadata_ir*);
 void mc_schem_metadata_ir_get_author(const metadata_ir*,
-                                      const rust_string_receiver* dest);
+                                     const rust_string_receiver* dest);
 void mc_schem_metadata_ir_get_name(const metadata_ir*,
-                                    const rust_string_receiver* dest);
+                                   const rust_string_receiver* dest);
 int32_t mc_schem_metadata_ir_get_litematica_version(const metadata_ir*);
 int32_t mc_schem_metadata_ir_get_litematica_subversion(
     const metadata_ir*, bool* dest_exist_non_null);
 int32_t mc_schem_metadata_ir_get_schem_version(const metadata_ir*);
-void mc_schem_metadata_ir_get_schem_offset(const metadata_ir*,
-                                            int32_t* dest_x, int32_t* dest_y,
-                                            int32_t* dest_z);
+void mc_schem_metadata_ir_get_schem_offset(const metadata_ir*, int32_t* dest_x,
+                                           int32_t* dest_y, int32_t* dest_z);
 bool mc_schem_metadata_ir_get_schem_we_offset(const metadata_ir*,
-                                               int32_t* dest_x, int32_t* dest_y,
-                                               int32_t* dest_z);
+                                              int32_t* dest_x, int32_t* dest_y,
+                                              int32_t* dest_z);
 bool mc_schem_metadata_ir_get_schem_world_edit_version(
     const metadata_ir*, const rust_string_receiver*);
 bool mc_schem_metadata_ir_get_schem_editing_platform(
     const metadata_ir*, const rust_string_receiver*);
-bool mc_schem_metadata_ir_get_schem_origin(const metadata_ir*,
-                                            int32_t* dest_x, int32_t* dest_y,
-                                            int32_t* dest_z);
+bool mc_schem_metadata_ir_get_schem_origin(const metadata_ir*, int32_t* dest_x,
+                                           int32_t* dest_y, int32_t* dest_z);
 void mc_schem_metadata_ir_get_schem_material(const metadata_ir*,
-                                              const rust_string_receiver*);
+                                             const rust_string_receiver*);
 // Schematic
 ////////////////////////////////////////////////////////////////////////////////
 /// Create and return an empty schematic, with default metadata
@@ -520,20 +529,23 @@ void mc_schem_schematic_merge_regions(schematic*,
 /// Load litematica (*litematic). Returns schematic if ok. Otherwise returns
 /// null and sets error dest
 [[nodiscard]] schematic* mc_schem_schematic_load_litematica_from_reader(
-    rust_reader* src, const litematica_load_option*,
-    error** error_dest_nonnull);
+    rust_reader* src, const litematica_load_option*, error** error_dest_nonnull,
+    litematica_metadata** raw_metadata_dest_nonnull);
 /// Load vanilla structure file (*.nbt)
 [[nodiscard]] schematic* mc_schem_schematic_load_vanilla_structure_from_reader(
     rust_reader* src, const vanilla_structure_load_option*,
-    error** error_dest_nonnull);
+    error** error_dest_nonnull,
+    vanilla_structure_metadata** raw_metadata_dest_nonnull);
 /// Load WorldEdit 1.13+ (*.schem)
 [[nodiscard]] schematic* mc_schem_schematic_load_world_edit13_from_reader(
     rust_reader* src, const world_edit13_load_option*,
-    error** error_dest_nonnull);
+    error** error_dest_nonnull,
+    world_edit13_metadata** raw_metadata_dest_nonnull);
 /// Load WorldEdit 1.12 (*.schematic)
 [[nodiscard]] schematic* mc_schem_schematic_load_world_edit12_from_reader(
     rust_reader* src, const world_edit12_load_option*,
-    error** error_dest_nonnull);
+    error** error_dest_nonnull,
+    world_edit12_metadata** raw_metadata_dest_nonnull);
 
 /// Write as litematica (*.litematic). Returns null if ok. Otherwise return an
 /// error
@@ -571,6 +583,18 @@ class deleter {
   static void operator()(nbt_hashmap* ptr) {
     mc_schem_destroy_nbt_hashmap(ptr);
   }
+  static void operator()(world_edit12_metadata* ptr) {
+    mc_schem_destroy_world_edit12_metadata(ptr);
+  }
+  static void operator()(world_edit13_metadata* ptr) {
+    mc_schem_destroy_world_edit13_metadata(ptr);
+  }
+  static void operator()(litematica_metadata* ptr) {
+    mc_schem_destroy_litematica_metadata(ptr);
+  }
+  static void operator()(vanilla_structure_metadata* ptr) {
+    mc_schem_destroy_vanilla_structure_metadata(ptr);
+  }
 };
 
 using unique_block = std::unique_ptr<block, deleter>;
@@ -582,6 +606,14 @@ using unique_error = std::unique_ptr<error, deleter>;
 using unique_region = std::unique_ptr<region, deleter>;
 using unique_metadata_ir = std::unique_ptr<metadata_ir, deleter>;
 using unique_nbt_hashmap = std::unique_ptr<nbt_hashmap, deleter>;
+using unique_litematica_metadata =
+    std::unique_ptr<litematica_metadata, deleter>;
+using unique_world_edit12_metadata =
+    std::unique_ptr<world_edit12_metadata, deleter>;
+using unique_world_edit13_metadata =
+    std::unique_ptr<world_edit13_metadata, deleter>;
+using unique_vanilla_structure_metadata =
+    std::unique_ptr<vanilla_structure_metadata, deleter>;
 
 /// Hashmap of nbt tags
 /// Note: sizeof is fake. Never construct from C/C++, only construct,
@@ -1309,8 +1341,7 @@ class schematic {
   }
   /// Deep copy given new value, move previous value onto heap and return
   unique_metadata_ir set_metadata(const metadata_ir& new_metadata) & {
-    auto previous_value =
-        mc_schem_schematic_set_metadata(this, &new_metadata);
+    auto previous_value = mc_schem_schematic_set_metadata(this, &new_metadata);
     return unique_metadata_ir{previous_value};
   }
   unique_metadata_ir set_metadata(unique_metadata_ir new_metadata) & {
@@ -1415,57 +1446,75 @@ class schematic {
     mc_schem_schematic_merge_regions(this, &background_block);
   }
   /// Load schematic from litematica (*.litematic)
-  [[nodiscard]] static std::expected<unique_schematic, unique_error>
+  [[nodiscard]] static std::expected<
+      std::tuple<unique_schematic, unique_litematica_metadata>, unique_error>
   load_litematica(std::istream& is, const litematica_load_option& opt) {
     error* err = nullptr;
+    litematica_metadata* raw_md{nullptr};
     rust_reader isw{is};
-    auto ret = mc_schem_schematic_load_litematica_from_reader(&isw, &opt, &err);
+    auto ret = mc_schem_schematic_load_litematica_from_reader(&isw, &opt, &err,
+                                                              &raw_md);
     if (ret) {
       assert(err == nullptr);
-      return unique_schematic{ret};
+      assert(raw_md not_eq nullptr);
+      return std::make_tuple(unique_schematic{ret},
+                             unique_litematica_metadata{raw_md});
     }
     assert(err not_eq nullptr);
     return std::unexpected(unique_error{err});
   }
   /// Load schematic from vanilla structure (*.nbt)
-  [[nodiscard]] static std::expected<unique_schematic, unique_error>
+  [[nodiscard]] static std::expected<
+      std::tuple<unique_schematic, unique_vanilla_structure_metadata>,
+      unique_error>
   load_vanilla_structure(std::istream& is,
                          const vanilla_structure_load_option& opt) {
     error* err = nullptr;
+    vanilla_structure_metadata* raw_md{nullptr};
     rust_reader isw{is};
-    auto ret =
-        mc_schem_schematic_load_vanilla_structure_from_reader(&isw, &opt, &err);
+    auto ret = mc_schem_schematic_load_vanilla_structure_from_reader(
+        &isw, &opt, &err, &raw_md);
     if (ret) {
       assert(err == nullptr);
-      return unique_schematic{ret};
+      assert(raw_md not_eq nullptr);
+      return std::make_tuple(unique_schematic{ret},
+                             unique_vanilla_structure_metadata{raw_md});
     }
     assert(err not_eq nullptr);
     return std::unexpected(unique_error{err});
   }
   /// Load schematic from world edit 1.13+ (*.schem)
-  [[nodiscard]] static std::expected<unique_schematic, unique_error>
+  [[nodiscard]] static std::expected<
+      std::tuple<unique_schematic, unique_world_edit13_metadata>, unique_error>
   load_world_edit13(std::istream& is, const world_edit13_load_option& opt) {
     error* err = nullptr;
+    world_edit13_metadata* raw_md{nullptr};
     rust_reader isw{is};
-    auto ret =
-        mc_schem_schematic_load_world_edit13_from_reader(&isw, &opt, &err);
+    auto ret = mc_schem_schematic_load_world_edit13_from_reader(&isw, &opt,
+                                                                &err, &raw_md);
     if (ret) {
       assert(err == nullptr);
-      return unique_schematic{ret};
+      assert(raw_md not_eq nullptr);
+      return std::make_tuple(unique_schematic{ret},
+                             unique_world_edit13_metadata{raw_md});
     }
     assert(err not_eq nullptr);
     return std::unexpected(unique_error{err});
   }
   /// Load schematic from world edit 1.12 (*.schematic)
-  [[nodiscard]] static std::expected<unique_schematic, unique_error>
+  [[nodiscard]] static std::expected<
+      std::tuple<unique_schematic, unique_world_edit12_metadata>, unique_error>
   load_world_edit12(std::istream& is, const world_edit12_load_option& opt) {
     error* err = nullptr;
+    world_edit12_metadata* raw_md{nullptr};
     rust_reader isw{is};
-    auto ret =
-        mc_schem_schematic_load_world_edit12_from_reader(&isw, &opt, &err);
+    auto ret = mc_schem_schematic_load_world_edit12_from_reader(&isw, &opt,
+                                                                &err, &raw_md);
     if (ret) {
       assert(err == nullptr);
-      return unique_schematic{ret};
+      assert(raw_md not_eq nullptr);
+      return std::make_tuple(unique_schematic{ret},
+                             unique_world_edit12_metadata{raw_md});
     }
     assert(err not_eq nullptr);
     return std::unexpected(unique_error{err});

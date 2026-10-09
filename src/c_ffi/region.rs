@@ -196,6 +196,17 @@ pub unsafe extern "C" fn mc_schem_region_add_entity(
 
     (*region).entities.len() - 1
 }
+/// Move entity (must from box) into region, returns index. new_entity moved and
+/// released in this operation.
+// size_t mc_schem_region_add_entity_move(region*, entity* new_entity)
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_add_entity_move(region: *mut Region, new_entity: *mut Entity) -> usize {
+    let new_entity_box = Box::from_raw(new_entity);
+    region.as_mut_unchecked().entities.push(*new_entity_box);
+
+    (*region).entities.len() - 1
+}
+
 
 // size_t mc_schem_region_get_block_entities_count(const region*);
 #[no_mangle]
@@ -269,6 +280,31 @@ pub unsafe extern "C" fn mc_schem_region_add_block_entity(
         old = (*region)
             .block_entities
             .insert([x, y, z], (*new_be_nullable).clone());
+    }
+
+    if let Some(old) = old {
+        let ret = Box::new(old);
+        return Box::into_raw(ret);
+    }
+    null_mut()
+}
+
+/// Move and insert block entity into given coordinate. If previous BE exists,
+/// it will be moved out and boxed and returned as ptr. If be is null, erase old
+/// value
+// block_entity* mc_schem_region_add_block_entity_move(region*, int32_t x, int32_t y, int32_t z, block_entity* new_be_nullable);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_add_block_entity_move(region: *mut Region,
+                                                               x: i32,
+                                                               y: i32,
+                                                               z: i32,
+                                                               new_be_nullable: *mut BlockEntity) -> *mut BlockEntity {
+    let old: Option<BlockEntity>;
+    if new_be_nullable.is_null() {
+        old = region.as_mut_unchecked().block_entities.remove(&[x, y, z]);
+    } else {
+        let new_be_box = Box::from_raw(new_be_nullable);
+        old = region.as_mut_unchecked().block_entities.insert([x, y, z], *new_be_box);
     }
 
     if let Some(old) = old {

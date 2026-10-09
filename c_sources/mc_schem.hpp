@@ -341,6 +341,9 @@ entity* mc_schem_region_get_entity_mut(region*, size_t index);
 entity* mc_schem_region_erase_entity(region*, size_t index);
 /// Clone entity into region, returns index
 size_t mc_schem_region_add_entity(region*, const entity*);
+/// Move entity (must from box) into region, returns index. new_entity moved and
+/// released in this operation.
+size_t mc_schem_region_add_entity_move(region*, entity* new_entity);
 // Block entity
 ////////////////////////////////////////////////////////////////////////
 size_t mc_schem_region_get_block_entities_count(const region*);
@@ -360,6 +363,11 @@ block_entity* mc_schem_region_get_block_entity_mut(region*, int32_t x,
 block_entity* mc_schem_region_add_block_entity(region*, int32_t x, int32_t y,
                                                int32_t z,
                                                const block_entity* nullable);
+/// Move and insert block entity into given coordinate. If previous BE exists,
+/// it will be moved out and boxed and returned as ptr. If be is null, erase old
+/// value
+block_entity* mc_schem_region_add_block_entity_move(
+    region*, int32_t x, int32_t y, int32_t z, block_entity* new_be_nullable);
 
 // Get pending ticks. Currently no rule to add or remove pending ticks. Will do
 // this later if pending ticks is found to be useful
@@ -899,8 +907,11 @@ class region {
     auto ptr = mc_schem_region_erase_entity(this, index);
     return unique_entity{ptr};
   }
-  [[nodiscard]] size_t add_entity(const entity& entity) & {
+  size_t add_entity(const entity& entity) & {
     return mc_schem_region_add_entity(this, &entity);
+  }
+  size_t add_entity(unique_entity entity) & {
+    return mc_schem_region_add_entity_move(this, entity.release());
   }
 
   [[nodiscard]] size_t block_entities_count() const& {
@@ -930,6 +941,13 @@ class region {
                                        const block_entity& e) & {
     auto ret =
         mc_schem_region_add_block_entity(this, pos[0], pos[1], pos[2], &e);
+    return unique_block_entity{ret};
+  }
+  /// Insert new (by moving), returns previous value (if exist)
+  unique_block_entity add_block_entity(const std::array<int32_t, 3>& pos,
+                                       unique_block_entity new_be) & {
+    auto ret = mc_schem_region_add_block_entity_move(this, pos[0], pos[1],
+                                                     pos[2], new_be.release());
     return unique_block_entity{ret};
   }
   /// Returns previous value (if exist)

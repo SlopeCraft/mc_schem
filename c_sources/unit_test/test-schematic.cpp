@@ -1,6 +1,6 @@
 /*
  mc_schem is a rust library to generate, load, manipulate and save minecraft
- schematic files. Copyright (C) 2024  joseph
+ schematic files. Copyright (C) 2026 ToKiNoBug
 
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -14,7 +14,6 @@
  You should have received a copy of the GNU General Public License
  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-
 #include <array>
 #include <cstdint>
 #include <filesystem>

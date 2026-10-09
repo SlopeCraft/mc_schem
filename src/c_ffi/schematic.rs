@@ -1,4 +1,20 @@
-// [[nodiscard]] schematic* mc_schem_create_schematic();
+/*
+ mc_schem is a rust library to generate, load, manipulate and save minecraft
+ schematic files. Copyright (C) 2026 ToKiNoBug
+
+ This program is free software: you can redistribute it and/or modify it under
+ the terms of the GNU General Public License as published by the Free Software
+ Foundation, either version 3 of the License, or (at your option) any later
+ version.
+
+ This program is distributed in the hope that it will be useful, but WITHOUT ANY
+ WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 
 use crate::block::Block;
 use crate::c_ffi::{rust_reader, rust_writer};
@@ -11,6 +27,7 @@ use crate::{
 use std::ffi::{c_char, CStr};
 use std::ptr::{null, null_mut};
 
+// [[nodiscard]] schematic* mc_schem_create_schematic();
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_create_schematic() -> *mut Schematic {
     Box::into_raw(Box::new(Schematic::new()))

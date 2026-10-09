@@ -4,6 +4,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Debug, Formatter};
 use strum::FromRepr;
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct DimensionId(String);
 
@@ -13,7 +14,6 @@ impl Default for DimensionId {
     }
 }
 
-#[allow(dead_code)]
 impl DimensionId {
     pub fn overworld() -> Self {
         DimensionId("minecraft:overworld".to_string())
@@ -28,7 +28,6 @@ impl DimensionId {
 
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, FromRepr)]
-#[allow(dead_code)]
 pub enum AttributeOperation {
     Add = 0,
     MultiplyBase = 1,

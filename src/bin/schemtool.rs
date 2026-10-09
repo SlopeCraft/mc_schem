@@ -17,7 +17,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 use chrono::DateTime;
-use clap::{command, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 use mc_schem::schem;
 use mc_schem::schem::{RawMetaData, Schematic};
 

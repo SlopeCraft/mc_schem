@@ -393,14 +393,14 @@ impl Chunk {
         num_blocks
     }
 
-    pub fn as_relative_pos(&self, chunk_pos: &ChunkPos) -> ChunkRefRelativePos {
+    pub fn as_relative_pos(&self, chunk_pos: &ChunkPos) -> ChunkRefRelativePos<'_> {
         ChunkRefRelativePos {
             chunk: self,
             chunk_pos: *chunk_pos,
         }
     }
 
-    pub fn as_absolute_pos(&self, chunk_pos: &ChunkPos) -> ChunkRefAbsolutePos {
+    pub fn as_absolute_pos(&self, chunk_pos: &ChunkPos) -> ChunkRefAbsolutePos<'_> {
         ChunkRefAbsolutePos {
             chunk: self,
             chunk_pos: *chunk_pos,

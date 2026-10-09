@@ -18,16 +18,16 @@ impl SubChunk {
         result
     }
 
-    pub fn block_id(&self) -> ArrayView3<u16> {
+    pub fn block_id(&self) -> ArrayView3<'_, u16> {
         ArrayView3::from_shape([16, 16, 16], &self.block_id_array).unwrap()
     }
 
-    pub fn sky_block_light(&self) -> ArrayView3<Light> {
+    pub fn sky_block_light(&self) -> ArrayView3<'_, Light> {
         // this will always succeed
         ArrayView3::from_shape([16, 16, 16], &self.sky_block_light_array).unwrap()
     }
 
-    pub fn biome(&self) -> ArrayView2<Biome> {
+    pub fn biome(&self) -> ArrayView2<'_, Biome> {
         // this will always succeed
         ArrayView2::from_shape([8, 8], &self.biome_array).unwrap()
     }

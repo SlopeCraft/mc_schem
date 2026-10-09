@@ -1,6 +1,6 @@
 [package]
 name = "mc_schem"
-version = "1.1.3"
+version = "1.2.0"
 edition = "2021"
 authors = ["Joseph <tokinobug@163.com>"]
 rust-version = "1.75"
@@ -28,16 +28,16 @@ panic = "abort"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-strum = { version = "0.26.1", features = ["derive", "strum_macros"] }
-ndarray = "0.15.6"
+strum = { version = "0.28.0", features = ["derive", "strum_macros"] }
+ndarray = "0.17.2"
 fastnbt = "2.6.3"
 flate2 = { version = "1.0.28", features = [] }
 libmath = "0.2.1"
-rand = "0.8.5"
+rand = "0.10.3"
 static_assertions = "1.1.0"
 clap = { version = "4.4.18", features = ["derive"] }
 chrono = "0.4.34"
-sevenz-rust = "0.5.4"
+sevenz-rust = "0.6.1"
 walkdir = "2.4.0"
 regex = "1.10.3"
 rayon = "1.9.0"

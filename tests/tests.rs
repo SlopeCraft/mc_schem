@@ -28,10 +28,11 @@ use mc_schem::{
     WorldEdit13SaveOption,
 };
 use ndarray::Array3;
-use rand::Rng;
 use std::collections::HashMap;
 use std::env;
 use std::fs::{create_dir_all, File};
+use rand::Rng;
+use rand::rngs::ThreadRng;
 
 #[test]
 fn block_id_parse() {
@@ -154,7 +155,7 @@ fn litematica_multi_bit_set_read() {
 #[test]
 fn litematica_multi_bit_set_rw() {
     //use rand::Rng;
-    let mut rng = rand::thread_rng();
+    let mut rng = ThreadRng::default();
 
     let bits = 1..65;
     let num_elements = 1 << 10;
@@ -166,7 +167,7 @@ fn litematica_multi_bit_set_rw() {
 
         let mut values: Vec<u64> = Vec::with_capacity(num_elements);
         for _ in 0..num_elements {
-            values.push(rng.gen::<u64>() & value_mask);
+            values.push(rng.next_u64() & value_mask);
         }
 
         for (idx, val) in values.iter().enumerate() {

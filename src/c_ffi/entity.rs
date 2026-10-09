@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::ffi::c_double;
+use std::ptr::{null, null_mut};
 use fastnbt::Value;
 use crate::region::Entity;
 
@@ -42,9 +43,25 @@ pub unsafe extern "C" fn mc_schem_entity_get_tags_mut(entity: *mut Entity) -> *m
 // nbt_hashmap* mc_schem_entity_set_tags(entity*, const nbt_hashmap* new_value);
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_entity_set_tags(entity: *mut Entity, new_value: *const HashMap<String, Value>) -> *mut HashMap<String, Value> {
+    assert!(!new_value.is_null());
+    // Prevent self-copy
+    assert_ne!(new_value, &(entity.as_ref_unchecked().tags));
     let mut new = new_value.as_ref_unchecked().clone();
     std::mem::swap(&mut entity.as_mut_unchecked().tags, &mut new);
     // After swap, variable new contains old value
     let b = Box::from(new);
     Box::into_raw(b)
+}
+
+/// Move new_value into entity, returns old value by box. new_value must be from
+/// box, and will be invalid after this operation. This prevents deep copy
+// nbt_hashmap* mc_schem_entity_set_tags_move(entity*, nbt_hashmap* new_value);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_entity_set_tags_move(entity: *mut Entity, new_value: *mut HashMap<String, Value>) -> *mut HashMap<String, Value> {
+    assert!(!new_value.is_null());
+    // Prevent self-swapping
+    assert_ne!(new_value as *const HashMap<String, Value>, &(entity.as_ref_unchecked().tags));
+    let mut ret = Box::from_raw(new_value);
+    std::mem::swap(ret.as_mut(), &mut (entity.as_mut_unchecked().tags));
+    Box::into_raw(ret)
 }

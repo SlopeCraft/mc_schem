@@ -400,6 +400,11 @@ nbt_hashmap* mc_schem_entity_get_tags_mut(entity*);
 /// Deep copy new_value into entity, returns old value by box (transfer
 /// ownership
 nbt_hashmap* mc_schem_entity_set_tags(entity*, const nbt_hashmap* new_value);
+/// Move new_value into entity, returns old value by box. new_value must be from
+/// box, and will be invalid after this operation. This prevents deep copy.
+// In current implementation, return value equals to new_value. But this is not
+// gaunted. It's coincidence.
+nbt_hashmap* mc_schem_entity_set_tags_move(entity*, nbt_hashmap* new_value);
 
 // Block entity
 ////////////////////////////////////////////////////////////////////////////////
@@ -1079,6 +1084,13 @@ class entity {
   /// Deep copy src, move old value onto heap and returns (transfer ownership)
   unique_nbt_hashmap set_tags(const nbt_hashmap& src) & {
     auto old_value = mc_schem_entity_set_tags(this, &src);
+    return unique_nbt_hashmap{old_value};
+  }
+  /// Move new_value into entity, move old value to box and return it.
+  unique_nbt_hashmap set_tags(unique_nbt_hashmap new_value) & {
+    assert(new_value);
+    auto old_value = mc_schem_entity_set_tags_move(this, new_value.get());
+    new_value.release();
     return unique_nbt_hashmap{old_value};
   }
 };

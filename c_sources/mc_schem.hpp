@@ -35,6 +35,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <type_traits>
 #include <vector>
 
+#include "mc_schem.hpp"
+
 namespace mc_schem {
 
 enum class block_id_parse_error : uint8_t {
@@ -398,6 +400,16 @@ nbt_hashmap* mc_schem_entity_get_tags_mut(entity*);
 /// Deep copy new_value into entity, returns old value by box (transfer
 /// ownership
 nbt_hashmap* mc_schem_entity_set_tags(entity*, const nbt_hashmap* new_value);
+
+// Block entity
+////////////////////////////////////////////////////////////////////////////////
+block_entity* mc_schem_create_block_entity();
+const nbt_hashmap* mc_schem_block_entity_get_tags(const block_entity*);
+nbt_hashmap* mc_schem_block_entity_get_tags_mut(block_entity*);
+/// Deep copy new_value into entity, returns old value by box (transfer
+/// ownership
+nbt_hashmap* mc_schem_block_entity_set_tags(block_entity*,
+                                            const nbt_hashmap* new_value);
 // Meta data ir
 ////////////////////////////////////////////////////////////////////////////////
 [[nodiscard]] meta_data_ir* mc_schem_create_meta_data_ir(
@@ -1067,6 +1079,37 @@ class entity {
   /// Deep copy src, move old value onto heap and returns (transfer ownership)
   unique_nbt_hashmap set_tags(const nbt_hashmap& src) & {
     auto old_value = mc_schem_entity_set_tags(this, &src);
+    return unique_nbt_hashmap{old_value};
+  }
+};
+/// Block entity in Minecraft (also known as tile entity)
+/// Note: sizeof is fake. Never construct from C/C++, only construct,
+/// allocate, destroy and deallocate in Rust. Always use `this` as handle.
+class block_entity {
+ public:
+  block_entity() = delete;
+  block_entity(const block_entity&) = delete;
+  block_entity(block_entity&&) = delete;
+  block_entity& operator=(const block_entity&) = delete;
+  block_entity& operator=(block_entity&&) = delete;
+  ~block_entity() = delete;
+
+  [[nodiscard]] static unique_block_entity create() {
+    return unique_block_entity{mc_schem_create_block_entity()};
+  }
+
+  [[nodiscard]] unique_block_entity clone() const& {
+    return unique_block_entity{mc_schem_clone_block_entity(this)};
+  }
+
+  [[nodiscard]] const nbt_hashmap* tags() const& {
+    return mc_schem_block_entity_get_tags(this);
+  }
+  [[nodiscard]] nbt_hashmap* tags() & {
+    return mc_schem_block_entity_get_tags_mut(this);
+  }
+  unique_nbt_hashmap set_tags(const nbt_hashmap& new_value) & {
+    auto old_value = mc_schem_block_entity_set_tags(this, &new_value);
     return unique_nbt_hashmap{old_value};
   }
 };

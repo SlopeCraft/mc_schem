@@ -22,6 +22,7 @@ mod meta_data;
 mod region;
 mod nbt_tags;
 mod schematic;
+mod block_entity;
 
 use crate::block::Block;
 use crate::error::Error;

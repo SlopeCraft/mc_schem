@@ -112,8 +112,8 @@ if (${MC_SCHEM_INSTALL})
     install(FILES "${CMAKE_BINARY_DIR}/mc_schemConfigVersion.cmake"
             DESTINATION lib/cmake/mc_schem)
 
-    install(FILES ${headers} "${CMAKE_BINARY_DIR}/mc_schem_export.h"
-            DESTINATION include/mc_schem)
+    install(FILES ${headers} "${CMAKE_BINARY_DIR}/mc_schem.hpp"
+        DESTINATION include/mc_schem)
     install(TARGETS mc_schem
             EXPORT mc_schem-targets
             COMPONENT core
@@ -135,8 +135,8 @@ if (${MC_SCHEM_INSTALL})
     endif ()
 
     install(EXPORT mc_schem-targets
-            NAMESPACE mc_schem::
-            DESTINATION lib/cmake/mc_schem)
+        NAMESPACE mc_schem::
+        DESTINATION lib/cmake/mc_schem)
 
     include(CPack)
 endif ()

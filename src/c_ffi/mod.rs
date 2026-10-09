@@ -26,13 +26,13 @@ mod schematic;
 
 use crate::block::Block;
 use crate::error::Error;
-use crate::region::{BlockEntity, HasPalette, PendingTick};
+use crate::region::{BlockEntity, PendingTick};
 use crate::schem::{LitematicaMetaData, MetaDataIR, Schematic, VanillaStructureMetaData, WE12MetaData, WE13MetaData};
 use crate::{Entity, Region};
 use fastnbt::Value;
 use std::collections::HashMap;
 use std::ffi::{c_char, c_void, CStr};
-use std::ptr::{null, null_mut};
+use std::ptr::null_mut;
 use Box;
 
 #[repr(C)]

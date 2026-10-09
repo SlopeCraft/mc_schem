@@ -106,7 +106,7 @@ struct rust_reader {
 
   explicit rust_reader(std::istream& is) : custom_data{&is} {
     func_read = [](uint8_t* dest, size_t dest_capacity, bool* ok,
-                      char* error_message_dest, size_t error_message_capacity,
+                   char* error_message_dest, size_t error_message_capacity,
                    void* custom_data) -> size_t {
       auto& is = *reinterpret_cast<std::istream*>(custom_data);
 
@@ -249,6 +249,16 @@ void mc_schem_destroy_nbt_hashmap(nbt_hashmap* hashmap);
 [[nodiscard]] meta_data_ir* mc_schem_clone_meta_data_ir(const meta_data_ir*);
 [[nodiscard]] schematic* mc_schem_clone_schematic(const schematic*);
 [[nodiscard]] nbt_hashmap* mc_schem_clone_nbt_hashmap(const nbt_hashmap*);
+
+// swap: deep-swap on data. No memory allocation or release
+void mc_schem_swap_block(block* a, block* b);
+void mc_schem_swap_region(region* a, region* b);
+void mc_schem_swap_entity(entity* a, entity* b);
+void mc_schem_swap_block_entity(block_entity* a, block_entity* b);
+void mc_schem_swap_pending_tick(pending_tick* a, pending_tick* b);
+void mc_schem_swap_meta_data_ir(meta_data_ir* a, meta_data_ir* b);
+void mc_schem_swap_nbt_hashmap(nbt_hashmap* a, nbt_hashmap* b);
+void mc_schem_swap_schematic(schematic* a, schematic* b);
 
 // NBT
 ////////////////////////////////////////////////////////////////////////////////
@@ -400,11 +410,6 @@ nbt_hashmap* mc_schem_entity_get_tags_mut(entity*);
 /// Deep copy new_value into entity, returns old value by box (transfer
 /// ownership
 nbt_hashmap* mc_schem_entity_set_tags(entity*, const nbt_hashmap* new_value);
-/// Move new_value into entity, returns old value by box. new_value must be from
-/// box, and will be invalid after this operation. This prevents deep copy.
-// In current implementation, return value equals to new_value. But this is not
-// gaunted. It's coincidence.
-nbt_hashmap* mc_schem_entity_set_tags_move(entity*, nbt_hashmap* new_value);
 
 // Block entity
 ////////////////////////////////////////////////////////////////////////////////
@@ -608,6 +613,10 @@ class nbt_hashmap {
     return unique_nbt_hashmap{ptr};
   }
 
+  void swap(nbt_hashmap& another) & {
+    mc_schem_swap_nbt_hashmap(this, &another);
+  }
+
   [[nodiscard]] size_t size() const& {
     return mc_schem_nbt_hashmap_get_size(this);
   }
@@ -667,6 +676,8 @@ class block {
   [[nodiscard]] auto clone() const& {
     return unique_block{mc_schem_clone_block(this)};
   }
+
+  void swap(block& another) & { mc_schem_swap_block(this, &another); }
 
   [[nodiscard]] std::string id() const& {
     std::string ret;
@@ -769,11 +780,9 @@ class region {
   region& operator=(const region&) = delete;
   region& operator=(region&&) = delete;
 
-  [[nodiscard]] static unique_region create(
-      int32_t shape_x, int32_t shape_y,
+  [[nodiscard]] static unique_region create(int32_t shape_x, int32_t shape_y,
                                             int32_t shape_z) {
-    return unique_region{
-        mc_schem_create_region(shape_x, shape_y, shape_z)};
+    return unique_region{mc_schem_create_region(shape_x, shape_y, shape_z)};
   }
 
   [[nodiscard]] static std::expected<unique_region, unique_error>
@@ -795,6 +804,8 @@ class region {
   [[nodiscard]] auto clone() const& {
     return unique_region{mc_schem_clone_region(this)};
   }
+
+  void swap(region& another) & { mc_schem_swap_region(this, &another); }
 
   [[nodiscard]] std::string name() const& {
     std::string ret;
@@ -1066,6 +1077,8 @@ class entity {
     return unique_entity{mc_schem_clone_entity(this)};
   }
 
+  void swap(entity& another) & { mc_schem_swap_entity(this, &another); }
+
   [[nodiscard]] std::pair<std::array<int32_t, 3>, std::array<double, 3>>
   position() const& {
     std::array<int32_t, 3> block_pos{0, 0, 0};
@@ -1089,9 +1102,7 @@ class entity {
   /// Move new_value into entity, move old value to box and return it.
   unique_nbt_hashmap set_tags(unique_nbt_hashmap new_value) & {
     assert(new_value);
-    auto old_value = mc_schem_entity_set_tags_move(this, new_value.get());
-    new_value.release();
-    return unique_nbt_hashmap{old_value};
+#warning "TODO: rewrite"
   }
 };
 /// Block entity in Minecraft (also known as tile entity)
@@ -1112,6 +1123,10 @@ class block_entity {
 
   [[nodiscard]] unique_block_entity clone() const& {
     return unique_block_entity{mc_schem_clone_block_entity(this)};
+  }
+
+  void swap(block_entity& another) & {
+    mc_schem_swap_block_entity(this, &another);
   }
 
   [[nodiscard]] const nbt_hashmap* tags() const& {
@@ -1149,8 +1164,11 @@ class meta_data_ir {
   }
 
   [[nodiscard]] auto clone() const& {
-    return unique_meta_data_ir{
-        mc_schem_clone_meta_data_ir(this)};
+    return unique_meta_data_ir{mc_schem_clone_meta_data_ir(this)};
+  }
+
+  void swap(meta_data_ir& another) & {
+    mc_schem_swap_meta_data_ir(this, &another);
   }
 
   [[nodiscard]] int32_t mc_data_version() const& {
@@ -1249,6 +1267,8 @@ class schematic {
     return unique_schematic{mc_schem_clone_schematic(this)};
   }
 
+  void swap(schematic& another) & { mc_schem_swap_schematic(this, &another); }
+
   [[nodiscard]] const meta_data_ir* metadata() const& {
     return mc_schem_schematic_get_meta_data(this);
   }
@@ -1256,8 +1276,7 @@ class schematic {
     return mc_schem_schematic_get_meta_data_mut(this);
   }
   /// Deep copy given new value, move previous value onto heap and return
-  unique_meta_data_ir set_meta_data(
-      const meta_data_ir& new_meta_data) & {
+  unique_meta_data_ir set_meta_data(const meta_data_ir& new_meta_data) & {
     auto previous_value =
         mc_schem_schematic_set_meta_data(this, &new_meta_data);
     return unique_meta_data_ir{previous_value};

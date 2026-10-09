@@ -16,13 +16,13 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 mod block;
+mod block_entity;
 mod entity;
 mod error;
 mod meta_data;
-mod region;
 mod nbt_tags;
+mod region;
 mod schematic;
-mod block_entity;
 
 use crate::block::Block;
 use crate::error::Error;
@@ -32,6 +32,7 @@ use crate::{Entity, Region};
 use fastnbt::Value;
 use std::collections::HashMap;
 use std::ffi::{c_char, c_void, CStr};
+use std::ptr::{null, null_mut};
 use Box;
 
 #[repr(C)]
@@ -58,11 +59,20 @@ impl std::io::Read for rust_reader {
         let mut error_message_buffer = ['\0' as c_char; 4096];
 
         unsafe {
-            let bytes = (self.func_read)(buf.as_mut_ptr(), buf.len(), &mut ok, error_message_buffer.as_mut_ptr(), error_message_buffer.len() - 1, self.custom_data);
+            let bytes = (self.func_read)(
+                buf.as_mut_ptr(),
+                buf.len(),
+                &mut ok,
+                error_message_buffer.as_mut_ptr(),
+                error_message_buffer.len() - 1,
+                self.custom_data,
+            );
             if ok {
                 return Ok(bytes);
             }
-            let error_msg = CStr::from_ptr(error_message_buffer.as_ptr()).to_string_lossy().to_string();
+            let error_msg = CStr::from_ptr(error_message_buffer.as_ptr())
+                .to_string_lossy()
+                .to_string();
             Err(std::io::Error::other(error_msg))
         }
     }
@@ -70,7 +80,8 @@ impl std::io::Read for rust_reader {
 
 #[repr(C)]
 pub struct rust_writer {
-    func_write: extern "C" fn(*const u8, usize, *mut bool, *mut c_char, usize, *mut c_void) -> usize,
+    func_write:
+        extern "C" fn(*const u8, usize, *mut bool, *mut c_char, usize, *mut c_void) -> usize,
     func_flush: extern "C" fn(*mut c_void, *mut c_char, usize) -> bool,
     custom_data: *mut c_void,
 }
@@ -81,11 +92,20 @@ impl std::io::Write for rust_writer {
         let mut error_message_buffer = ['\0' as c_char; 4096];
 
         unsafe {
-            let bytes = (self.func_write)(buf.as_ptr(), buf.len(), &mut ok, error_message_buffer.as_mut_ptr(), error_message_buffer.len() - 1, self.custom_data);
+            let bytes = (self.func_write)(
+                buf.as_ptr(),
+                buf.len(),
+                &mut ok,
+                error_message_buffer.as_mut_ptr(),
+                error_message_buffer.len() - 1,
+                self.custom_data,
+            );
             if ok {
                 return Ok(bytes);
             }
-            let error_msg = CStr::from_ptr(error_message_buffer.as_ptr()).to_string_lossy().to_string();
+            let error_msg = CStr::from_ptr(error_message_buffer.as_ptr())
+                .to_string_lossy()
+                .to_string();
             Err(std::io::Error::other(error_msg))
         }
     }
@@ -94,11 +114,17 @@ impl std::io::Write for rust_writer {
         let mut error_message_buffer = ['\0' as c_char; 4096];
 
         unsafe {
-            let ok = (self.func_flush)(self.custom_data, error_message_buffer.as_mut_ptr(), error_message_buffer.len() - 1);
+            let ok = (self.func_flush)(
+                self.custom_data,
+                error_message_buffer.as_mut_ptr(),
+                error_message_buffer.len() - 1,
+            );
             if ok {
                 return Ok(());
             }
-            let error_msg = CStr::from_ptr(error_message_buffer.as_ptr()).to_string_lossy().to_string();
+            let error_msg = CStr::from_ptr(error_message_buffer.as_ptr())
+                .to_string_lossy()
+                .to_string();
             Err(std::io::Error::other(error_msg))
         }
     }
@@ -201,4 +227,97 @@ pub unsafe extern "C" fn mc_schem_clone_nbt_hashmap(
     ptr: *const HashMap<String, Value>,
 ) -> *mut HashMap<String, Value> {
     Box::into_raw(Box::from(ptr.as_ref_unchecked().clone()))
+}
+
+// swap: deep-swap on data. No memory allocation or release
+// void mc_schem_swap_block(block* a, block* b);
+
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_swap_block(a: *mut Block, b: *mut Block) {
+    if a == b {
+        return;
+    }
+    assert_ne!(a, null_mut());
+    assert_ne!(b, null_mut());
+    std::mem::swap(a.as_mut_unchecked(), b.as_mut_unchecked());
+}
+// void mc_schem_swap_region(region* a, region* b);
+
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_swap_region(a: *mut Region, b: *mut Region) {
+    if a == b {
+        return;
+    }
+    assert_ne!(a, null_mut());
+    assert_ne!(b, null_mut());
+    std::mem::swap(a.as_mut_unchecked(), b.as_mut_unchecked());
+}
+// void mc_schem_swap_entity(entity* a, entity* b);
+
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_swap_entity(a: *mut Entity, b: *mut Entity) {
+    if a == b {
+        return;
+    }
+    assert_ne!(a, null_mut());
+    assert_ne!(b, null_mut());
+    std::mem::swap(a.as_mut_unchecked(), b.as_mut_unchecked());
+}
+// void mc_schem_swap_block_entity(block_entity* a, block_entity* b);
+
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_swap_block_entity(a: *mut BlockEntity, b: *mut BlockEntity) {
+    if a == b {
+        return;
+    }
+    assert_ne!(a, null_mut());
+    assert_ne!(b, null_mut());
+    std::mem::swap(a.as_mut_unchecked(), b.as_mut_unchecked());
+}
+// void mc_schem_swap_pending_tick(pending_tick* a, pending_tick* b);
+
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_swap_pending_tick(a: *mut PendingTick, b: *mut PendingTick) {
+    if a == b {
+        return;
+    }
+    assert_ne!(a, null_mut());
+    assert_ne!(b, null_mut());
+    std::mem::swap(a.as_mut_unchecked(), b.as_mut_unchecked());
+}
+// void mc_schem_swap_meta_data_ir(meta_data_ir* a, meta_data_ir* b);
+
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_swap_meta_data_ir(a: *mut MetaDataIR, b: *mut MetaDataIR) {
+    if a == b {
+        return;
+    }
+    assert_ne!(a, null_mut());
+    assert_ne!(b, null_mut());
+    std::mem::swap(a.as_mut_unchecked(), b.as_mut_unchecked());
+}
+// void mc_schem_swap_nbt_hashmap(nbt_hashmap* a, nbt_hashmap* b);
+
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_swap_nbt_hashmap(
+    a: *mut HashMap<String, Value>,
+    b: *mut HashMap<String, Value>,
+) {
+    if a == b {
+        return;
+    }
+    assert_ne!(a, null_mut());
+    assert_ne!(b, null_mut());
+    std::mem::swap(a.as_mut_unchecked(), b.as_mut_unchecked());
+}
+// void mc_schem_swap_schematic(schematic* a, schematic* b);
+
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_swap_schematic(a: *mut Schematic, b: *mut Schematic) {
+    if a == b {
+        return;
+    }
+    assert_ne!(a, null_mut());
+    assert_ne!(b, null_mut());
+    std::mem::swap(a.as_mut_unchecked(), b.as_mut_unchecked());
 }

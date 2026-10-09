@@ -474,6 +474,11 @@ void mc_schem_schematic_clear_all_regions(schematic*);
 /// nothing will be done and returns nullptr)
 region* mc_schem_schematic_insert_region(schematic*, const region* new_region,
                                          size_t index);
+/// Move new_region (owning, must from box) into given index, return its pointer
+/// (non-owning). If index out of range, do nothing. new_region is moved and
+/// released in this operation.
+region* mc_schem_schematic_insert_region_move(schematic*, region* new_region,
+                                              size_t index);
 /// Returns positive value if coordinate hits a region. Otherwise return -1. All
 /// negative value should be considered as invalid
 /// The word "first" means first hit region. Schematic have multiple regions,
@@ -1303,11 +1308,24 @@ class schematic {
     return unique_region{mc_schem_schematic_remove_region(this, region_index)};
   }
   void clear_all_regions() & { mc_schem_schematic_clear_all_regions(this); }
+  /// Deep copy new region and insert into schematic. Returns mut reference to
+  /// inserted region. new_region is not modified.
   region* insert_region(const region* new_r, size_t region_index) & {
     return mc_schem_schematic_insert_region(this, new_r, region_index);
   }
   region* append_region(const region* new_r) & {
     return mc_schem_schematic_insert_region(this, new_r, this->regions_count());
+  }
+  /// Inset new_region into schematic by moving. new_region will be release,
+  /// mustn't use after this operation. Returns mut reference to inserted
+  /// region.
+  region* insert_region(unique_region new_r, size_t region_index) & {
+    auto ret = mc_schem_schematic_insert_region_move(this, new_r.release(),
+                                                     region_index);
+    return ret;
+  }
+  region* append_region(unique_region new_r) & {
+    return this->insert_region(std::move(new_r), this->regions_count());
   }
 
   [[nodiscard]] std::optional<size_t> first_region_index_at(

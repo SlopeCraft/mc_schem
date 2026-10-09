@@ -90,7 +90,20 @@ pub unsafe extern "C" fn mc_schem_schematic_insert_region(schem: *mut Schematic,
     }
     schem.as_mut_unchecked().regions.insert_mut(idx, region.as_ref_unchecked().clone())
 }
+/// Move new_region (owning, must from box) into given index, return its pointer
+/// (non-owning). If index out of range, do nothing. new_region is moved and
+/// released in this operation.
+// region* mc_schem_schematic_insert_region_move(schematic*, region* new_region, size_t index);
 
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_schematic_insert_region_move(schem: *mut Schematic, region: *mut Region, idx: usize) -> *mut Region {
+    let new_region = Box::from_raw(region);
+    if idx > schem.as_mut_unchecked().regions.len() {
+        return null_mut();
+    }
+    let inserted = schem.as_mut_unchecked().regions.insert_mut(idx, *new_region);
+    inserted
+}
 /// Returns positive value if coordinate hits a region. Otherwise return -1. All
 /// negative value should be considered as invalid
 /// The word "first" means first hit region. Schematic have multiple regions,

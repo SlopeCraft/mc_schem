@@ -42,6 +42,7 @@ struct meta_snapshot {
   std::optional<std::string> schem_world_edit_version;
   std::optional<pos_t> schem_origin;
   std::string schem_material;
+  std::optional<std::string> schem_editing_platform;
 
   bool operator==(const meta_snapshot&) const = default;
 };
@@ -61,19 +62,8 @@ meta_snapshot snapshot_of(const mc_schem::meta_data_ir& md) {
       .schem_world_edit_version = md.schem_world_edit_version(),
       .schem_origin = md.schem_origin(),
       .schem_material = md.schem_material(),
+      .schem_editing_platform = md.schem_editing_platform(),
   };
-}
-
-/// The wrapper has no accessor for the World Edit editing platform yet, so its
-/// C declaration from mc_schem.hpp is called directly
-std::optional<std::string> editing_platform_of(
-    const mc_schem::meta_data_ir& md) {
-  std::string platform;
-  mc_schem::rust_string_receiver receiver{platform};
-  const bool exist =
-      mc_schem_meta_data_ir_get_schem_editing_platform(&md, &receiver);
-  if (exist) return platform;
-  return std::nullopt;
 }
 
 }  // namespace
@@ -133,7 +123,7 @@ int main(int argc, char** argv) {
     MC_SCHEM_CHECK(not md.schem_world_edit_version().has_value());
     MC_SCHEM_CHECK((md.schem_origin() == pos_t{0, 0, 0}));
     MC_SCHEM_CHECK(md.schem_material() == "Alpha");
-    MC_SCHEM_CHECK(not editing_platform_of(md).has_value());
+    MC_SCHEM_CHECK(not md.schem_editing_platform().has_value());
 
     // mc_schem_clone_meta_data_ir: a copy reports the very same values
     auto copy = md.clone();
@@ -158,7 +148,7 @@ int main(int argc, char** argv) {
     // The World Edit specific fields only exist for .schem files
     MC_SCHEM_CHECK(not loaded->schem_we_offset().has_value());
     MC_SCHEM_CHECK(not loaded->schem_world_edit_version().has_value());
-    MC_SCHEM_CHECK(not editing_platform_of(*loaded).has_value());
+    MC_SCHEM_CHECK(not loaded->schem_editing_platform().has_value());
 
     // Cloning carries every field over
     auto copy = loaded->clone();

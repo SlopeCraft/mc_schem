@@ -1207,6 +1207,14 @@ class meta_data_ir {
     mc_schem_meta_data_ir_get_schem_material(this, &rsr);
     return ret;
   }
+  [[nodiscard]] std::optional<std::string> schem_editing_platform() const& {
+    std::string ret;
+    rust_string_receiver rsr{ret};
+    const bool exist =
+        mc_schem_meta_data_ir_get_schem_editing_platform(this, &rsr);
+    if (exist) return ret;
+    return std::nullopt;
+  }
 };
 
 /// Schematic, a part of minecraft world

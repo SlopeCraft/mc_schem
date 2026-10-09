@@ -100,6 +100,7 @@ endif ()
 target_compile_features(mc_schem INTERFACE cxx_std_23)
 
 if (${MC_SCHEM_ENABLE_TESTS})
+    enable_testing()
     add_subdirectory(c_sources/unit_test)
 endif ()
 

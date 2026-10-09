@@ -19,3 +19,7 @@ add_test(NAME mc_schem-entity COMMAND test-entity "${CMAKE_SOURCE_DIR}/test_file
 add_executable(test-block_entity test-block_entity.cpp)
 target_link_libraries(test-block_entity PRIVATE mc_schem)
 add_test(NAME mc_schem-block_entity COMMAND test-block_entity "${CMAKE_SOURCE_DIR}/test_files")
+
+add_executable(test-meta_data_ir test-meta_data_ir.cpp)
+target_link_libraries(test-meta_data_ir PRIVATE mc_schem)
+add_test(NAME mc_schem-meta_data_ir COMMAND test-meta_data_ir "${CMAKE_SOURCE_DIR}/test_files")

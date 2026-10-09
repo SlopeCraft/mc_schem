@@ -16,21 +16,21 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-use crate::schem::{
-    common, id_of_nbt_tag, MetaDataIR, VanillaStructureLoadOption, VanillaStructureSaveOption,
-};
-use std::collections::HashMap;
-use std::fs::File;
 //use compress::zlib;
 use crate::error::Error;
 use crate::error::Error::FileOpenError;
 use crate::region::{Entity, Region, WorldSlice};
 use crate::schem::schem::{BlockEntity, Schematic, VanillaStructureMetaData};
+use crate::schem::{
+    common, id_of_nbt_tag, MetaDataIR, VanillaStructureLoadOption, VanillaStructureSaveOption,
+};
 use crate::{unwrap_opt_tag, unwrap_tag};
 use fastnbt;
 use fastnbt::Value;
 use flate2::read::GzDecoder;
 use flate2::GzBuilder;
+use std::collections::HashMap;
+use std::fs::File;
 
 #[allow(dead_code)]
 impl MetaDataIR {

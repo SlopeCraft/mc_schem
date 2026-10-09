@@ -58,9 +58,7 @@ pub unsafe extern "C" fn mc_schem_metadata_ir_get_name(
 }
 // int32_t mc_schem_metadata_ir_get_litematica_version(const metadata_ir*);
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_metadata_ir_get_litematica_version(
-    ir: *const MetaDataIR,
-) -> i32 {
+pub unsafe extern "C" fn mc_schem_metadata_ir_get_litematica_version(ir: *const MetaDataIR) -> i32 {
     (*ir).litematica_version
 }
 // int32_t mc_schem_metadata_ir_get_litematica_subversion(const metadata_ir*, bool* dest_exist_non_null);

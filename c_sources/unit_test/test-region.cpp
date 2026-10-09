@@ -18,6 +18,7 @@
 #include <array>
 #include <cstdint>
 #include <filesystem>
+#include <mc_schem.hpp>
 #include <optional>
 #include <span>
 #include <stdexcept>
@@ -25,7 +26,6 @@
 #include <tuple>
 #include <vector>
 
-#include <mc_schem.hpp>
 #include "utils.hpp"
 
 namespace {
@@ -54,11 +54,11 @@ mc_schem::unique_block make_block(const std::string& full_id) {
 ///   mc_schem_region_get_size, mc_schem_region_is_dense,
 ///   mc_schem_region_reshape,
 ///   mc_schem_region_palette_get_size, mc_schem_region_palette_get_block,
-///   mc_schem_region_find_or_append_to_palette, mc_schem_region_find_in_palette,
-///   mc_schem_region_get_entities_count, mc_schem_region_get_entity,
-///   mc_schem_region_get_entity_mut, mc_schem_region_erase_entity,
-///   mc_schem_region_add_entity, mc_schem_region_add_entity_move,
-///   mc_schem_region_get_block_entities_count,
+///   mc_schem_region_find_or_append_to_palette,
+///   mc_schem_region_find_in_palette, mc_schem_region_get_entities_count,
+///   mc_schem_region_get_entity, mc_schem_region_get_entity_mut,
+///   mc_schem_region_erase_entity, mc_schem_region_add_entity,
+///   mc_schem_region_add_entity_move, mc_schem_region_get_block_entities_count,
 ///   mc_schem_region_visit_block_entities, mc_schem_region_get_block_entity,
 ///   mc_schem_region_get_block_entity_mut, mc_schem_region_add_block_entity,
 ///   mc_schem_region_add_block_entity_move,
@@ -344,11 +344,9 @@ int main(int argc, char** argv) {
     // total_blocks(true) is skipped for the same reason (it currently counts 9
     // instead of 8 cells).
     size_t sparse_all = 0;
-    s->visit_blocks(
-        [&sparse_all](pos_t, uint16_t, const block&, const block_entity*) {
-          ++sparse_all;
-        },
-        false);
+    s->visit_blocks([&sparse_all](pos_t, uint16_t, const block&,
+                                  const block_entity*) { ++sparse_all; },
+                    false);
     MC_SCHEM_CHECK(sparse_all >= 8);
     MC_SCHEM_CHECK(sparse_all <= 16);
 
@@ -396,8 +394,8 @@ int main(int argc, char** argv) {
   // non-trivial block data: nothing below depends on its shape, on its palette
   // or on which block sits where
   {
-    auto schem = load_schematic_or_abort(
-        test_files_dir, "litematica/correct_test.litematic");
+    auto schem = load_schematic_or_abort(test_files_dir,
+                                         "litematica/correct_test.litematic");
     region& r = first_region_of(schem);
     const region& cr = r;
 

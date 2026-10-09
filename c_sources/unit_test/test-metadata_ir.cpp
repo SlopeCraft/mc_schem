@@ -133,8 +133,8 @@ int main(int argc, char** argv) {
 
   // The meta data that comes with a loaded schematic
   {
-    auto schem = load_schematic_or_abort(
-        test_files_dir, "litematica/multi-region01.litematic");
+    auto schem = load_schematic_or_abort(test_files_dir,
+                                         "litematica/multi-region01.litematic");
     const schematic& cs = *schem;
     const metadata_ir* loaded = cs.metadata();
     MC_SCHEM_CHECK(loaded not_eq nullptr);

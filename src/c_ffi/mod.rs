@@ -27,7 +27,9 @@ mod schematic;
 use crate::block::Block;
 use crate::error::Error;
 use crate::region::{BlockEntity, PendingTick};
-use crate::schem::{LitematicaMetaData, MetaDataIR, Schematic, VanillaStructureMetaData, WE12MetaData, WE13MetaData};
+use crate::schem::{
+    LitematicaMetaData, MetaDataIR, Schematic, VanillaStructureMetaData, WE12MetaData, WE13MetaData,
+};
 use crate::{Entity, Region};
 use fastnbt::Value;
 use std::collections::HashMap;
@@ -186,7 +188,6 @@ pub unsafe extern "C" fn mc_schem_destroy_nbt_hashmap(ptr: *mut HashMap<String, 
     let _ = Box::from_raw(ptr);
 }
 
-
 // void mc_schem_destroy_litematica_metadata(litematica_metadata* mdata);
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_destroy_litematica_metadata(ptr: *mut LitematicaMetaData) {
@@ -204,7 +205,9 @@ pub unsafe extern "C" fn mc_schem_destroy_world_edit13_metadata(ptr: *mut WE13Me
 }
 // void mc_schem_destroy_vanilla_structure_metadata(vanilla_structure_metadata* mdata);
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_destroy_vanilla_structure_metadata(ptr: *mut VanillaStructureMetaData) {
+pub unsafe extern "C" fn mc_schem_destroy_vanilla_structure_metadata(
+    ptr: *mut VanillaStructureMetaData,
+) {
     let _ = Box::from_raw(ptr);
 }
 

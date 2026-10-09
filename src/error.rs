@@ -16,11 +16,6 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-use fastnbt::{ByteArray, IntArray, LongArray, Value};
-use serde::de::StdError;
-use std::collections::HashMap;
-use std::fmt::{Display, Formatter};
-use std::ops::Range;
 // use serde::Deserializer;
 use crate::block::{Block, BlockIdParseError};
 use crate::item::Item;
@@ -28,6 +23,11 @@ use crate::old_block::OldBlockParseError;
 use crate::region::Region;
 use crate::schem::common::{format_range, format_size};
 use crate::schem::id_of_nbt_tag;
+use fastnbt::{ByteArray, IntArray, LongArray, Value};
+use serde::de::StdError;
+use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
+use std::ops::Range;
 use strum::Display;
 
 /// Errors when loading and saving schematic

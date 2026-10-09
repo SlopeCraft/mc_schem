@@ -117,11 +117,11 @@ void check_first_hit(const schematic& schem) {
     const pos_t offset = reg->offset();
     const pos_t shape = reg->size_xyz();
 
-    reg->visit_block_entities([&](int32_t x, int32_t y, int32_t z,
-                                  const block_entity&) {
-      const pos_t pos{x + offset[0], y + offset[1], z + offset[2]};
-      MC_SCHEM_CHECK(schem.first_block_entity_at(pos) not_eq nullptr);
-    });
+    reg->visit_block_entities(
+        [&](int32_t x, int32_t y, int32_t z, const block_entity&) {
+          const pos_t pos{x + offset[0], y + offset[1], z + offset[2]};
+          MC_SCHEM_CHECK(schem.first_block_entity_at(pos) not_eq nullptr);
+        });
 
     for (int32_t x = 0; x < shape[0]; ++x) {
       for (int32_t y = 0; y < shape[1]; ++y) {
@@ -130,11 +130,10 @@ void check_first_hit(const schematic& schem) {
           if (reg->pending_ticks_count_at(rel) == 0) {
             continue;
           }
-          MC_SCHEM_CHECK(
-              schem.first_pending_ticks_at(pos_t{x + offset[0],
-                                                 y + offset[1],
-                                                 z + offset[2]})
-                  .size() >= 1);
+          MC_SCHEM_CHECK(schem
+                             .first_pending_ticks_at(pos_t{
+                                 x + offset[0], y + offset[1], z + offset[2]})
+                             .size() >= 1);
         }
       }
     }
@@ -255,14 +254,15 @@ void check_reader_rejects_gzip(const std::string& path) {
   std::ifstream stream{path, std::ios::binary};
   MC_SCHEM_CHECK(stream.is_open());
 
-  auto litematica = schematic::load_litematica(stream, litematica_load_option{});
+  auto litematica =
+      schematic::load_litematica(stream, litematica_load_option{});
   MC_SCHEM_CHECK(not litematica.has_value());
   MC_SCHEM_CHECK(not litematica.error()->message().empty());
 
   stream.clear();
   stream.seekg(0);
-  auto vanilla =
-      schematic::load_vanilla_structure(stream, vanilla_structure_load_option{});
+  auto vanilla = schematic::load_vanilla_structure(
+      stream, vanilla_structure_load_option{});
   MC_SCHEM_CHECK(not vanilla.has_value());
   MC_SCHEM_CHECK(not vanilla.error()->message().empty());
 
@@ -598,15 +598,14 @@ int main(int argc, char** argv) {
 
     // All three save functions write gzipped nbt
     const auto starts_with_gzip_magic = [](const std::string& bytes) {
-      return bytes.size() >= 2 and
-             static_cast<uint8_t>(bytes[0]) == 0x1f and
+      return bytes.size() >= 2 and static_cast<uint8_t>(bytes[0]) == 0x1f and
              static_cast<uint8_t>(bytes[1]) == 0x8b;
     };
 
     {
       std::ostringstream out;
-      MC_SCHEM_CHECK(schem->save_litematica(out, litematica_save_option{})
-                         .has_value());
+      MC_SCHEM_CHECK(
+          schem->save_litematica(out, litematica_save_option{}).has_value());
       MC_SCHEM_CHECK(starts_with_gzip_magic(out.str()));
     }
     {
@@ -624,11 +623,10 @@ int main(int argc, char** argv) {
     }
 
     // A file format the library does not know is refused on both sides
-    MC_SCHEM_CHECK(not schem->save_to_file("./exported_test_data.unknown")
-                       .has_value());
     MC_SCHEM_CHECK(
-        not schematic::load_from_file("./exported_test_data.unknown")
-                .has_value());
+        not schem->save_to_file("./exported_test_data.unknown").has_value());
+    MC_SCHEM_CHECK(not schematic::load_from_file("./exported_test_data.unknown")
+                           .has_value());
 
     // save_to_file picks the format from the extension, and the result parses
     // back
@@ -656,8 +654,7 @@ int main(int argc, char** argv) {
       check_aggregates(*reloaded);
     }
 
-    MC_SCHEM_CHECK(
-        schem->save_to_file("./exported_test_data.nbt").has_value());
+    MC_SCHEM_CHECK(schem->save_to_file("./exported_test_data.nbt").has_value());
     {
       auto reloaded = load_or_abort("./exported_test_data.nbt");
       MC_SCHEM_CHECK(reloaded->regions_count() >= 1);

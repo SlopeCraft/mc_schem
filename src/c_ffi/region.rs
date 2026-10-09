@@ -201,14 +201,16 @@ pub unsafe extern "C" fn mc_schem_region_add_entity(
 /// released in this operation.
 // size_t mc_schem_region_add_entity_move(region*, entity* new_entity)
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_region_add_entity_move(region: *mut Region, new_entity: *mut Entity) -> usize {
+pub unsafe extern "C" fn mc_schem_region_add_entity_move(
+    region: *mut Region,
+    new_entity: *mut Entity,
+) -> usize {
     assert!(!new_entity.is_null());
     let new_entity_box = Box::from_raw(new_entity);
     region.as_mut_unchecked().entities.push(*new_entity_box);
 
     (*region).entities.len() - 1
 }
-
 
 // size_t mc_schem_region_get_block_entities_count(const region*);
 #[no_mangle]
@@ -296,17 +298,22 @@ pub unsafe extern "C" fn mc_schem_region_add_block_entity(
 /// value
 // block_entity* mc_schem_region_add_block_entity_move(region*, int32_t x, int32_t y, int32_t z, block_entity* new_be_nullable);
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_region_add_block_entity_move(region: *mut Region,
-                                                               x: i32,
-                                                               y: i32,
-                                                               z: i32,
-                                                               new_be_nullable: *mut BlockEntity) -> *mut BlockEntity {
+pub unsafe extern "C" fn mc_schem_region_add_block_entity_move(
+    region: *mut Region,
+    x: i32,
+    y: i32,
+    z: i32,
+    new_be_nullable: *mut BlockEntity,
+) -> *mut BlockEntity {
     let old: Option<BlockEntity>;
     if new_be_nullable.is_null() {
         old = region.as_mut_unchecked().block_entities.remove(&[x, y, z]);
     } else {
         let new_be_box = Box::from_raw(new_be_nullable);
-        old = region.as_mut_unchecked().block_entities.insert([x, y, z], *new_be_box);
+        old = region
+            .as_mut_unchecked()
+            .block_entities
+            .insert([x, y, z], *new_be_box);
     }
 
     if let Some(old) = old {
@@ -455,15 +462,16 @@ pub unsafe extern "C" fn mc_schem_region_visit_blocks(
     ),
     custom_data: *mut c_void,
 ) {
-    let mut func = |pos: &[i32; 3], blkid, blk: &Block, be: Option<&BlockEntity>, _pts: &[PendingTick]| {
-        let [x, y, z] = *pos;
-        let beptr = if let Some(be) = be {
-            be as *const BlockEntity
-        } else {
-            null()
+    let mut func =
+        |pos: &[i32; 3], blkid, blk: &Block, be: Option<&BlockEntity>, _pts: &[PendingTick]| {
+            let [x, y, z] = *pos;
+            let beptr = if let Some(be) = be {
+                be as *const BlockEntity
+            } else {
+                null()
+            };
+            callback(x, y, z, blkid, blk as *const Block, beptr, custom_data);
         };
-        callback(x, y, z, blkid, blk as *const Block, beptr, custom_data);
-    };
 
     if explicit_only {
         (*region).visit_explicit(&mut func);

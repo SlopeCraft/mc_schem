@@ -16,22 +16,25 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+// use std::io::Read;
+use fastnbt::Value;
+use flate2::read::GzDecoder;
+use flate2::{Compression, GzBuilder};
+use mc_schem::block::CommonBlock;
+use mc_schem::region::WorldSlice;
+use mc_schem::{
+    old_block, schem, Block, BlockEntity, DataVersion, LitematicaLoadOption, LitematicaSaveOption,
+    MetaDataIR, Region, Schematic, WorldEdit12LoadOption, WorldEdit13LoadOption,
+    WorldEdit13SaveOption,
+};
+use ndarray::Array3;
+use rand::Rng;
 use std::collections::HashMap;
 use std::env;
 use std::fs::{create_dir_all, File};
-// use std::io::Read;
-use fastnbt::Value;
-use flate2::{Compression, GzBuilder};
-use flate2::read::{GzDecoder};
-use ndarray::Array3;
-use rand::Rng;
-use mc_schem::block::CommonBlock;
-use mc_schem::{Schematic, WorldEdit12LoadOption, LitematicaLoadOption, LitematicaSaveOption, Block, schem, old_block, DataVersion, WorldEdit13SaveOption, Region, BlockEntity, MetaDataIR, WorldEdit13LoadOption};
-use mc_schem::region::WorldSlice;
 
 #[test]
 fn block_id_parse() {
-
     let pass_ids = [
         "minecraft:air",
         "minecraft:stone",
@@ -91,8 +94,6 @@ fn block_id_parse() {
     }
 }
 
-
-
 #[test]
 fn block_bits_required() {
     for palette_size in 0..258 {
@@ -107,12 +108,15 @@ fn ceil_up_to() {
         ((0isize, 12isize), 0isize),
         ((13, 12), 24),
         ((120, 12), 120),
-        ((121, 12), 132)
+        ((121, 12), 132),
     ];
     for ((a, b), expected) in tests {
         let result = schem::common::ceil_up_to(a, b);
         if result != expected {
-            panic!("{} ceil up to {} should b {}, but found {}", a, b, expected, result);
+            panic!(
+                "{} ceil up to {} should b {}, but found {}",
+                a, b, expected, result
+            );
         } else {
             println!("{} ceil up to {} = {}", a, b, expected);
         }
@@ -127,7 +131,10 @@ fn litematica_local_bit_index_to_global_bit_index() {
         let lbi = lbi_list[idx];
         let computed = schem::litematica::MultiBitSet::logic_bit_index_to_global_bit_index(lbi);
         if computed != expected[idx] {
-            panic!("logical bit index {} should be mapped to {}, but found {}", lbi, expected[idx], computed);
+            panic!(
+                "logical bit index {} should be mapped to {}, but found {}",
+                lbi, expected[idx], computed
+            );
         }
     }
 }
@@ -148,7 +155,6 @@ fn litematica_multi_bit_set_read() {
 fn litematica_multi_bit_set_rw() {
     //use rand::Rng;
     let mut rng = rand::thread_rng();
-
 
     let bits = 1..65;
     let num_elements = 1 << 10;
@@ -178,39 +184,304 @@ fn litematica_multi_bit_set_rw() {
 
 #[test]
 fn litematica_3d_array_decode() {
-    use crate::schem::{LitematicaLoadOption};
-    println!("Current dir: {}", env::current_dir().unwrap().to_string_lossy());
+    use crate::schem::LitematicaLoadOption;
+    println!(
+        "Current dir: {}",
+        env::current_dir().unwrap().to_string_lossy()
+    );
     let src_filename = "./test_files/litematica/test01.litematic";
 
-    let schem = Schematic::from_litematica_file(src_filename, &LitematicaLoadOption::default()).unwrap().0;
+    let schem = Schematic::from_litematica_file(src_filename, &LitematicaLoadOption::default())
+        .unwrap()
+        .0;
 
     for y in 0..19 {
         let bid = schem.first_block_index_at([0, y, 0]).unwrap();
         if bid != y as u16 {
-            panic!("Block index at [0, {}, 0] should be {}, but found {}", y, y, bid);
+            panic!(
+                "Block index at [0, {}, 0] should be {}, but found {}",
+                y, y, bid
+            );
         }
     }
 }
-
 
 // generate value for VALID_DAMAGE_LUT in old_blocks.rs
 #[test]
 fn process_mc12_damage_data() {
     let raw_data = [
-        "0", "0-6", "0", "0-2", "0", "0-5", "0-5,8-13", "0", "0-15", "0-15", "0-15", "0-15", "0-1", "0", "0", "0", "0", "0-15", "0-15", "0-1", "0", "0", "0", "0-5,8-13", "0-2", "0", "0-3,8-15", "0-5,8-13", "0-5,8-13", "0-5,8-13", "0", "0-2", "0", "0-5,8-13", "0-5,8-13", "0-15", "0-5,8-13", "0", "0-8", "0", "0", "0", "0", "0-15", "0-15", "0", "0-1", "0", "0", "0", "1-5", "0-15", "0", "0-7", "2-5", "0-15", "0", "0", "0", "0-7", "0-7", "2-5", "2-5", "0-15", "0-11", "2-5", "0-9", "0-7", "2-5", "0-15", "0-1", "0-11", "0-1", "0", "0", "1-5", "1-5", "0-5,8-13", "0-7", "0", "0", "0-15", "0", "0-15", "0-1", "0", "0-3", "0", "0", "0", "1-2", "0-3", "0-6", "0-15", "0-15", "0-15", "0-15", "0-5", "0-3", "0-10,14-15", "0-10,14-15", "0", "0", "0", "0-7", "0-7", "0-15", "0-15", "0-7", "0-7", "0", "0", "0", "0", "0-7", "0-3", "0", "0-7", "0-3", "0", "0-7", "0", "0", "0", "0", "0-5", "0-5,8-13", "0-11", "0-7", "0", "2-5", "0-15", "0-1,4-5,8-9,12-13", "0", "0-7", "0-7", "0-7", "0-5,8-13", "0", "0-1", "0-15", "0-7", "0-7", "0-5,8-13", "0-5,8-13", "0-11", "2-5", "0-15", "0-15", "0-15", "0-15", "0-15", "0", "0", "0,2-5,8,10-13", "0-4", "0-7", "0-5,8-13", "0-5,8-13", "0-15", "0-15", "0-1,4-5,8-9,12-13", "0-1,4-5,8-9,12-13", "0-7", "0-7", "0", "0", "0-15", "0-2", "0", "0,4,8", "0-15", "0", "0", "0", "0-5,8-11", "0-15", "2-5", "0-15", "0-2", "0-7", "0,8", "0,8", "0-15", "0-15", "0-15", "0-15", "0-15", "0", "0", "0", "0", "0", "0-11", "0-11", "0-11", "0-11", "0-11", "0-5", "0", "0-5", "0", "0,4,8", "0-7", "0", "0,8", "0", "0-3", "0", "0", "0-5,8-13", "0-5,8-13", "0-3", "0", "0", "0", "0,4,8", "0", "0-5,8-13", "0-5", "0-5", "0-5", "0-5", "0-5", "0-5", "0-5", "0-5", "0-5", "0-5", "0-5", "0-5", "0-5", "0-5", "0-5", "0-5", "0-3", "0-3", "0-3", "0-3", "0-3", "0-3", "0-3", "0-3", "0-3", "0-3", "0-3", "0-3", "0-3", "0-3", "0-3", "0-3", "0-15", "0-15", "", "", "0-3"
-
+        "0",
+        "0-6",
+        "0",
+        "0-2",
+        "0",
+        "0-5",
+        "0-5,8-13",
+        "0",
+        "0-15",
+        "0-15",
+        "0-15",
+        "0-15",
+        "0-1",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0-15",
+        "0-15",
+        "0-1",
+        "0",
+        "0",
+        "0",
+        "0-5,8-13",
+        "0-2",
+        "0",
+        "0-3,8-15",
+        "0-5,8-13",
+        "0-5,8-13",
+        "0-5,8-13",
+        "0",
+        "0-2",
+        "0",
+        "0-5,8-13",
+        "0-5,8-13",
+        "0-15",
+        "0-5,8-13",
+        "0",
+        "0-8",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0-15",
+        "0-15",
+        "0",
+        "0-1",
+        "0",
+        "0",
+        "0",
+        "1-5",
+        "0-15",
+        "0",
+        "0-7",
+        "2-5",
+        "0-15",
+        "0",
+        "0",
+        "0",
+        "0-7",
+        "0-7",
+        "2-5",
+        "2-5",
+        "0-15",
+        "0-11",
+        "2-5",
+        "0-9",
+        "0-7",
+        "2-5",
+        "0-15",
+        "0-1",
+        "0-11",
+        "0-1",
+        "0",
+        "0",
+        "1-5",
+        "1-5",
+        "0-5,8-13",
+        "0-7",
+        "0",
+        "0",
+        "0-15",
+        "0",
+        "0-15",
+        "0-1",
+        "0",
+        "0-3",
+        "0",
+        "0",
+        "0",
+        "1-2",
+        "0-3",
+        "0-6",
+        "0-15",
+        "0-15",
+        "0-15",
+        "0-15",
+        "0-5",
+        "0-3",
+        "0-10,14-15",
+        "0-10,14-15",
+        "0",
+        "0",
+        "0",
+        "0-7",
+        "0-7",
+        "0-15",
+        "0-15",
+        "0-7",
+        "0-7",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0-7",
+        "0-3",
+        "0",
+        "0-7",
+        "0-3",
+        "0",
+        "0-7",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0-5",
+        "0-5,8-13",
+        "0-11",
+        "0-7",
+        "0",
+        "2-5",
+        "0-15",
+        "0-1,4-5,8-9,12-13",
+        "0",
+        "0-7",
+        "0-7",
+        "0-7",
+        "0-5,8-13",
+        "0",
+        "0-1",
+        "0-15",
+        "0-7",
+        "0-7",
+        "0-5,8-13",
+        "0-5,8-13",
+        "0-11",
+        "2-5",
+        "0-15",
+        "0-15",
+        "0-15",
+        "0-15",
+        "0-15",
+        "0",
+        "0",
+        "0,2-5,8,10-13",
+        "0-4",
+        "0-7",
+        "0-5,8-13",
+        "0-5,8-13",
+        "0-15",
+        "0-15",
+        "0-1,4-5,8-9,12-13",
+        "0-1,4-5,8-9,12-13",
+        "0-7",
+        "0-7",
+        "0",
+        "0",
+        "0-15",
+        "0-2",
+        "0",
+        "0,4,8",
+        "0-15",
+        "0",
+        "0",
+        "0",
+        "0-5,8-11",
+        "0-15",
+        "2-5",
+        "0-15",
+        "0-2",
+        "0-7",
+        "0,8",
+        "0,8",
+        "0-15",
+        "0-15",
+        "0-15",
+        "0-15",
+        "0-15",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0-11",
+        "0-11",
+        "0-11",
+        "0-11",
+        "0-11",
+        "0-5",
+        "0",
+        "0-5",
+        "0",
+        "0,4,8",
+        "0-7",
+        "0",
+        "0,8",
+        "0",
+        "0-3",
+        "0",
+        "0",
+        "0-5,8-13",
+        "0-5,8-13",
+        "0-3",
+        "0",
+        "0",
+        "0",
+        "0,4,8",
+        "0",
+        "0-5,8-13",
+        "0-5",
+        "0-5",
+        "0-5",
+        "0-5",
+        "0-5",
+        "0-5",
+        "0-5",
+        "0-5",
+        "0-5",
+        "0-5",
+        "0-5",
+        "0-5",
+        "0-5",
+        "0-5",
+        "0-5",
+        "0-5",
+        "0-3",
+        "0-3",
+        "0-3",
+        "0-3",
+        "0-3",
+        "0-3",
+        "0-3",
+        "0-3",
+        "0-3",
+        "0-3",
+        "0-3",
+        "0-3",
+        "0-3",
+        "0-3",
+        "0-3",
+        "0-3",
+        "0-15",
+        "0-15",
+        "",
+        "",
+        "0-3",
     ];
 
     //let mut bit_represented = [0u16; 256];
 
     fn parse_raw_data(raw: &str) -> Option<u16> {
-        if raw.is_empty() { return Some(0); }
+        if raw.is_empty() {
+            return Some(0);
+        }
         let mut result: u16 = 0;
         for part in raw.split(',') {
             if !part.contains('-') {
                 let parsed;
                 match str::parse::<u16>(part) {
-                    Ok(p) => { parsed = p; }
+                    Ok(p) => {
+                        parsed = p;
+                    }
                     Err(_) => return None,
                 }
                 assert!(parsed <= 15);
@@ -262,7 +533,6 @@ fn process_mc12_damage_data() {
     print!("];");
 }
 
-
 #[test]
 fn test_old_block_number_id_damage() {
     let mut valid_damages = Vec::with_capacity(16);
@@ -284,16 +554,24 @@ fn test_old_block_number_id_damage() {
 fn parse_full_blocks_mc12() {
     let num_id_array;
     {
-        let decoder = GzDecoder::new(File::open("./test_files/schematic/full-blocks-1.12.2.schematic").unwrap());
+        let decoder = GzDecoder::new(
+            File::open("./test_files/schematic/full-blocks-1.12.2.schematic").unwrap(),
+        );
         let nbt = fastnbt::from_reader(decoder).unwrap();
         num_id_array = Schematic::parse_number_id_from_we12(&nbt).unwrap();
     }
     let litematic = Schematic::from_litematica_file(
         "./test_files/litematica/full-blocks-1.12.2.litematic",
-        &LitematicaLoadOption::default()).unwrap().0;
+        &LitematicaLoadOption::default(),
+    )
+    .unwrap()
+    .0;
     let lite_region = &litematic.regions[0];
     for dim in 0..3 {
-        assert_eq!(num_id_array.shape()[dim], lite_region.shape_yzx()[dim] as usize);
+        assert_eq!(
+            num_id_array.shape()[dim],
+            lite_region.shape_yzx()[dim] as usize
+        );
     }
 
     let mut hash: HashMap<(u8, u8), String> = HashMap::new();
@@ -307,7 +585,9 @@ fn parse_full_blocks_mc12() {
                     continue;
                 }
 
-                let block = litematic.first_block_at([x as i32, y as i32, z as i32]).unwrap();
+                let block = litematic
+                    .first_block_at([x as i32, y as i32, z as i32])
+                    .unwrap();
 
                 hash.insert((id, damage), block.full_id());
             }
@@ -356,7 +636,11 @@ fn parse_full_blocks_mc12() {
             if slice.len() == 1 {
                 result.push_str(&slice.first().unwrap().to_string());
             } else {
-                result.push_str(&format!("{}-{}", slice.first().unwrap(), slice.last().unwrap()));
+                result.push_str(&format!(
+                    "{}-{}",
+                    slice.first().unwrap(),
+                    slice.last().unwrap()
+                ));
             }
             result.push(',');
         }
@@ -366,7 +650,6 @@ fn parse_full_blocks_mc12() {
 
         return result;
     }
-
 }
 
 #[test]
@@ -375,13 +658,21 @@ fn make_mc12_numeric_lut() {
 
     let schem_option = WorldEdit12LoadOption::default();
 
-    let (schem, _, num_id_array) = Schematic::from_world_edit_12_file(schem_file, &schem_option).unwrap();
+    let (schem, _, num_id_array) =
+        Schematic::from_world_edit_12_file(schem_file, &schem_option).unwrap();
     let lite = Schematic::from_litematica_file(
         "./test_files/litematica/full-blocks-1.12.2.litematic",
-        &LitematicaLoadOption::default()).unwrap().0;
+        &LitematicaLoadOption::default(),
+    )
+    .unwrap()
+    .0;
 
     for dim in 0..3 {
-        let nia_shape_xyz = Region::pos_yzx_to_xyz(&[num_id_array.shape()[0], num_id_array.shape()[1], num_id_array.shape()[2]]);
+        let nia_shape_xyz = Region::pos_yzx_to_xyz(&[
+            num_id_array.shape()[0],
+            num_id_array.shape()[1],
+            num_id_array.shape()[2],
+        ]);
         assert_eq!(nia_shape_xyz[dim], schem.shape()[dim] as usize);
         assert_eq!(schem.shape()[dim], lite.shape()[dim]);
     }
@@ -406,32 +697,41 @@ fn make_mc12_numeric_lut() {
     }
     create_dir_all("./target/test/make_mc12_numeric_lut").unwrap();
     let file = File::create("./target/test/make_mc12_numeric_lut/out.nbt").unwrap();
-    let encoder = GzBuilder::new().filename("out.nbt").write(file, Compression::best());
+    let encoder = GzBuilder::new()
+        .filename("out.nbt")
+        .write(file, Compression::best());
     fastnbt::to_writer(encoder, &hash).unwrap();
 }
 
 #[test]
 fn load_save_vanilla_structure() {
     use schem::{VanillaStructureLoadOption, VanillaStructureSaveOption};
-    let schem =
-        Schematic::from_vanilla_structure_file(
-            "./test_files/vanilla_structure/test01.nbt",
-            &VanillaStructureLoadOption::default()).unwrap().0;
+    let schem = Schematic::from_vanilla_structure_file(
+        "./test_files/vanilla_structure/test01.nbt",
+        &VanillaStructureLoadOption::default(),
+    )
+    .unwrap()
+    .0;
 
     create_dir_all("./target/test/load_save_vanilla_structure").unwrap();
 
-    schem.save_vanilla_structure_file(
-        "./target/test/load_save_vanilla_structure/out01.nbt",
-        &VanillaStructureSaveOption::default()).expect("Failed to save vanilla structure file");
+    schem
+        .save_vanilla_structure_file(
+            "./target/test/load_save_vanilla_structure/out01.nbt",
+            &VanillaStructureSaveOption::default(),
+        )
+        .expect("Failed to save vanilla structure file");
 
     Schematic::from_vanilla_structure_file(
-        "./target/test/load_save_vanilla_structure/out01.nbt", &VanillaStructureLoadOption::default())
-        .expect("Failed to load saved vanilla structure");
+        "./target/test/load_save_vanilla_structure/out01.nbt",
+        &VanillaStructureLoadOption::default(),
+    )
+    .expect("Failed to load saved vanilla structure");
 }
 
 #[test]
 fn load_save_litematica() {
-    use schem::{LitematicaLoadOption};
+    use schem::LitematicaLoadOption;
     //println!("Current dir: {}", env::current_dir().unwrap().to_string_lossy());
 
     let src_dir = "./test_files/litematica";
@@ -442,12 +742,17 @@ fn load_save_litematica() {
         let src_filename = format!("{}/test{:02}.litematic", src_dir, id);
         let dst_filename = format!("{}/out{:02}.litematic", out_dir, id);
 
-        let schem = Schematic::from_litematica_file(&src_filename, &LitematicaLoadOption::default()).unwrap().0;
+        let schem =
+            Schematic::from_litematica_file(&src_filename, &LitematicaLoadOption::default())
+                .unwrap()
+                .0;
 
-        schem.save_litematica_file(&dst_filename, &LitematicaSaveOption::default()).expect("Failed to save litematica file");
+        schem
+            .save_litematica_file(&dst_filename, &LitematicaSaveOption::default())
+            .expect("Failed to save litematica file");
 
-        Schematic::from_litematica_file(&dst_filename, &LitematicaLoadOption::default()).expect("Failed to load saved litematica file");
-
+        Schematic::from_litematica_file(&dst_filename, &LitematicaLoadOption::default())
+            .expect("Failed to load saved litematica file");
 
         //println!("Metadata: \n{:?}", schem.metadata_litematica());
     }
@@ -456,8 +761,13 @@ fn load_save_litematica() {
 #[test]
 fn load_litematica_with_negative_size() {
     let src_dir = "./test_files/litematica";
-    let src_filename = format!("{}/negative-size-Supercharged_contained_shulker_farm.litematic", src_dir);
-    let _ = Schematic::from_litematica_file(&src_filename, &LitematicaLoadOption::default()).unwrap().0;
+    let src_filename = format!(
+        "{}/negative-size-Supercharged_contained_shulker_farm.litematic",
+        src_dir
+    );
+    let _ = Schematic::from_litematica_file(&src_filename, &LitematicaLoadOption::default())
+        .unwrap()
+        .0;
 }
 
 #[test]
@@ -472,11 +782,17 @@ fn load_save_world_edit13() {
         let src_filename = format!("{}/test{:02}.schem", src_dir, id);
         let dst_filename = format!("{}/out{:02}.schem", out_dir, id);
 
-        let schem = Schematic::from_world_edit_13_file(&src_filename, &WorldEdit13LoadOption::default()).unwrap().0;
+        let schem =
+            Schematic::from_world_edit_13_file(&src_filename, &WorldEdit13LoadOption::default())
+                .unwrap()
+                .0;
 
-        schem.save_world_edit_13_file(&dst_filename, &WorldEdit13SaveOption::default()).expect("Failed to save .schem file");
+        schem
+            .save_world_edit_13_file(&dst_filename, &WorldEdit13SaveOption::default())
+            .expect("Failed to save .schem file");
 
-        Schematic::from_world_edit_13_file(&dst_filename, &WorldEdit13LoadOption::default()).expect("Failed to load saved .schem file");
+        Schematic::from_world_edit_13_file(&dst_filename, &WorldEdit13LoadOption::default())
+            .expect("Failed to load saved .schem file");
 
         //println!("Metadata: \n{:?}", schem.metadata_litematica());
     }
@@ -488,7 +804,11 @@ fn load_save_world_edit12() {
     //let src_dir = "./test_files/schematic";
     let out_dir = "./target/test/load_save_world_edit12";
     create_dir_all(out_dir).unwrap();
-    let _ = Schematic::from_world_edit_12_file("./test_files/schematic/full-blocks-1.12.2.schematic", &WorldEdit12LoadOption::default()).unwrap();
+    let _ = Schematic::from_world_edit_12_file(
+        "./test_files/schematic/full-blocks-1.12.2.schematic",
+        &WorldEdit12LoadOption::default(),
+    )
+    .unwrap();
 }
 
 #[test]
@@ -500,7 +820,9 @@ fn make_test_litematic() {
         let str_id = old_block::OLD_BLOCK_ID[id as usize];
         for damage in 0..16 {
             let y = damage * 2;
-            commands.push(format!("execute @p ~ ~ ~ setblock ~{x} ~{y} ~{z} {str_id} {damage} replace"));
+            commands.push(format!(
+                "execute @p ~ ~ ~ setblock ~{x} ~{y} ~{z} {str_id} {damage} replace"
+            ));
         }
     }
     assert_eq!(commands.len(), 16 * 16 * 16);
@@ -514,15 +836,21 @@ fn make_test_litematic() {
         region.name = "main".to_string();
 
         let blk_first = Block::from_id("command_block[conditional=false,facing=east]").unwrap();
-        let blk_x_positive = Block::from_id("chain_command_block[conditional=false,facing=east]").unwrap();
-        let blk_x_negative = Block::from_id("chain_command_block[conditional=false,facing=west]").unwrap();
-        let blk_z_positive = Block::from_id("chain_command_block[conditional=false,facing=south]").unwrap();
+        let blk_x_positive =
+            Block::from_id("chain_command_block[conditional=false,facing=east]").unwrap();
+        let blk_x_negative =
+            Block::from_id("chain_command_block[conditional=false,facing=west]").unwrap();
+        let blk_z_positive =
+            Block::from_id("chain_command_block[conditional=false,facing=south]").unwrap();
 
         let mut command_block_nbt = HashMap::new();
         command_block_nbt.insert("conditionMet".to_string(), Value::Byte(0));
-        command_block_nbt.insert("auto".to_string(), Value::Byte(1));//always active
+        command_block_nbt.insert("auto".to_string(), Value::Byte(1)); //always active
         command_block_nbt.insert("CustomName".to_string(), Value::String("@".to_string()));
-        command_block_nbt.insert("id".to_string(), Value::String("minecraft:command_block".to_string()));
+        command_block_nbt.insert(
+            "id".to_string(),
+            Value::String("minecraft:command_block".to_string()),
+        );
         command_block_nbt.insert("SuccessCount".to_string(), Value::Int(0));
         command_block_nbt.insert("TrackOutput".to_string(), Value::Byte(1));
         command_block_nbt.insert("UpdateLastExecution".to_string(), Value::Byte(1));
@@ -532,21 +860,26 @@ fn make_test_litematic() {
             for x_offset in 0..64 {
                 let is_first_block = (x_offset == 0) && (z == 0);
                 let x = if z % 2 == 0 { x_offset } else { 63 - x_offset };
-                let cur_blk: &Block =
-                    if is_first_block {
-                        &blk_first
-                    } else if x_offset == 63 {
-                        &blk_z_positive
-                    } else if z % 2 == 0 {
-                        &blk_x_positive
-                    } else {
-                        &blk_x_negative
-                    };
-                region.set_block([x, 0, z], cur_blk).expect("Failed to set block");
-                command_block_nbt.insert("Command".to_string(), Value::String(commands[counter].to_string()));
+                let cur_blk: &Block = if is_first_block {
+                    &blk_first
+                } else if x_offset == 63 {
+                    &blk_z_positive
+                } else if z % 2 == 0 {
+                    &blk_x_positive
+                } else {
+                    &blk_x_negative
+                };
+                region
+                    .set_block([x, 0, z], cur_blk)
+                    .expect("Failed to set block");
+                command_block_nbt.insert(
+                    "Command".to_string(),
+                    Value::String(commands[counter].to_string()),
+                );
 
                 let mut be = BlockEntity::new();
-                *(command_block_nbt.get_mut("auto").unwrap()) = Value::Byte(if is_first_block { 0 } else { 1 });
+                *(command_block_nbt.get_mut("auto").unwrap()) =
+                    Value::Byte(if is_first_block { 0 } else { 1 });
                 be.tags = command_block_nbt.clone();
                 region.set_block_entity_at([x, 0, z], be);
                 counter += 1;
@@ -560,7 +893,12 @@ fn make_test_litematic() {
         schem.metadata = md;
     }
     create_dir_all("./target/test/make_test_litematic").unwrap();
-    schem.save_litematica_file("./target/test/make_test_litematic/out.litematic", &LitematicaSaveOption::default()).unwrap();
+    schem
+        .save_litematica_file(
+            "./target/test/make_test_litematic/out.litematic",
+            &LitematicaSaveOption::default(),
+        )
+        .unwrap();
 }
 
 #[test]
@@ -578,7 +916,10 @@ fn correct_test_litematica() {
 
     let schem = Schematic::from_litematica_file(
         "./test_files/litematica/correct_test.litematic",
-        &LitematicaLoadOption::default()).unwrap().0;
+        &LitematicaLoadOption::default(),
+    )
+    .unwrap()
+    .0;
 
     for x in 0..schem.shape()[0] {
         for y in 0..schem.shape()[1] {
@@ -602,16 +943,22 @@ fn correct_test_litematica() {
 #[allow(unused_assignments)]
 fn correct_test_mc13_plus() {
     let test_versions = [
-        "1.14.4", "1.18.2", "1.19.4", "1.20.6", "1.21.11", "26.1.2", "26.2"];
+        "1.14.4", "1.18.2", "1.19.4", "1.20.6", "1.21.11", "26.1.2", "26.2",
+    ];
     let mut err_counter = 0;
     for ver in test_versions {
         let litematica_file = format!("./test_files/litematica/full-blocks-{ver}.litematic");
 
-
         let schem_file = format!("./test_files/schem/full-blocks-{ver}.schem");
-        let schem = Schematic::from_world_edit_13_file(&schem_file, &WorldEdit13LoadOption::default()).unwrap().0;
+        let schem =
+            Schematic::from_world_edit_13_file(&schem_file, &WorldEdit13LoadOption::default())
+                .unwrap()
+                .0;
 
-        let lite = Schematic::from_litematica_file(&litematica_file, &LitematicaLoadOption::default()).unwrap().0;
+        let lite =
+            Schematic::from_litematica_file(&litematica_file, &LitematicaLoadOption::default())
+                .unwrap()
+                .0;
         assert_eq!(lite.shape(), schem.shape());
         for x in 0..lite.shape()[0] {
             for y in 0..lite.shape()[1] {
@@ -633,28 +980,51 @@ fn correct_test_mc13_plus() {
     assert_eq!(err_counter, 0);
 }
 
-
 #[test]
 #[allow(unused_assignments)]
 fn correct_test_mc12() {
-    let test_versions = ["1.12.2"];//,
+    let test_versions = ["1.12.2"]; //,
     let mut err_counter = 0;
 
-    let soft_check_ids = ["grass", "dirt", "bed", "piston_head",
-        "fire", "oak_stairs", "wooden_door", "stone_stairs", "iron_door",
-        "unpowered_repeater", "powered_repeater", "fence_gate", "double_plant",
-        "spruce_fence_gate", "birch_fence_gate", "jungle_fence_gate",
-        "dark_oak_fence_gate", "acacia_fence_gate", "spruce_door", "birch_door",
-        "jungle_door", "acacia_door", "dark_oak_door"];
+    let soft_check_ids = [
+        "grass",
+        "dirt",
+        "bed",
+        "piston_head",
+        "fire",
+        "oak_stairs",
+        "wooden_door",
+        "stone_stairs",
+        "iron_door",
+        "unpowered_repeater",
+        "powered_repeater",
+        "fence_gate",
+        "double_plant",
+        "spruce_fence_gate",
+        "birch_fence_gate",
+        "jungle_fence_gate",
+        "dark_oak_fence_gate",
+        "acacia_fence_gate",
+        "spruce_door",
+        "birch_door",
+        "jungle_door",
+        "acacia_door",
+        "dark_oak_door",
+    ];
 
     for ver in test_versions {
         let litematica_file = format!("./test_files/litematica/full-blocks-{ver}.litematic");
 
         let schem;
         let schem_file = format!("./test_files/schematic/full-blocks-{ver}.schematic");
-        schem = Schematic::from_world_edit_12_file(&schem_file, &WorldEdit12LoadOption::default()).unwrap().0;
+        schem = Schematic::from_world_edit_12_file(&schem_file, &WorldEdit12LoadOption::default())
+            .unwrap()
+            .0;
 
-        let lite = Schematic::from_litematica_file(&litematica_file, &LitematicaLoadOption::default()).unwrap().0;
+        let lite =
+            Schematic::from_litematica_file(&litematica_file, &LitematicaLoadOption::default())
+                .unwrap()
+                .0;
         let mut ok_counter = 0;
         assert_eq!(lite.shape(), schem.shape());
         for x in 0..lite.shape()[0] {
@@ -665,7 +1035,9 @@ fn correct_test_mc12() {
                     let blk_s = schem.first_block_at(pos).unwrap();
 
                     if blk_l != blk_s {
-                        if blk_l.is_inherited_from(blk_l) && soft_check_ids.contains(&blk_l.id.as_str()) {
+                        if blk_l.is_inherited_from(blk_l)
+                            && soft_check_ids.contains(&blk_l.id.as_str())
+                        {
                             continue;
                         }
                         err_counter += 1;
@@ -683,16 +1055,21 @@ fn correct_test_mc12() {
     assert_eq!(err_counter, 0);
 }
 
-
 #[test]
 fn test_merge_regions() {
-    let mut schem = Schematic::from_litematica_file("./test_files/litematica/multi-region01.litematic",
-                                                    &LitematicaLoadOption::default()).unwrap().0;
+    let mut schem = Schematic::from_litematica_file(
+        "./test_files/litematica/multi-region01.litematic",
+        &LitematicaLoadOption::default(),
+    )
+    .unwrap()
+    .0;
     schem.merge_regions(&CommonBlock::Air.to_block());
 
     create_dir_all("./target/test/test_merge_regions").unwrap();
     let out_file = "./target/test/test_merge_regions/multi-region01-out.litematic";
-    schem.save_litematica_file(out_file, &LitematicaSaveOption::default()).unwrap()
+    schem
+        .save_litematica_file(out_file, &LitematicaSaveOption::default())
+        .unwrap()
 }
 
 #[test]
@@ -718,7 +1095,11 @@ fn test_3d_array_order() {
 
 #[test]
 fn test_region_sparse() {
-    let (schem, _) = Schematic::from_litematica_file("./test_files/litematica/full-blocks-26.2.litematic", &LitematicaLoadOption::default()).unwrap();
+    let (schem, _) = Schematic::from_litematica_file(
+        "./test_files/litematica/full-blocks-26.2.litematic",
+        &LitematicaLoadOption::default(),
+    )
+    .unwrap();
 
     assert_eq!(schem.regions.len(), 1);
     let region_dense = &schem.regions[0];

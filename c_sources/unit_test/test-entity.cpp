@@ -46,11 +46,9 @@ std::vector<uint8_t> dump_tags_or_abort(const mc_schem::nbt_hashmap& tags) {
 
 /// True if `needle` shows up in `data` as raw bytes.
 bool contains_ascii(const std::vector<uint8_t>& data, std::string_view needle) {
-  const auto found =
-      std::search(data.begin(), data.end(), needle.begin(), needle.end(),
-                  [](uint8_t lhs, char rhs) {
-                    return lhs == static_cast<uint8_t>(rhs);
-                  });
+  const auto found = std::search(
+      data.begin(), data.end(), needle.begin(), needle.end(),
+      [](uint8_t lhs, char rhs) { return lhs == static_cast<uint8_t>(rhs); });
   return found not_eq data.end();
 }
 

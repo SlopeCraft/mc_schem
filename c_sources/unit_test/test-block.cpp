@@ -124,11 +124,13 @@ int main(int, char**) {
     blk->set_attribute("facing", "north");
     blk->set_attribute("half", "bottom");
     // attributes are stored in a BTreeMap, so the full id is key-sorted
-    MC_SCHEM_CHECK(blk->full_id() == "minecraft:oak_stairs[facing=north,half=bottom]");
+    MC_SCHEM_CHECK(blk->full_id() ==
+                   "minecraft:oak_stairs[facing=north,half=bottom]");
 
     // Setting an existing key overwrites its value
     blk->set_attribute("half", "top");
-    MC_SCHEM_CHECK(blk->full_id() == "minecraft:oak_stairs[facing=north,half=top]");
+    MC_SCHEM_CHECK(blk->full_id() ==
+                   "minecraft:oak_stairs[facing=north,half=top]");
 
     blk->erase_attribute("half");
     MC_SCHEM_CHECK(blk->full_id() == "minecraft:oak_stairs[facing=north]");
@@ -189,7 +191,8 @@ int main(int, char**) {
     MC_SCHEM_CHECK(with_attrs.has_value());
     MC_SCHEM_CHECK(blk->namespace_() == "minecraft");
     MC_SCHEM_CHECK(blk->id() == "oak_stairs");
-    MC_SCHEM_CHECK(blk->full_id() == "minecraft:oak_stairs[facing=north,half=top]");
+    MC_SCHEM_CHECK(blk->full_id() ==
+                   "minecraft:oak_stairs[facing=north,half=top]");
 
     // The namespace may be omitted
     const auto no_namespace = blk->reset("stone");
@@ -213,16 +216,18 @@ int main(int, char**) {
 
     const auto too_many_colons = blk->reset("minecraft:stone:extra");
     MC_SCHEM_CHECK(not too_many_colons.has_value());
-    MC_SCHEM_CHECK(too_many_colons.error() == block_id_parse_error::TooManyColons);
+    MC_SCHEM_CHECK(too_many_colons.error() ==
+                   block_id_parse_error::TooManyColons);
 
     const auto missing_equal = blk->reset("minecraft:stone[facing]");
     MC_SCHEM_CHECK(not missing_equal.has_value());
     MC_SCHEM_CHECK(missing_equal.error() ==
-          block_id_parse_error::MissingEqualInAttributes);
+                   block_id_parse_error::MissingEqualInAttributes);
 
     const auto invalid_char = blk->reset("Minecraft:stone");
     MC_SCHEM_CHECK(not invalid_char.has_value());
-    MC_SCHEM_CHECK(invalid_char.error() == block_id_parse_error::InvalidCharacter);
+    MC_SCHEM_CHECK(invalid_char.error() ==
+                   block_id_parse_error::InvalidCharacter);
 
     // None of the failed resets may change the block
     MC_SCHEM_CHECK(blk->namespace_() == "minecraft");

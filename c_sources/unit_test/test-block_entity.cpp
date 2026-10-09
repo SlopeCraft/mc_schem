@@ -55,7 +55,8 @@ int main(int argc, char** argv) {
 
   std::vector<pos_t> positions;
 
-  // mc_schem_region_get_block_entities_count / mc_schem_region_visit_block_entities
+  // mc_schem_region_get_block_entities_count /
+  // mc_schem_region_visit_block_entities
   {
     const size_t count = cr.block_entities_count();
     // At least one is needed for the calls below to run at all

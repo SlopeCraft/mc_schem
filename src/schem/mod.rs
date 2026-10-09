@@ -30,13 +30,13 @@ use crate::error::Error;
 use fastnbt;
 use flate2::Compression;
 
+//use schem::mc_version;
+use crate::region::{BlockEntity, Region, WorldSlice};
+use crate::{schem, PendingTick};
 use std::cmp::max;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
-//use schem::mc_version;
-use crate::region::{BlockEntity, Region, WorldSlice};
-use crate::{schem, PendingTick};
 
 /// Minecraft data versions.
 pub type DataVersion = mc_version::DataVersion;

@@ -1,7 +1,7 @@
-use std::ops::Range;
 use crate::block::Block;
 use crate::region::{BlockEntity, HasOffset, PendingTick, WorldSlice};
 use crate::world::{AbsolutePosIndexed, ChunkRefAbsolutePos, ChunkRefRelativePos, SubChunk};
+use std::ops::Range;
 
 impl ChunkRefRelativePos<'_> {
     fn y_pos_to_section_number(&self, y_r: i32) -> i8 {
@@ -72,7 +72,7 @@ impl WorldSlice for ChunkRefRelativePos<'_> {
                 pts
             } else {
                 &[]
-            }
+            };
         }
         &[]
     }
@@ -84,7 +84,11 @@ impl<'s, 'chunk: 's> ChunkRefAbsolutePos<'chunk> {
         debug_assert!(self.chunk.sub_chunks.contains_key(&sect_number));
         let sub_chunk: &'chunk SubChunk = self.chunk.sub_chunks.get(&sect_number).unwrap();
         let o = self.offset();
-        let r_pos = [a_pos[0] - o[0], a_pos[1] - sect_number as i32 * 16, a_pos[2] - o[2]];
+        let r_pos = [
+            a_pos[0] - o[0],
+            a_pos[1] - sect_number as i32 * 16,
+            a_pos[2] - o[2],
+        ];
         debug_assert!((0..16).contains(&r_pos[1]));
         (sect_number, sub_chunk, r_pos)
     }
@@ -92,20 +96,18 @@ impl<'s, 'chunk: 's> ChunkRefAbsolutePos<'chunk> {
 
 impl HasOffset for ChunkRefAbsolutePos<'_> {
     fn offset(&self) -> [i32; 3] {
-        [self.chunk_pos.block_pos_lower_bound()[0],
+        [
+            self.chunk_pos.block_pos_lower_bound()[0],
             self.chunk.y_offset(),
-            self.chunk_pos.block_pos_lower_bound()[1]]
+            self.chunk_pos.block_pos_lower_bound()[1],
+        ]
     }
 }
 
 impl<'s, 'chunk: 's> AbsolutePosIndexed<'s, 'chunk> for ChunkRefAbsolutePos<'chunk> {
     fn pos_range(&self) -> [Range<i32>; 3] {
         let o = self.offset();
-        [
-            o[0]..(o[0] + 16),
-            self.chunk.y_range(),
-            o[2]..(o[2] + 16),
-        ]
+        [o[0]..(o[0] + 16), self.chunk.y_range(), o[2]..(o[2] + 16)]
     }
 
     fn total_blocks(&self, include_air: bool) -> u64 {

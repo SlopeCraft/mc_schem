@@ -1,34 +1,44 @@
 // [[nodiscard]] schematic* mc_schem_create_schematic();
 
-use std::ffi::{c_char, CStr};
-use std::ptr::{null, null_mut};
 use crate::block::Block;
-use crate::{BlockEntity, Error, LitematicaSaveOption, PendingTick, Region, VanillaStructureLoadOption, WorldEdit12LoadOption, WorldEdit13LoadOption, WorldEdit13SaveOption, LitematicaLoadOption, MetaDataIR, Schematic, VanillaStructureSaveOption};
 use crate::c_ffi::{rust_reader, rust_writer};
 use crate::schem::{LitematicaMetaData, VanillaStructureMetaData, WE12MetaData, WE13MetaData};
+use crate::{
+    BlockEntity, Error, LitematicaLoadOption, LitematicaSaveOption, MetaDataIR, PendingTick,
+    Region, Schematic, VanillaStructureLoadOption, VanillaStructureSaveOption,
+    WorldEdit12LoadOption, WorldEdit13LoadOption, WorldEdit13SaveOption,
+};
+use std::ffi::{c_char, CStr};
+use std::ptr::{null, null_mut};
 
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_create_schematic() -> *mut Schematic {
     Box::into_raw(Box::new(Schematic::new()))
 }
 
-
 // [[nodiscard]] const metadata_ir* mc_schem_schematic_get_metadata(const schematic*);
 
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_get_metadata(schem: *const Schematic) -> *const MetaDataIR {
+pub unsafe extern "C" fn mc_schem_schematic_get_metadata(
+    schem: *const Schematic,
+) -> *const MetaDataIR {
     &(schem.as_ref_unchecked().metadata)
 }
 // [[nodiscard]] metadata_ir* mc_schem_schematic_get_metadata_mut(schematic*);
 
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_get_metadata_mut(schem: *mut Schematic) -> *mut MetaDataIR {
+pub unsafe extern "C" fn mc_schem_schematic_get_metadata_mut(
+    schem: *mut Schematic,
+) -> *mut MetaDataIR {
     &mut (schem.as_mut_unchecked().metadata)
 }
 // /// Deep copy given metadata, move old value to heap and return
 // metadata_ir* mc_schem_schematic_set_metadata(schematic*, const metadata_ir*);
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_set_metadata(schem: *mut Schematic, new_ir: *const MetaDataIR) -> *mut MetaDataIR {
+pub unsafe extern "C" fn mc_schem_schematic_set_metadata(
+    schem: *mut Schematic,
+    new_ir: *const MetaDataIR,
+) -> *mut MetaDataIR {
     let mut val = new_ir.as_ref_unchecked().clone();
     std::mem::swap(&mut val, &mut (schem.as_mut_unchecked().metadata));
     Box::into_raw(Box::from(val))
@@ -43,7 +53,10 @@ pub unsafe extern "C" fn mc_schem_schematic_get_regions_count(schem: *const Sche
 // [[nodiscard]] const region* mc_schem_schematic_get_region(const schematic*,size_t idx);
 
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_get_region(schem: *const Schematic, idx: usize) -> *const Region {
+pub unsafe extern "C" fn mc_schem_schematic_get_region(
+    schem: *const Schematic,
+    idx: usize,
+) -> *const Region {
     if let Some(r) = schem.as_ref_unchecked().regions.get(idx) {
         return r;
     }
@@ -52,7 +65,10 @@ pub unsafe extern "C" fn mc_schem_schematic_get_region(schem: *const Schematic, 
 // [[nodiscard]] region* mc_schem_schematic_get_region_mut(schematic*,size_t idx);
 
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_get_region_mut(schem: *mut Schematic, idx: usize) -> *mut Region {
+pub unsafe extern "C" fn mc_schem_schematic_get_region_mut(
+    schem: *mut Schematic,
+    idx: usize,
+) -> *mut Region {
     if let Some(r) = schem.as_mut_unchecked().regions.get_mut(idx) {
         return r;
     }
@@ -63,14 +79,16 @@ pub unsafe extern "C" fn mc_schem_schematic_get_region_mut(schem: *mut Schematic
 // [[nodiscard]] region* mc_schem_schematic_remove_region(schematic*,size_t idx);
 
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_remove_region(schem: *mut Schematic, idx: usize) -> *mut Region {
+pub unsafe extern "C" fn mc_schem_schematic_remove_region(
+    schem: *mut Schematic,
+    idx: usize,
+) -> *mut Region {
     let regions = &mut (schem.as_mut_unchecked().regions);
     if idx >= regions.len() {
         return null_mut();
     }
     let removed = regions.remove(idx);
     Box::into_raw(Box::from(removed))
-
 }
 // /// Remove all regions from schematic
 // void mc_schem_schematic_clear_all_regions(schematic*);
@@ -85,11 +103,18 @@ pub unsafe extern "C" fn mc_schem_schematic_clear_all_regions(schem: *mut Schema
 // region* mc_schem_schematic_insert_region(schematic*, const region* new_region, size_t index);
 
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_insert_region(schem: *mut Schematic, region: *const Region, idx: usize) -> *mut Region {
+pub unsafe extern "C" fn mc_schem_schematic_insert_region(
+    schem: *mut Schematic,
+    region: *const Region,
+    idx: usize,
+) -> *mut Region {
     if idx > schem.as_mut_unchecked().regions.len() {
         return null_mut();
     }
-    schem.as_mut_unchecked().regions.insert_mut(idx, region.as_ref_unchecked().clone())
+    schem
+        .as_mut_unchecked()
+        .regions
+        .insert_mut(idx, region.as_ref_unchecked().clone())
 }
 /// Move new_region (owning, must from box) into given index, return its pointer
 /// (non-owning). If index out of range, do nothing. new_region is moved and
@@ -97,12 +122,19 @@ pub unsafe extern "C" fn mc_schem_schematic_insert_region(schem: *mut Schematic,
 // region* mc_schem_schematic_insert_region_move(schematic*, region* new_region, size_t index);
 
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_insert_region_move(schem: *mut Schematic, region: *mut Region, idx: usize) -> *mut Region {
+pub unsafe extern "C" fn mc_schem_schematic_insert_region_move(
+    schem: *mut Schematic,
+    region: *mut Region,
+    idx: usize,
+) -> *mut Region {
     let new_region = Box::from_raw(region);
     if idx > schem.as_mut_unchecked().regions.len() {
         return null_mut();
     }
-    let inserted = schem.as_mut_unchecked().regions.insert_mut(idx, *new_region);
+    let inserted = schem
+        .as_mut_unchecked()
+        .regions
+        .insert_mut(idx, *new_region);
     inserted
 }
 /// Returns positive value if coordinate hits a region. Otherwise return -1. All
@@ -112,7 +144,12 @@ pub unsafe extern "C" fn mc_schem_schematic_insert_region_move(schem: *mut Schem
 /// first region will live
 // [[nodiscard]] ptrdiff_t mc_schem_schematic_get_first_region_index_at(const schematic*, int32_t x, int32_t y, int32_t z);
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_get_first_region_index_at(schem: *const Schematic, x: i32, y: i32, z: i32) -> isize {
+pub unsafe extern "C" fn mc_schem_schematic_get_first_region_index_at(
+    schem: *const Schematic,
+    x: i32,
+    y: i32,
+    z: i32,
+) -> isize {
     if let Some(idx) = schem.as_ref_unchecked().first_region_index_at([x, y, z]) {
         return idx as isize;
     }
@@ -120,7 +157,13 @@ pub unsafe extern "C" fn mc_schem_schematic_get_first_region_index_at(schem: *co
 }
 // [[nodiscard]] uint16_t mc_schem_schematic_get_first_block_index_at(const schematic*, int32_t x, int32_t y, int32_t z, bool* ok_nonnull);
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_get_first_block_index_at(schem: *const Schematic, x: i32, y: i32, z: i32, ok_nonnull: *mut bool) -> u16 {
+pub unsafe extern "C" fn mc_schem_schematic_get_first_block_index_at(
+    schem: *const Schematic,
+    x: i32,
+    y: i32,
+    z: i32,
+    ok_nonnull: *mut bool,
+) -> u16 {
     if let Some(idx) = schem.as_ref_unchecked().first_block_index_at([x, y, z]) {
         *ok_nonnull = true;
         return idx;
@@ -130,7 +173,12 @@ pub unsafe extern "C" fn mc_schem_schematic_get_first_block_index_at(schem: *con
 }
 // [[nodiscard]] const block* mc_schem_schematic_get_first_block_at( const schematic*, int32_t x, int32_t y, int32_t z);
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_get_first_block_at(schem: *const Schematic, x: i32, y: i32, z: i32) -> *const Block {
+pub unsafe extern "C" fn mc_schem_schematic_get_first_block_at(
+    schem: *const Schematic,
+    x: i32,
+    y: i32,
+    z: i32,
+) -> *const Block {
     if let Some(blk) = schem.as_ref_unchecked().first_block_at([x, y, z]) {
         return blk;
     }
@@ -138,7 +186,12 @@ pub unsafe extern "C" fn mc_schem_schematic_get_first_block_at(schem: *const Sch
 }
 // [[nodiscard]] const block_entity* mc_schem_schematic_get_first_block_entity_at(const schematic*, int32_t x, int32_t y, int32_t z);
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_get_first_block_entity_at(schem: *const Schematic, x: i32, y: i32, z: i32) -> *const BlockEntity {
+pub unsafe extern "C" fn mc_schem_schematic_get_first_block_entity_at(
+    schem: *const Schematic,
+    x: i32,
+    y: i32,
+    z: i32,
+) -> *const BlockEntity {
     if let Some(be) = schem.as_ref_unchecked().first_block_entity_at([x, y, z]) {
         return be;
     }
@@ -146,12 +199,26 @@ pub unsafe extern "C" fn mc_schem_schematic_get_first_block_entity_at(schem: *co
 }
 // [[nodiscard]] size_t mc_schem_schematic_get_first_pending_ticks_count_at(const schematic*, int32_t x, int32_t y, int32_t z);
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_get_first_pending_ticks_count_at(schem: *const Schematic, x: i32, y: i32, z: i32) -> usize {
-    schem.as_ref_unchecked().first_pending_tick_at([x, y, z]).len()
+pub unsafe extern "C" fn mc_schem_schematic_get_first_pending_ticks_count_at(
+    schem: *const Schematic,
+    x: i32,
+    y: i32,
+    z: i32,
+) -> usize {
+    schem
+        .as_ref_unchecked()
+        .first_pending_tick_at([x, y, z])
+        .len()
 }
 // [[nodiscard]] const pending_tick* mc_schem_schematic_get_first_pending_ticks_at(const schematic*, int32_t x, int32_t y, int32_t z,size_t pending_tick_index);
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_get_first_pending_ticks_at(schem: *const Schematic, x: i32, y: i32, z: i32, pending_tick_index: usize) -> *const PendingTick {
+pub unsafe extern "C" fn mc_schem_schematic_get_first_pending_ticks_at(
+    schem: *const Schematic,
+    x: i32,
+    y: i32,
+    z: i32,
+    pending_tick_index: usize,
+) -> *const PendingTick {
     let pts = schem.as_ref_unchecked().first_pending_tick_at([x, y, z]);
     if let Some(pt) = pts.get(pending_tick_index) {
         return pt;
@@ -160,7 +227,12 @@ pub unsafe extern "C" fn mc_schem_schematic_get_first_pending_ticks_at(schem: *c
 }
 // void mc_schem_schematic_get_shape(const schematic*, int32_t* x, int32_t* y,int32_t* z);
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_get_shape(schem: *const Schematic, x: *mut i32, y: *mut i32, z: *mut i32) {
+pub unsafe extern "C" fn mc_schem_schematic_get_shape(
+    schem: *const Schematic,
+    x: *mut i32,
+    y: *mut i32,
+    z: *mut i32,
+) {
     let shape = schem.as_ref_unchecked().shape();
     *x = shape[0];
     *y = shape[1];
@@ -173,34 +245,52 @@ pub unsafe extern "C" fn mc_schem_schematic_get_volume(schem: *const Schematic) 
 }
 // [[nodiscard]] uint64_t mc_schem_schematic_get_total_blocks(const schematic*,bool include_dir);
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_get_total_blocks(schem: *const Schematic, include_air: bool) -> u64 {
+pub unsafe extern "C" fn mc_schem_schematic_get_total_blocks(
+    schem: *const Schematic,
+    include_air: bool,
+) -> u64 {
     schem.as_ref_unchecked().total_blocks(include_air)
 }
 // /// Merge all regions without changing original schematic
 // [[nodiscard]] region* mc_schem_schematic_to_single_region(const schematic*, const block* background_block);
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_to_single_region(schem: *const Schematic, background_blk: *const Block) -> *mut Region {
-    let new_reg = schem.as_ref_unchecked().to_single_region(background_blk.as_ref_unchecked());
+pub unsafe extern "C" fn mc_schem_schematic_to_single_region(
+    schem: *const Schematic,
+    background_blk: *const Block,
+) -> *mut Region {
+    let new_reg = schem
+        .as_ref_unchecked()
+        .to_single_region(background_blk.as_ref_unchecked());
     Box::into_raw(Box::new(new_reg))
 }
 // /// Merge all regions in place
 // void mc_schem_schematic_merge_regions(schematic*,const block* background_block);
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_merge_regions(schem: *mut Schematic, background_blk: *const Block) {
-    schem.as_mut_unchecked().merge_regions(background_blk.as_ref_unchecked());
+pub unsafe extern "C" fn mc_schem_schematic_merge_regions(
+    schem: *mut Schematic,
+    background_blk: *const Block,
+) {
+    schem
+        .as_mut_unchecked()
+        .merge_regions(background_blk.as_ref_unchecked());
 }
 
 /// Load litematica (*litematic). Returns schematic if ok. Otherwise returns
 /// null and sets error dest
 // [[nodiscard]] schematic* mc_schem_schematic_load_litematica_from_reader(rust_reader* src, const litematica_load_option &,error* * error_dest_nonnull);
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_load_litematica_from_reader(src: *mut rust_reader, option: *const LitematicaLoadOption, error_dest: *mut *mut Error, raw_metadata_dest: *mut *mut LitematicaMetaData) -> *mut Schematic {
+pub unsafe extern "C" fn mc_schem_schematic_load_litematica_from_reader(
+    src: *mut rust_reader,
+    option: *const LitematicaLoadOption,
+    error_dest: *mut *mut Error,
+    raw_metadata_dest: *mut *mut LitematicaMetaData,
+) -> *mut Schematic {
     match Schematic::from_litematica_reader(src.as_mut_unchecked(), option.as_ref_unchecked()) {
         Ok((schem, md)) => {
             *error_dest = null_mut();
             *raw_metadata_dest = Box::into_raw(Box::from(md));
             Box::into_raw(Box::from(schem))
-        },
+        }
         Err(err) => {
             *error_dest = Box::into_raw(Box::from(err));
             *raw_metadata_dest = null_mut();
@@ -211,13 +301,21 @@ pub unsafe extern "C" fn mc_schem_schematic_load_litematica_from_reader(src: *mu
 // /// Load vanilla structure file (*.nbt)
 // [[nodiscard]] schematic* mc_schem_schematic_load_vanilla_structure_from_reader(rust_reader* src, const vanilla_structure_load_option &,error* * error_dest_nonnull);
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_load_vanilla_structure_from_reader(src: *mut rust_reader, option: *const VanillaStructureLoadOption, error_dest: *mut *mut Error, raw_metadata_dest: *mut *mut VanillaStructureMetaData) -> *mut Schematic {
-    match Schematic::from_vanilla_structure_reader(src.as_mut_unchecked(), option.as_ref_unchecked()) {
+pub unsafe extern "C" fn mc_schem_schematic_load_vanilla_structure_from_reader(
+    src: *mut rust_reader,
+    option: *const VanillaStructureLoadOption,
+    error_dest: *mut *mut Error,
+    raw_metadata_dest: *mut *mut VanillaStructureMetaData,
+) -> *mut Schematic {
+    match Schematic::from_vanilla_structure_reader(
+        src.as_mut_unchecked(),
+        option.as_ref_unchecked(),
+    ) {
         Ok((schem, md)) => {
             *error_dest = null_mut();
             *raw_metadata_dest = Box::into_raw(Box::from(md));
             Box::into_raw(Box::from(schem))
-        },
+        }
         Err(err) => {
             *error_dest = Box::into_raw(Box::from(err));
             *raw_metadata_dest = null_mut();
@@ -228,13 +326,18 @@ pub unsafe extern "C" fn mc_schem_schematic_load_vanilla_structure_from_reader(s
 // /// Load WorldEdit 1.13+ (*.schem)
 // [[nodiscard]] schematic* mc_schem_schematic_load_world_edit13_from_reader(rust_reader* src, const world_edit13_load_option &,error* * error_dest_nonnull);
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_load_world_edit13_from_reader(src: *mut rust_reader, option: *const WorldEdit13LoadOption, error_dest: *mut *mut Error, raw_metadata_dest: *mut *mut WE13MetaData) -> *mut Schematic {
+pub unsafe extern "C" fn mc_schem_schematic_load_world_edit13_from_reader(
+    src: *mut rust_reader,
+    option: *const WorldEdit13LoadOption,
+    error_dest: *mut *mut Error,
+    raw_metadata_dest: *mut *mut WE13MetaData,
+) -> *mut Schematic {
     match Schematic::from_world_edit_13_reader(src.as_mut_unchecked(), option.as_ref_unchecked()) {
         Ok((schem, md)) => {
             *error_dest = null_mut();
             *raw_metadata_dest = Box::into_raw(Box::from(md));
             Box::into_raw(Box::from(schem))
-        },
+        }
         Err(err) => {
             *error_dest = Box::into_raw(Box::from(err));
             *raw_metadata_dest = null_mut();
@@ -245,13 +348,18 @@ pub unsafe extern "C" fn mc_schem_schematic_load_world_edit13_from_reader(src: *
 // /// Load WorldEdit 1.12 (*.schematic)
 // [[nodiscard]] schematic* mc_schem_schematic_load_world_edit12_from_reader(rust_reader* src, const world_edit12_load_option &,error* * error_dest_nonnull);
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_load_world_edit12_from_reader(src: *mut rust_reader, option: *const WorldEdit12LoadOption, error_dest: *mut *mut Error, raw_metadata_dest: *mut *mut WE12MetaData) -> *mut Schematic {
+pub unsafe extern "C" fn mc_schem_schematic_load_world_edit12_from_reader(
+    src: *mut rust_reader,
+    option: *const WorldEdit12LoadOption,
+    error_dest: *mut *mut Error,
+    raw_metadata_dest: *mut *mut WE12MetaData,
+) -> *mut Schematic {
     match Schematic::from_world_edit_12_reader(src.as_mut_unchecked(), option.as_ref_unchecked()) {
         Ok((schem, md, _)) => {
             *error_dest = null_mut();
             *raw_metadata_dest = Box::into_raw(Box::from(md));
             Box::into_raw(Box::from(schem))
-        },
+        }
         Err(err) => {
             *error_dest = Box::into_raw(Box::from(err));
             *raw_metadata_dest = null_mut();
@@ -260,47 +368,64 @@ pub unsafe extern "C" fn mc_schem_schematic_load_world_edit12_from_reader(src: *
     }
 }
 
-
 // [[nodiscard]] error* mc_schem_schematic_save_litematica_to_writer(const schematic*, rust_writer* dest, const litematica_save_option*);#[no_mangle]
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_save_litematica_to_writer(schem: *const Schematic, dest: *mut rust_writer, option: *const LitematicaSaveOption) -> *mut Error {
-    match schem.as_ref_unchecked().save_litematica_writer(dest.as_mut_unchecked(), option.as_ref_unchecked()) {
+pub unsafe extern "C" fn mc_schem_schematic_save_litematica_to_writer(
+    schem: *const Schematic,
+    dest: *mut rust_writer,
+    option: *const LitematicaSaveOption,
+) -> *mut Error {
+    match schem
+        .as_ref_unchecked()
+        .save_litematica_writer(dest.as_mut_unchecked(), option.as_ref_unchecked())
+    {
         Ok(_) => null_mut(),
-        Err(err) => {
-            Box::into_raw(Box::from(err))
-        }
+        Err(err) => Box::into_raw(Box::from(err)),
     }
 }
 // [[nodiscard]] error* mc_schem_schematic_save_vanilla_structure_to_writer(const schematic*, rust_writer* dest, const vanilla_structure_save_option*);#[no_mangle]
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_save_vanilla_structure_to_writer(schem: *const Schematic, dest: *mut rust_writer, option: *const VanillaStructureSaveOption) -> *mut Error {
-    match schem.as_ref_unchecked().save_vanilla_structure_writer(dest.as_mut_unchecked(), option.as_ref_unchecked()) {
+pub unsafe extern "C" fn mc_schem_schematic_save_vanilla_structure_to_writer(
+    schem: *const Schematic,
+    dest: *mut rust_writer,
+    option: *const VanillaStructureSaveOption,
+) -> *mut Error {
+    match schem
+        .as_ref_unchecked()
+        .save_vanilla_structure_writer(dest.as_mut_unchecked(), option.as_ref_unchecked())
+    {
         Ok(_) => null_mut(),
-        Err(err) => {
-            Box::into_raw(Box::from(err))
-        }
+        Err(err) => Box::into_raw(Box::from(err)),
     }
 }
 // [[nodiscard]] error* mc_schem_schematic_save_world_edit13_to_writer(const schematic*, rust_writer* dest, const world_edit13_save_option*);#[no_mangle]
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_save_world_edit13_to_writer(schem: *const Schematic, dest: *mut rust_writer, option: *const WorldEdit13SaveOption) -> *mut Error {
-    match schem.as_ref_unchecked().save_world_edit_13_writer(dest.as_mut_unchecked(), option.as_ref_unchecked()) {
+pub unsafe extern "C" fn mc_schem_schematic_save_world_edit13_to_writer(
+    schem: *const Schematic,
+    dest: *mut rust_writer,
+    option: *const WorldEdit13SaveOption,
+) -> *mut Error {
+    match schem
+        .as_ref_unchecked()
+        .save_world_edit_13_writer(dest.as_mut_unchecked(), option.as_ref_unchecked())
+    {
         Ok(_) => null_mut(),
-        Err(err) => {
-            Box::into_raw(Box::from(err))
-        }
+        Err(err) => Box::into_raw(Box::from(err)),
     }
 }
 
 // [[nodiscard]] schematic* mc_schem_schematic_load_from_file(const char* filename, error** error_dest_nonnull);
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_load_from_file(filename_c: *const c_char, error_dest: *mut *mut Error) -> *mut Schematic {
+pub unsafe extern "C" fn mc_schem_schematic_load_from_file(
+    filename_c: *const c_char,
+    error_dest: *mut *mut Error,
+) -> *mut Schematic {
     let filename = CStr::from_ptr(filename_c).to_string_lossy().to_string();
     match Schematic::from_file(&filename) {
         Ok(schem) => {
             *error_dest = null_mut();
             Box::into_raw(Box::from(schem.0))
-        },
+        }
         Err(err) => {
             *error_dest = Box::into_raw(Box::from(err));
             null_mut()
@@ -309,7 +434,10 @@ pub unsafe extern "C" fn mc_schem_schematic_load_from_file(filename_c: *const c_
 }
 // [[nodiscard]] error* mc_schem_schematic_save_to_file(const schematic*, const char* filename);
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_schematic_save_to_file(schem: *const Schematic, filename: *const c_char) -> *mut Error {
+pub unsafe extern "C" fn mc_schem_schematic_save_to_file(
+    schem: *const Schematic,
+    filename: *const c_char,
+) -> *mut Error {
     let filename = CStr::from_ptr(filename).to_string_lossy().to_string();
     match schem.as_ref_unchecked().save_to_file(&filename) {
         Ok(_) => null_mut(),

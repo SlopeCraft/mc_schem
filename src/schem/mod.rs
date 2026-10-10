@@ -23,6 +23,7 @@ pub mod common;
 pub mod mc_version;
 pub mod schem_slice;
 pub mod vanilla_structure;
+pub mod mushroom;
 
 use crate::block::{Block, CommonBlock};
 use crate::error::Error;

@@ -521,6 +521,7 @@ dependencies = [
  "sevenz-rust",
  "static_assertions",
  "strum",
+ "strum_macros",
  "walkdir",
  "web-time",
 ]

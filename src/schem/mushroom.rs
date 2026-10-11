@@ -23,17 +23,17 @@ use strum::{EnumIter, EnumString};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 enum MushroomType {
-    red,
-    brown,
-    stem,
+    Red,
+    Brown,
+    Stem,
 }
 
 impl MushroomType {
     pub fn from_str(id: &str) -> Option<MushroomType> {
         let valid_ids = [
-            (MUSHROOM_ID_BROWN, MushroomType::brown),
-            (MUSHROOM_ID_RED, MushroomType::red),
-            (MUSHROOM_ID_STEM, MushroomType::stem),
+            (MUSHROOM_ID_BROWN, MushroomType::Brown),
+            (MUSHROOM_ID_RED, MushroomType::Red),
+            (MUSHROOM_ID_STEM, MushroomType::Stem),
         ];
 
         for (type_str, type_enum) in valid_ids {
@@ -49,12 +49,18 @@ impl MushroomType {
     Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, EnumString, EnumIter, strum::Display,
 )]
 enum Direction {
-    up = 0,
-    down = 1,
-    north = 2,
-    south = 3,
-    east = 4,
-    west = 5,
+    #[strum(serialize = "up")]
+    Up = 0,
+    #[strum(serialize = "down")]
+    Down = 1,
+    #[strum(serialize = "north")]
+    North = 2,
+    #[strum(serialize = "south")]
+    South = 3,
+    #[strum(serialize = "east")]
+    East = 4,
+    #[strum(serialize = "west")]
+    West = 5,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
@@ -76,7 +82,7 @@ impl MushroomState {
         debug_assert!(idx < 6);
         self.0[idx] = value;
     }
-
+    #[allow(dead_code)]
     pub fn as_u8(&self) -> u8 {
         let mut ret: u8 = 0;
         for val in self.0 {
@@ -133,9 +139,9 @@ const MUSHROOM_ID_STEM: &str = "mushroom_stem";
 fn make_block_from_mushroom_info(kind: MushroomType, state: MushroomState) -> Block {
     let mut blk = Block::air();
     blk.id = match kind {
-        MushroomType::brown => MUSHROOM_ID_BROWN,
-        MushroomType::red => MUSHROOM_ID_RED,
-        MushroomType::stem => MUSHROOM_ID_STEM,
+        MushroomType::Brown => MUSHROOM_ID_BROWN,
+        MushroomType::Red => MUSHROOM_ID_RED,
+        MushroomType::Stem => MUSHROOM_ID_STEM,
     }
         .to_string();
     blk.attributes = state.as_attributes();
@@ -254,37 +260,38 @@ impl Region {
                             kind = b.0;
                             state = b.1;
                             stat.mushroom_total_num += 1;
+                            println!("Found mushroom block {}", self.palette[old_ele_idx as usize].full_id());
                         } else {
                             // current block is not mushroom
                             continue;
                         }
 
-                        // Has mushroom block on west, set west side to stoma (false)
+                        // Has mushroom block on West, set West side to stoma (false)
                         if (x > 0) && mushroom_map.is_mushroom(dense_arr[[y, z, x - 1]]) {
-                            state.set_outside(Direction::west, false);
+                            state.set_outside(Direction::West, false);
                         }
                         if (x + 1 < shape_yzx[2])
                             && mushroom_map.is_mushroom(dense_arr[[y, z, x + 1]])
                         {
-                            state.set_outside(Direction::east, false);
+                            state.set_outside(Direction::East, false);
                         }
-                        // Has mushroom block on west, set west side to stoma (false)
+                        // Has mushroom block on West, set West side to stoma (false)
                         if (y > 0) && mushroom_map.is_mushroom(dense_arr[[y - 1, z, x]]) {
-                            state.set_outside(Direction::down, false);
+                            state.set_outside(Direction::Down, false);
                         }
                         if (y + 1 < shape_yzx[0])
                             && mushroom_map.is_mushroom(dense_arr[[y + 1, z, x]])
                         {
-                            state.set_outside(Direction::up, false);
+                            state.set_outside(Direction::Up, false);
                         }
-                        // Has mushroom block on west, set west side to stoma (false)
+                        // Has mushroom block on West, set West side to stoma (false)
                         if (z > 0) && mushroom_map.is_mushroom(dense_arr[[y, z - 1, x]]) {
-                            state.set_outside(Direction::north, false);
+                            state.set_outside(Direction::North, false);
                         }
                         if (z + 1 < shape_yzx[1])
                             && mushroom_map.is_mushroom(dense_arr[[y, z + 1, x]])
                         {
-                            state.set_outside(Direction::south, false);
+                            state.set_outside(Direction::South, false);
                         }
 
                         let new_ele_idx = mushroom_map.get_or_emplace(kind, state);
@@ -304,7 +311,7 @@ impl Region {
             mushroom_table.reserve(sparse_arr.num_non_zero() / 2);
 
             // First loop: visit and collect all mushroom info.
-            let mut mushroom_collector = |idx1: usize, pos: &[usize; 3], ele_idx: u16| {
+            let mut mushroom_collector = |_idx1: usize, pos: &[usize; 3], ele_idx: u16| {
                 if let Some(mush_info) = mushroom_map.at(ele_idx) {
                     mushroom_table.insert(*pos, *mush_info);
                 }
@@ -317,26 +324,26 @@ impl Region {
                 let [y, z, x] = *pos;
                 let mut state = *original_mush_state;
 
-                // Has mushroom block on west, set west side to stoma (false)
+                // Has mushroom block on West, set West side to stoma (false)
                 if (x > 0) && mushroom_table.contains_key(&[y, z, x - 1]) {
-                    state.set_outside(Direction::west, false);
+                    state.set_outside(Direction::West, false);
                 }
                 if (x + 1 < shape_yzx[2]) && mushroom_table.contains_key(&[y, z, x + 1]) {
-                    state.set_outside(Direction::east, false);
+                    state.set_outside(Direction::East, false);
                 }
-                // Has mushroom block on west, set west side to stoma (false)
+                // Has mushroom block on West, set West side to stoma (false)
                 if (y > 0) && mushroom_table.contains_key(&[y - 1, z, x]) {
-                    state.set_outside(Direction::down, false);
+                    state.set_outside(Direction::Down, false);
                 }
                 if (y + 1 < shape_yzx[0]) && mushroom_table.contains_key(&[y + 1, z, x]) {
-                    state.set_outside(Direction::up, false);
+                    state.set_outside(Direction::Up, false);
                 }
-                // Has mushroom block on west, set west side to stoma (false)
+                // Has mushroom block on West, set West side to stoma (false)
                 if (z > 0) && mushroom_table.contains_key(&[y, z - 1, x]) {
-                    state.set_outside(Direction::north, false);
+                    state.set_outside(Direction::North, false);
                 }
                 if (z + 1 < shape_yzx[1]) && mushroom_table.contains_key(&[y, z + 1, x]) {
-                    state.set_outside(Direction::south, false);
+                    state.set_outside(Direction::South, false);
                 }
                 if state != *original_mush_state {
                     stat.mushroom_corrected_num += 1;

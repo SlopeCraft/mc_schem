@@ -43,3 +43,4 @@ regex = "1.10.3"
 rayon = "1.9.0"
 serde = { version = "1.0.198", features = ["derive"] }
 web-time = "1"
+strum_macros = "0.28.0"

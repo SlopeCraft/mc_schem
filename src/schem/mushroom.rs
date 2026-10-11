@@ -204,8 +204,30 @@ impl<'palette> MushroomMap<'palette> {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
+pub struct MushroomStatistic {
+    pub mushroom_total_num: u64,
+    pub mushroom_corrected_num: u64,
+    /// More blocks appended to palette
+    pub palette_growth: u16,
+}
+
+impl Default for MushroomStatistic {
+    fn default() -> Self {
+        MushroomStatistic {
+            mushroom_total_num: 0,
+            mushroom_corrected_num: 0,
+            palette_growth: 0,
+        }
+    }
+}
+
 impl Region {
-    pub fn process_mushroom_state(&mut self) {
+    /// Update block-state of mushroom blocks (full block, not small mushroom). In real game,
+    /// contacting mushroom blocks have stoma texture on contacting face. This should be done by
+    /// updating block state. This function updates block index and palette for every mushroom block
+    /// (if need change), just like Minecraft does.
+    pub fn update_mushroom_state(&mut self) -> MushroomStatistic {
         let mut new_palette = self.palette.clone();
         // Make a mapping between mushroom state and element index
         let mut mushroom_map = MushroomMap::new(&mut new_palette);
@@ -217,6 +239,8 @@ impl Region {
             shape_yzx[2] as usize,
         ];
 
+        let mut stat = MushroomStatistic::default();
+
         if let Array3DVariant::Dense(dense_arr) = &mut self.array_yzx {
             for y in 0..shape_yzx[0] {
                 for z in 0..shape_yzx[1] {
@@ -225,9 +249,11 @@ impl Region {
                         let kind;
                         // current mushroom block state
                         let mut state;
-                        if let Some(b) = mushroom_map.at(dense_arr[[y, z, x]]) {
+                        let old_ele_idx = dense_arr[[y, z, x]];
+                        if let Some(b) = mushroom_map.at(old_ele_idx) {
                             kind = b.0;
                             state = b.1;
+                            stat.mushroom_total_num += 1;
                         } else {
                             // current block is not mushroom
                             continue;
@@ -262,6 +288,9 @@ impl Region {
                         }
 
                         let new_ele_idx = mushroom_map.get_or_emplace(kind, state);
+                        if new_ele_idx != old_ele_idx {
+                            stat.mushroom_corrected_num += 1;
+                        }
                         dense_arr[[y, z, x]] = new_ele_idx;
                     }
                 }
@@ -281,6 +310,7 @@ impl Region {
                 }
             };
             sparse_arr.visit_non_zero(&mut mushroom_collector);
+            stat.mushroom_total_num = mushroom_table.len() as u64;
 
             //Second loop: visit all mushroom blocks, compute correct state, write into region. mushroom_table is not updated because borrowing rule.
             for (pos, (kind, original_mush_state)) in mushroom_table.iter() {
@@ -308,14 +338,22 @@ impl Region {
                 if (z + 1 < shape_yzx[1]) && mushroom_table.contains_key(&[y, z + 1, x]) {
                     state.set_outside(Direction::south, false);
                 }
+                if state != *original_mush_state {
+                    stat.mushroom_corrected_num += 1;
+                }
                 // Write correct mushroom state into palette
                 let new_idx = mushroom_map.get_or_emplace(*kind, state);
                 // Write correct index into sparse array
                 sparse_arr.set_3d(pos, new_idx);
             }
         }
-
         drop(mushroom_map); // mushroom map is finished; new palette is also finished. Update palette
+        debug_assert!(new_palette.len() >= self.palette.len());
+        stat.palette_growth = (new_palette.len() - self.palette.len()) as u16;
         self.palette = new_palette;
+
+        debug_assert!(stat.mushroom_corrected_num <= stat.mushroom_total_num);
+
+        stat
     }
 }

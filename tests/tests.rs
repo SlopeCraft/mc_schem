@@ -26,11 +26,11 @@ use mc_schem::{
     WorldEdit13SaveOption,
 };
 use ndarray::Array3;
+use rand::rngs::ThreadRng;
+use rand::Rng;
 use std::collections::HashMap;
 use std::env;
 use std::fs::{create_dir_all, File};
-use rand::Rng;
-use rand::rngs::ThreadRng;
 
 #[test]
 fn block_id_parse() {
@@ -1128,6 +1128,56 @@ fn test_region_sparse() {
             }
         }
     }
+}
+
+#[test]
+fn test_update_mushroom_state() {
+    let mut region = Region::with_shape([10, 1, 1]);
+    region
+        .set_block(
+            [0, 0, 0],
+            &Block::from_id("minecraft:red_mushroom_block").unwrap(),
+        )
+        .unwrap();
+    region
+        .set_block(
+            [1, 0, 0],
+            &Block::from_id("minecraft:brown_mushroom_block").unwrap(),
+        )
+        .unwrap();
+    region
+        .set_block(
+            [2, 0, 0],
+            &Block::from_id("minecraft:mushroom_stem").unwrap(),
+        )
+        .unwrap();
+
+    let stat = region.update_mushroom_state();
+    println!("Stat: {:?}", stat);
+    assert_eq!(stat.mushroom_total_num, 3);
+    assert_eq!(stat.mushroom_corrected_num, 3);
+    assert_eq!(stat.palette_growth, 3);
+
+    println!("New palette:");
+    for blk in &region.palette {
+        println!("\t{}", blk.full_id());
+    }
+}
+#[test]
+fn test_update_mushroom_state_2() {
+    // Don't use 26.2. Logically should be 3*2^6=192, but in 26.2 amazing fucking mojang repeats
+    // minecraft:mushroom_stem[down=true,east=false,north=false,south=true,up=false,west=true]
+    let (mut schem, _) = Schematic::from_litematica_file(
+        "./test_files/litematica/full-blocks-1.21.11.litematic",
+        &LitematicaLoadOption::default(),
+    )
+        .unwrap();
+    let region = &mut schem.regions[0];
+    let stat = region.update_mushroom_state();
+    assert_eq!(stat.mushroom_total_num, 192);
+    // full blocks are taken from debug mode, no attaching blocks
+    assert_eq!(stat.palette_growth, 0);
+    assert_eq!(stat.mushroom_corrected_num, 0);
 }
 // #[test]
 // fn check_mca() {

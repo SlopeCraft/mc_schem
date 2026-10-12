@@ -62,6 +62,7 @@ mod item;
 mod player;
 #[allow(dead_code)]
 mod raid;
+mod entity;
 
 /// `Block` is a type of block with namespace and properties(aka attributes) in MC.
 pub type Block = block::Block;

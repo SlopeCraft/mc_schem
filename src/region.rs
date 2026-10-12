@@ -1,19 +1,19 @@
 /*
- mc_schem is a rust library to generate, load, manipulate and save minecraft
- schematic files. Copyright (C) 2026 ToKiNoBug
+mc_schem is a rust library to generate, load, manipulate and save minecraft
+schematic files. Copyright (C) 2026 ToKiNoBug
 
- This program is free software: you can redistribute it and/or modify it under
- the terms of the GNU General Public License as published by the Free Software
- Foundation, either version 3 of the License, or (at your option) any later
- version.
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
 
- This program is distributed in the hope that it will be useful, but WITHOUT ANY
- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
- PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
- You should have received a copy of the GNU General Public License
- along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
 
 use crate::block::Block;
 use crate::error::Error;
@@ -33,6 +33,8 @@ pub struct Entity {
     pub position: [f64; 3],
     /// Position in integer
     pub block_pos: [i32; 3],
+    /// Entity id, should be with "minecraft:" prefix
+    pub id: String,
 }
 
 /// Block entity(also known as tile entity) in MC, like chest, furnace, etc.
@@ -463,24 +465,6 @@ impl Light {
     }
     pub fn block_light(&self) -> u8 {
         self.0 & 0x0F
-    }
-}
-
-impl Entity {
-    pub fn new() -> Entity {
-        Entity {
-            tags: HashMap::new(),
-            position: [0.0, 0.0, 0.0],
-            block_pos: [0, 0, 0],
-        }
-    }
-
-    /// Add adder to position and block_pos
-    pub fn pos_shift(&mut self, adder: [i32; 3]) {
-        for dim in 0..3 {
-            self.block_pos[dim] += adder[dim];
-            self.position[dim] += adder[dim] as f64;
-        }
     }
 }
 

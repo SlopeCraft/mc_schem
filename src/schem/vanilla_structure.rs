@@ -141,7 +141,17 @@ fn parse_array_item(
 fn parse_entity(tag: &mut Value, tag_path: &str) -> Result<Entity, Error> {
     let compound = unwrap_tag!(tag, Compound, HashMap::new(), tag_path);
 
-    let mut entity = Entity::new();
+    let mut entity;
+    {
+        let path = format!("{}/nbt", tag_path);
+        let nbt = unwrap_opt_tag!(
+            compound.remove("nbt"),
+            Compound,
+            HashMap::new(),
+            &path
+        );
+        entity = Entity::from_nbt(nbt, &path)?;
+    }
     // parse blockPos
     {
         let block_pos = unwrap_opt_tag!(
@@ -193,18 +203,7 @@ fn parse_entity(tag: &mut Value, tag_path: &str) -> Result<Entity, Error> {
             );
         }
     }
-
-    // parse nbt
-    {
-        let nbt = unwrap_opt_tag!(
-            compound.remove("nbt"),
-            Compound,
-            HashMap::new(),
-            &*format!("{}/nbt", tag_path)
-        );
-        entity.tags = nbt;
-    }
-    return Ok(entity);
+    Ok(entity)
 }
 
 impl Schematic {
@@ -485,7 +484,7 @@ impl Schematic {
                     }
                     nbt.insert(String::from("blockPos"), Value::List(block_pos));
                     nbt.insert(String::from("pos"), Value::List(pos));
-                    nbt.insert(String::from("nbt"), Value::Compound(entity.tags.clone()));
+                    nbt.insert(String::from("nbt"), Value::Compound(entity.to_nbt()));
 
                     entities.push(Value::Compound(nbt));
                 }

@@ -945,11 +945,7 @@ impl Region {
         {
             let mut entities = Vec::with_capacity(self.entities.len());
             for entity in &self.entities {
-                let mut e_nbt = entity.tags.clone();
-                e_nbt.insert(
-                    "Pos".to_string(),
-                    Value::List(common::size_to_list(&entity.position)),
-                );
+                let e_nbt = entity.to_nbt();
                 entities.push(Value::Compound(e_nbt));
             }
             nbt.insert("Entities".to_string(), Value::List(entities));

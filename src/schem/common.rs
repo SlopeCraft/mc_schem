@@ -176,32 +176,7 @@ pub fn parse_entity_litematica(
     nbt: HashMap<String, Value>,
     tag_path: &str,
 ) -> Result<Entity, Error> {
-    let mut entity = Entity::new();
-    {
-        let tag_pos_path = format!("{}/Pos", tag_path);
-        let pos = unwrap_opt_tag!(nbt.get("Pos"), List, vec![], tag_pos_path);
-        if pos.len() != 3 {
-            return Err(Error::InvalidValue {
-                tag_path: tag_pos_path,
-                error: format!(
-                    "Pos field for an entity should contain 3 doubles, but found {}",
-                    pos.len()
-                ),
-            });
-        }
-
-        let mut pos_d = [0.0, 0.0, 0.0];
-        for dim in 0..3 {
-            let cur_tag_path = format!("{}/Pos[{}]", tag_path, dim);
-            pos_d[dim] = unwrap_tag!(pos[dim], Double, 0.0, cur_tag_path);
-            entity.block_pos[dim] = pos_d[dim] as i32;
-        }
-
-        entity.position = pos_d;
-    }
-
-    entity.tags = nbt;
-    return Ok(entity);
+    Entity::from_nbt(nbt, tag_path)
 }
 
 // Checks if pos >= lower_bound && pos <= upper_bound

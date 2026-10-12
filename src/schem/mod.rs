@@ -77,8 +77,10 @@ impl LitematicaMetaData {
             Some(4)
         } else if data_version < DataVersion::Java_1_18 as i32 {
             Some(5)
-        } else {
+        } else if data_version < DataVersion::Java_1_20_5 as i32 {
             Some(6)
+        } else {
+            Some(7)
         }
     }
 

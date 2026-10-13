@@ -25,6 +25,7 @@
 #include <expected>
 #include <format>
 #include <istream>
+#include <mdspan>
 #include <memory>
 #include <optional>
 #include <ostream>
@@ -432,6 +433,10 @@ void mc_schem_region_visit_blocks(
     void (*callback)(int32_t x, int32_t y, int32_t z, uint16_t block_idx,
                      const block*, const block_entity*, void* custom_data),
     void* custom_data);
+/// Get data of dense array (if dense). If sparse, returns nullptr. Arrays are
+/// in C-order, yzx
+[[nodiscard]] const uint16_t* mc_schem_region_get_data(const region*);
+[[nodiscard]] uint16_t* mc_schem_region_get_data_mut(region*);
 
 // Entity
 ////////////////////////////////////////////////////////////////////////////////
@@ -891,6 +896,9 @@ class region {
   [[nodiscard]] std::array<int32_t, 3> size_xyz() const& {
     int32_t x{0}, y{0}, z{0};
     mc_schem_region_get_size(this, &x, &y, &z);
+    assert(x>=0);
+    assert(y>=0);
+    assert(z>=0);
     return {x, y, z};
   }
 
@@ -1139,6 +1147,36 @@ class region {
 
   [[nodiscard]] uint64_t total_blocks(bool include_air) const& {
     return mc_schem_region_total_blocks(this, include_air);
+  }
+  /// Try to give a dense view. Only valid if region is dense
+  [[nodiscard]] std::optional<
+      std::mdspan<const uint16_t, std::dextents<size_t, 3>, std::layout_right>>
+  view_as_dense_yzx() const& {
+    if (this->is_sparse()) {
+      return std::nullopt;
+    }
+    auto ptr = mc_schem_region_get_data(this);
+    const auto [y, z, x] = this->size_yzx();
+    if (y * z * x > 0) {
+      assert(ptr);
+    }
+    return std::mdspan<const uint16_t, std::dextents<size_t, 3>,
+                       std::layout_right>{ptr, y, z, x};
+  }
+  /// Try to give a dense view. Only valid if region is dense
+  [[nodiscard]] std::optional<
+      std::mdspan<uint16_t, std::dextents<size_t, 3>, std::layout_right>>
+  view_as_dense_yzx() & {
+    if (this->is_sparse()) {
+      return std::nullopt;
+    }
+    auto ptr = mc_schem_region_get_data_mut(this);
+    const auto [y, z, x] = this->size_yzx();
+    if (y * z * x > 0) {
+      assert(ptr);
+    }
+    return std::mdspan<uint16_t, std::dextents<size_t, 3>, std::layout_right>{
+        ptr, y, z, x};
   }
 };
 /// Entity in Minecraft

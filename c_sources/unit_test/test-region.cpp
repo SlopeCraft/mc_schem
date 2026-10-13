@@ -68,7 +68,8 @@ mc_schem::unique_block make_block(const std::string& full_id) {
 ///   mc_schem_region_set_block_by_block, mc_schem_region_shrink_palette,
 ///   mc_schem_region_fill_with, mc_schem_region_convert_to_sparse,
 ///   mc_schem_region_convert_to_dense, mc_schem_region_total_blocks,
-///   mc_schem_region_visit_blocks, mc_schem_region_update_mushroom_state
+///   mc_schem_region_visit_blocks, mc_schem_region_update_mushroom_state,
+///   mc_schem_region_get_data, mc_schem_region_get_data_mut
 int main(int argc, char** argv) {
   using namespace mc_schem;
 
@@ -202,6 +203,61 @@ int main(int argc, char** argv) {
     const mushroom_statistic again = r->update_mushroom_state({});
     MC_SCHEM_CHECK(again.mushroom_total_num == 2);
     MC_SCHEM_CHECK(again.mushroom_corrected_num == 0);
+  }
+
+  // mc_schem_region_get_data, mc_schem_region_get_data_mut: the dense view is
+  // indexed in the internal yzx order, exactly like the array it points at
+  {
+    auto r = region::create(2, 3, 4);
+    MC_SCHEM_CHECK(r);
+    auto stone = make_block("minecraft:stone");
+    auto dirt = make_block("minecraft:dirt");
+
+    // Both halves are filled so every cell has a known index
+    for (int32_t y = 0; y < 3; ++y) {
+      for (int32_t z = 0; z < 4; ++z) {
+        for (int32_t x = 0; x < 2; ++x) {
+          r->set_block({x, y, z}, x == 0 ? *stone : *dirt);
+        }
+      }
+    }
+
+    const region& cr = *r;
+    const auto [shape_y, shape_z, shape_x] = cr.size_yzx();
+    auto const_view = cr.view_as_dense_yzx();
+    MC_SCHEM_CHECK(const_view.has_value());
+    MC_SCHEM_CHECK(const_view->extent(0) == static_cast<size_t>(shape_y));
+    MC_SCHEM_CHECK(const_view->extent(1) == static_cast<size_t>(shape_z));
+    MC_SCHEM_CHECK(const_view->extent(2) == static_cast<size_t>(shape_x));
+
+    // The view and the accessors have to agree on every single cell
+    for (int32_t y = 0; y < shape_y; ++y) {
+      for (int32_t z = 0; z < shape_z; ++z) {
+        for (int32_t x = 0; x < shape_x; ++x) {
+          const auto idx = cr.block_index_at({x, y, z});
+          MC_SCHEM_CHECK(idx.has_value());
+          MC_SCHEM_CHECK(((*const_view)[y, z, x] == idx.value()));
+        }
+      }
+    }
+
+    // The mutable view aliases that same storage: writing through it is
+    // visible in the region and in the const view at once
+    auto mut_view = r->view_as_dense_yzx();
+    MC_SCHEM_CHECK(mut_view.has_value());
+    const uint16_t stone_index = cr.block_index_at({0, 0, 0}).value();
+    const uint16_t dirt_index = cr.block_index_at({1, 0, 0}).value();
+    MC_SCHEM_CHECK(stone_index not_eq dirt_index);
+
+    (*mut_view)[0, 0, 0] = dirt_index;
+    MC_SCHEM_CHECK(cr.block_index_at({0, 0, 0}).value() == dirt_index);
+    MC_SCHEM_CHECK(((*const_view)[0, 0, 0] == dirt_index));
+    (*mut_view)[0, 0, 0] = stone_index;
+
+    // A sparse region has no dense view to hand out
+    r->convert_to_sparse();
+    MC_SCHEM_CHECK(not cr.view_as_dense_yzx().has_value());
+    MC_SCHEM_CHECK(not r->view_as_dense_yzx().has_value());
   }
 
   // mc_schem_region_get_block_index, set_block_by_block, set_block_by_index,

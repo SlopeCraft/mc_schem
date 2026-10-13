@@ -18,7 +18,7 @@
 use crate::block::Block;
 use crate::c_ffi::rust_string_receiver;
 use crate::error::Error;
-use crate::region::{BlockEntity, HasPalette, WorldSlice};
+use crate::region::{Array3DVariant, BlockEntity, HasPalette, WorldSlice};
 use crate::schem::mushroom::{MushroomStateUpdateOption, MushroomStatistic};
 use crate::{Entity, PendingTick, Region};
 use std::ffi::{c_char, c_void, CStr};
@@ -502,4 +502,22 @@ pub unsafe extern "C" fn mc_schem_region_visit_blocks(
     } else {
         (*region).visit_dense(&mut func);
     }
+}
+
+/// Get data of dense array (if dense)
+// [[nodiscard]] const uint16_t* mc_schem_region_get_data(const region*);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_get_data(region: *const Region) -> *const u16 {
+    if let Array3DVariant::Dense(dense) = &region.as_ref_unchecked().array_yzx {
+        return dense.as_ptr();
+    }
+    null()
+}
+// [[nodiscard]] uint16_t* mc_schem_region_get_data_mut(region*);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_get_data_mut(region: *mut Region) -> *mut u16 {
+    if let Array3DVariant::Dense(dense) = &mut region.as_mut_unchecked().array_yzx {
+        return dense.as_mut_ptr();
+    }
+    null_mut()
 }

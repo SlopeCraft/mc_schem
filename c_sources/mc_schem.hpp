@@ -217,6 +217,12 @@ struct mushroom_statistic {
   uint16_t palette_growth;
 };
 
+struct mushroom_state_update_option {
+  /// Canonicalize mushroom block id. Palette may contain non-canonical mushroom
+  /// block id, for example that skips some field in block state
+  bool canonicalize_block_id{false};
+};
+
 struct vanilla_structure_load_option {
   common_block background_block{common_block::structure_void};
 };
@@ -412,7 +418,7 @@ bool mc_schem_region_set_block_by_block(region*, int32_t x, int32_t y,
 ////////////////////////////////////////////////////////////////////////
 [[nodiscard]] error* mc_schem_region_shrink_palette(region*);
 [[nodiscard]] mushroom_statistic mc_schem_region_update_mushroom_state(
-    region*, bool canonicalize_block_id);
+    region*, const mushroom_state_update_option* options);
 void mc_schem_region_fill_with(region*, const block* blk);
 void mc_schem_region_convert_to_sparse(region*);
 void mc_schem_region_convert_to_dense(region*);
@@ -1103,10 +1109,14 @@ class region {
     return {};
   }
 
+  /// Update block-state of mushroom blocks (full block, not small mushroom). In
+  /// real game, contacting mushroom blocks have stoma texture on contacting
+  /// face. This should be done by updating block state. This function updates
+  /// block index and palette for every mushroom block (if need change), just
+  /// like Minecraft does.
   mushroom_statistic update_mushroom_state(
-      bool canonicalize_mushroom_block_id) & {
-    return mc_schem_region_update_mushroom_state(
-        this, canonicalize_mushroom_block_id);
+      const mushroom_state_update_option& option) & {
+    return mc_schem_region_update_mushroom_state(this, &option);
   }
 
   void fill_with(const block& blk) & { mc_schem_region_fill_with(this, &blk); }

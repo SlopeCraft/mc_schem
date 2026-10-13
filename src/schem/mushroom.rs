@@ -208,6 +208,14 @@ impl<'palette> MushroomMap<'palette> {
     pub fn at(&self, element_idx: u16) -> Option<&(MushroomType, MushroomState)> {
         self.element_index_to_block.get(&element_idx)
     }
+    /// Canonicalize block id of mushroom block in palette
+    pub fn canonicalize_palette(&mut self) {
+        for blk in self.palette.iter_mut() {
+            if let Some((kind, state)) = parse_mushroom_info_from_block(blk) {
+                *blk = make_block_from_mushroom_info(kind, state);
+            }
+        }
+    }
 }
 
 #[repr(C)]
@@ -229,15 +237,36 @@ impl Default for MushroomStatistic {
     }
 }
 
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct MushroomStateUpdateOption {
+    pub canonicalize_block_id: bool,
+}
+
+impl Default for MushroomStateUpdateOption {
+    fn default() -> Self {
+        MushroomStateUpdateOption {
+            canonicalize_block_id: false,
+        }
+    }
+}
+
 impl Region {
     /// Update block-state of mushroom blocks (full block, not small mushroom). In real game,
     /// contacting mushroom blocks have stoma texture on contacting face. This should be done by
     /// updating block state. This function updates block index and palette for every mushroom block
     /// (if need change), just like Minecraft does.
-    pub fn update_mushroom_state(&mut self) -> MushroomStatistic {
+    pub fn update_mushroom_state(
+        &mut self,
+        option: &MushroomStateUpdateOption,
+    ) -> MushroomStatistic {
         let mut new_palette = self.palette.clone();
         // Make a mapping between mushroom state and element index
         let mut mushroom_map = MushroomMap::new(&mut new_palette);
+        // Palette may contain non-canonical mushroom block id, for example that skips some field in block state
+        if option.canonicalize_block_id {
+            mushroom_map.canonicalize_palette();
+        }
 
         let shape_yzx = self.shape_yzx();
         let shape_yzx = [
@@ -261,7 +290,6 @@ impl Region {
                             kind = b.0;
                             state = b.1;
                             stat.mushroom_total_num += 1;
-                            println!("Found mushroom block {}", self.palette[old_ele_idx as usize].full_id());
                         } else {
                             // current block is not mushroom
                             continue;
@@ -355,6 +383,7 @@ impl Region {
                 sparse_arr.set_3d(pos, new_idx);
             }
         }
+
         drop(mushroom_map); // mushroom map is finished; new palette is also finished. Update palette
         debug_assert!(new_palette.len() >= self.palette.len());
         stat.palette_growth = (new_palette.len() - self.palette.len()) as u16;

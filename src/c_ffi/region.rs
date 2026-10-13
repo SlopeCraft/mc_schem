@@ -19,6 +19,7 @@ use crate::block::Block;
 use crate::c_ffi::rust_string_receiver;
 use crate::error::Error;
 use crate::region::{BlockEntity, HasPalette, WorldSlice};
+use crate::schem::mushroom::MushroomStatistic;
 use crate::{Entity, PendingTick, Region};
 use std::ffi::{c_char, c_void, CStr};
 use std::ptr::{null, null_mut, slice_from_raw_parts};
@@ -438,6 +439,12 @@ pub unsafe extern "C" fn mc_schem_region_shrink_palette(region: *mut Region) -> 
     }
     null_mut()
 }
+// mushroom_statistic mc_schem_region_update_mushroom_state(region*, bool canonicalize_block_id);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_update_mushroom_state(region: *mut Region, _canonicalize_blkid: bool) -> MushroomStatistic {
+    region.as_mut_unchecked().update_mushroom_state()
+}
+
 // void mc_schem_region_fill_with(region*, const block* blk);
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_region_fill_with(region: *mut Region, blk: *const Block) {

@@ -210,6 +210,7 @@ impl<'palette> MushroomMap<'palette> {
     }
 }
 
+#[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct MushroomStatistic {
     pub mushroom_total_num: u64,

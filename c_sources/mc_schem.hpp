@@ -210,6 +210,13 @@ struct rust_writer {
   }
 };
 
+struct mushroom_statistic {
+  uint64_t mushroom_total_num;
+  uint64_t mushroom_corrected_num;
+  /// More blocks appended to palette
+  uint16_t palette_growth;
+};
+
 struct vanilla_structure_load_option {
   common_block background_block{common_block::structure_void};
 };
@@ -404,6 +411,8 @@ bool mc_schem_region_set_block_by_block(region*, int32_t x, int32_t y,
 // Complex operations for region
 ////////////////////////////////////////////////////////////////////////
 [[nodiscard]] error* mc_schem_region_shrink_palette(region*);
+[[nodiscard]] mushroom_statistic mc_schem_region_update_mushroom_state(
+    region*, bool canonicalize_block_id);
 void mc_schem_region_fill_with(region*, const block* blk);
 void mc_schem_region_convert_to_sparse(region*);
 void mc_schem_region_convert_to_dense(region*);
@@ -1092,6 +1101,12 @@ class region {
       return std::unexpected{std::move(err)};
     }
     return {};
+  }
+
+  mushroom_statistic update_mushroom_state(
+      bool canonicalize_mushroom_block_id) & {
+    return mc_schem_region_update_mushroom_state(
+        this, canonicalize_mushroom_block_id);
   }
 
   void fill_with(const block& blk) & { mc_schem_region_fill_with(this, &blk); }

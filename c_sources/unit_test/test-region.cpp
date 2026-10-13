@@ -68,7 +68,7 @@ mc_schem::unique_block make_block(const std::string& full_id) {
 ///   mc_schem_region_set_block_by_block, mc_schem_region_shrink_palette,
 ///   mc_schem_region_fill_with, mc_schem_region_convert_to_sparse,
 ///   mc_schem_region_convert_to_dense, mc_schem_region_total_blocks,
-///   mc_schem_region_visit_blocks
+///   mc_schem_region_visit_blocks, mc_schem_region_update_mushroom_state
 int main(int argc, char** argv) {
   using namespace mc_schem;
 
@@ -178,6 +178,30 @@ int main(int argc, char** argv) {
     MC_SCHEM_CHECK((small->size_xyz() == pos_t{2, 2, 2}));
     MC_SCHEM_CHECK((large->size_xyz() == pos_t{1, 1, 1}));
     MC_SCHEM_CHECK(large->palette(1)->full_id() == "minecraft:stone");
+  }
+
+  // mc_schem_region_update_mushroom_state
+  {
+    auto r = region::create(2, 1, 1);
+    MC_SCHEM_CHECK(r);
+    auto mushroom = make_block(
+        "minecraft:red_mushroom_block"
+        "[down=true,east=true,north=true,south=true,up=true,west=true]");
+    r->set_block({0, 0, 0}, *mushroom);
+    r->set_block({1, 0, 0}, *mushroom);
+
+    // Two mushroom blocks touch each other, so the faces between them have to
+    // become stoma (false): both blocks are corrected and the palette grows by
+    // the states that did not exist before
+    const mushroom_statistic stat = r->update_mushroom_state({});
+    MC_SCHEM_CHECK(stat.mushroom_total_num == 2);
+    MC_SCHEM_CHECK(stat.mushroom_corrected_num == 2);
+    MC_SCHEM_CHECK(stat.palette_growth >= 1);
+
+    // A second pass finds nothing left to correct
+    const mushroom_statistic again = r->update_mushroom_state({});
+    MC_SCHEM_CHECK(again.mushroom_total_num == 2);
+    MC_SCHEM_CHECK(again.mushroom_corrected_num == 0);
   }
 
   // mc_schem_region_get_block_index, set_block_by_block, set_block_by_index,

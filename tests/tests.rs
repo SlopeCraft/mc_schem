@@ -20,6 +20,7 @@ use flate2::read::GzDecoder;
 use flate2::{Compression, GzBuilder};
 use mc_schem::block::CommonBlock;
 use mc_schem::region::WorldSlice;
+use mc_schem::schem::mushroom::MushroomStateUpdateOption;
 use mc_schem::{
     old_block, schem, Block, BlockEntity, DataVersion, LitematicaLoadOption, LitematicaSaveOption,
     MetaDataIR, Region, Schematic, WorldEdit12LoadOption, WorldEdit13LoadOption,
@@ -31,7 +32,6 @@ use rand::Rng;
 use std::collections::HashMap;
 use std::env;
 use std::fs::{create_dir_all, File};
-use mc_schem::schem::mushroom::MushroomStateUpdateOption;
 
 #[test]
 fn block_id_parse() {
@@ -1155,16 +1155,25 @@ fn test_update_mushroom_state() {
 
     let mut option = MushroomStateUpdateOption::default();
     option.canonicalize_block_id = true;
-    let stat = region.update_mushroom_state(&option);
-    println!("Stat: {:?}", stat);
-    assert_eq!(stat.mushroom_total_num, 3);
-    assert_eq!(stat.mushroom_corrected_num, 3);
-    assert_eq!(stat.palette_growth, 3);
+    let mut sparse = region.clone();
+    sparse.convert_to_sparse();
+    let dense = region;
 
-    println!("New palette:");
-    for blk in &region.palette {
-        println!("\t{}", blk.full_id());
+    let mut palettes = vec![];
+    for mut region in [dense, sparse] {
+        let stat = region.update_mushroom_state(&option);
+        println!("Stat: {:?}", stat);
+        assert_eq!(stat.mushroom_total_num, 3);
+        assert_eq!(stat.mushroom_corrected_num, 3);
+        assert_eq!(stat.palette_growth, 3);
+
+        println!("New palette:");
+        for blk in &region.palette {
+            println!("\t{}", blk.full_id());
+        }
+        palettes.push(region.palette);
     }
+    assert_eq!(palettes[0].len(), palettes[1].len());
 }
 #[test]
 fn test_update_mushroom_state_2() {

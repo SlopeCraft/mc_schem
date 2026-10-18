@@ -1,24 +1,63 @@
 /*
- mc_schem is a rust library to generate, load, manipulate and save minecraft
- schematic files. Copyright (C) 2026 ToKiNoBug
+mc_schem is a rust library to generate, load, manipulate and save minecraft
+schematic files. Copyright (C) 2026 ToKiNoBug
 
- This program is free software: you can redistribute it and/or modify it under
- the terms of the GNU General Public License as published by the Free Software
- Foundation, either version 3 of the License, or (at your option) any later
- version.
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
 
- This program is distributed in the hope that it will be useful, but WITHOUT ANY
- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
- PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
- You should have received a copy of the GNU General Public License
- along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
 
 use crate::region::Entity;
+use crate::Error;
 use fastnbt::Value;
 use std::collections::HashMap;
 use std::ffi::c_double;
+use std::ptr::null_mut;
+
+/// Create entity from nbt tags (deep copy tags)
+// entity* mc_schem_create_entity(const nbt_hashmap *, error* * error_dest_non_null);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_create_entity(
+    nbt: *const HashMap<String, Value>,
+    error_dest: *mut *mut Error,
+) -> *mut Entity {
+    let nbt = nbt.as_ref_unchecked().clone();
+    match Entity::from_nbt(nbt, "<unknown>") {
+        Ok(e) => {
+            *error_dest = null_mut();
+            Box::into_raw(Box::from(e))
+        }
+        Err(err) => {
+            *error_dest = Box::into_raw(Box::from(err));
+            null_mut()
+        }
+    }
+}
+/// Create entity from nbt tags (tags must be from box)
+// entity* mc_schem_create_entity_move(nbt_hashmap*, error* * error_dest_non_null);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_create_entity_move(nbt: *mut HashMap<String, Value>,
+                                                     error_dest: *mut *mut Error) -> *mut Entity {
+    let nbt = Box::from_raw(nbt);
+    match Entity::from_nbt(*nbt, "<unknown>") {
+        Ok(e) => {
+            *error_dest = null_mut();
+            Box::into_raw(Box::from(e))
+        }
+        Err(err) => {
+            *error_dest = Box::into_raw(Box::from(err));
+            null_mut()
+        }
+    }
+}
 
 // void mc_schem_entity_get_position(const entity *, int32_t* x, int32_t* y,int32_t* z, double* fp_x, double* fp_y,double* fp_z)
 #[no_mangle]
@@ -74,4 +113,12 @@ pub unsafe extern "C" fn mc_schem_entity_set_tags(
     // After swap, variable new contains old value
     let b = Box::from(new);
     Box::into_raw(b)
+}
+
+// Serialize entity to nbt
+// [[nodiscard]] nbt_hashmap* mc_schem_entity_to_nbt(const entity*);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_entity_to_nbt(entity: *const Entity) -> *mut HashMap<String, Value> {
+    let nbt = entity.as_ref_unchecked().to_nbt();
+    Box::into_raw(Box::from(nbt))
 }

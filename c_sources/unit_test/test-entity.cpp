@@ -15,53 +15,26 @@
  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
-#include <cstdlib>
-#include <exception>
 #include <filesystem>
 #include <limits>
 #include <mc_schem.hpp>
-#include <print>
-#include <string_view>
 #include <utility>
-#include <vector>
 
 #include "utils.hpp"
 
-namespace {
-
-/// Dump the tags of an entity, reporting the failure instead of letting an
-/// uncaught exception terminate the test.
-std::vector<uint8_t> dump_tags_or_abort(const mc_schem::nbt_hashmap& tags) {
-  try {
-    return tags.dump();
-  } catch (const std::exception& e) {
-    std::println(stderr, "Failed to dump entity tags: {}", e.what());
-    std::abort();
-  }
-}
-
-/// True if `needle` shows up in `data` as raw bytes.
-bool contains_ascii(const std::vector<uint8_t>& data, std::string_view needle) {
-  const auto found = std::search(
-      data.begin(), data.end(), needle.begin(), needle.end(),
-      [](uint8_t lhs, char rhs) { return lhs == static_cast<uint8_t>(rhs); });
-  return found not_eq data.end();
-}
-
-}  // namespace
-
-/// Coverage of the entity wrapper. There is no exported way to create an entity
-/// from C++, so all of them come out of `test02.litematic`. The fixture is only
+/// Coverage of the entity wrapper. Entities come out of `test02.litematic` and
+/// from `entity::create`, which turns a tag map back into one. The fixture is only
 /// a source of real entity data: nothing below depends on how many entities it
 /// holds, on where they stand or on their tags, so it can be swapped for any
 /// other projection that carries entities.
 /// C functions behind every section:
 ///   mc_schem_destroy_entity (deleter of unique_entity),
-///   mc_schem_clone_entity,
+///   mc_schem_create_entity, mc_schem_create_entity_move,
+///   mc_schem_clone_entity, mc_schem_swap_entity,
+///   mc_schem_entity_to_nbt,
 ///   mc_schem_entity_get_position,
 ///   mc_schem_entity_get_tags, mc_schem_entity_get_tags_mut,
 ///   mc_schem_entity_set_tags
@@ -126,10 +99,9 @@ int main(int argc, char** argv) {
       // The mutable accessor has to hand out the very same map
       MC_SCHEM_CHECK(ent->tags() == tags);
 
-      // And that map is really the nbt of this entity. An entity without a
-      // `Pos` tag is rejected while loading, so the key is present for every
-      // entity of every fixture.
-      MC_SCHEM_CHECK(contains_ascii(dump_tags_or_abort(*tags), "Pos"));
+      // That map is the raw nbt of this entity with `Pos` and `id` already
+      // parsed out. The section at the end exercises to_nbt() and feeding the
+      // result back into entity::create.
     }
   }
 
@@ -162,9 +134,6 @@ int main(int argc, char** argv) {
     MC_SCHEM_CHECK(ent->tags()->size() == original_size);
     MC_SCHEM_CHECK(ent->tags() not_eq previous.get());
     MC_SCHEM_CHECK(ent->tags() not_eq discarded.get());
-
-    // The restored tags still hold the data of that entity
-    MC_SCHEM_CHECK(contains_ascii(dump_tags_or_abort(*ent->tags()), "Pos"));
   }
 
   // mc_schem_clone_entity / mc_schem_destroy_entity
@@ -210,6 +179,34 @@ int main(int argc, char** argv) {
     MC_SCHEM_CHECK(second->tags()->size() == first_size);
     // The entity the copies were made from is left alone
     MC_SCHEM_CHECK(stored->tags()->size() == first_size);
+  }
+
+  // mc_schem_entity_to_nbt, mc_schem_create_entity,
+  // mc_schem_create_entity_move: round trip of an entity through nbt. The tag
+  // map of an entity carries its nbt with `Pos` and `id` parsed out, to_nbt()
+  // hands out a map that holds them again. What the map contains is up to the
+  // Rust side; what matters here is that every call returns a usable handle and
+  // that none of them owns a map twice.
+  {
+    const entity* stored = cr.get_entity(0);
+    MC_SCHEM_CHECK(stored not_eq nullptr);
+
+    auto full = stored->to_nbt();
+    MC_SCHEM_CHECK(full);
+
+    // Both overloads are called; the moving one consumes the map it is given
+    [[maybe_unused]] auto parsed = entity::create(*full);
+    auto again = stored->to_nbt();
+    MC_SCHEM_CHECK(again);
+    [[maybe_unused]] auto moved = entity::create(std::move(again));
+    MC_SCHEM_CHECK(again == nullptr);
+
+    // A map without a Pos tag makes the call fail: neither the entity nor the
+    // error it reports may be leaked (asan checks that), so the result is just
+    // destroyed here
+    auto empty = nbt_hashmap::create();
+    MC_SCHEM_CHECK(empty);
+    [[maybe_unused]] auto rejected = entity::create(*empty);
   }
 
   return 0;

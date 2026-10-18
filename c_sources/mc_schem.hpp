@@ -440,6 +440,10 @@ void mc_schem_region_visit_blocks(
 
 // Entity
 ////////////////////////////////////////////////////////////////////////////////
+/// Create entity from nbt tags (deep copy tags)
+[[nodiscard]] entity* mc_schem_create_entity(const nbt_hashmap*nbt, error**error_dest_non_null);
+/// Create entity from nbt tags (nbt must be from box, always consumed in rust side even failed)
+[[nodiscard]] entity* mc_schem_create_entity_move(nbt_hashmap*nbt, error**error_dest_non_null);
 
 void mc_schem_entity_get_position(const entity*, int32_t* x, int32_t* y,
                                   int32_t* z, double* fp_x, double* fp_y,
@@ -449,6 +453,8 @@ nbt_hashmap* mc_schem_entity_get_tags_mut(entity*);
 /// Deep copy new_value into entity, returns old value by box (transfer
 /// ownership
 nbt_hashmap* mc_schem_entity_set_tags(entity*, const nbt_hashmap* new_value);
+/// Serialize entity to nbt
+[[nodiscard]] nbt_hashmap* mc_schem_entity_to_nbt(const entity*);
 
 // Block entity
 ////////////////////////////////////////////////////////////////////////////////
@@ -1191,6 +1197,28 @@ class entity {
   entity& operator=(entity&&) = delete;
   ~entity() = delete;
 
+  [[nodiscard]] static std::expected<unique_entity,unique_error> create(const nbt_hashmap&src) {
+    error*err{nullptr};
+    auto ptr = mc_schem_create_entity(&src,&err);
+    if (ptr) {
+      assert(err==nullptr);
+      return unique_entity{ptr};
+    }
+    assert(ptr==nullptr);
+    return std::unexpected{unique_error{err}};
+  }
+
+  [[nodiscard]] static std::expected<unique_entity,unique_error> create(unique_nbt_hashmap nbt) {
+    error*err{nullptr};
+    auto ptr = mc_schem_create_entity_move(nbt.release(),&err);
+    if (ptr) {
+      assert(err==nullptr);
+      return unique_entity{ptr};
+    }
+    assert(ptr==nullptr);
+    return std::unexpected{unique_error{err}};
+  }
+
   [[nodiscard]] auto clone() const& {
     return unique_entity{mc_schem_clone_entity(this)};
   }
@@ -1223,6 +1251,11 @@ class entity {
     assert(new_value);
     this->tags()->swap(*new_value);
     return new_value;
+  }
+  /// Serialize entity to nbt. This differs from tags() because: tags() contains
+  /// only non-parsed tags, but to_nbt() gives full tags
+  [[nodiscard]] unique_nbt_hashmap to_nbt()const & {
+    return unique_nbt_hashmap{mc_schem_entity_to_nbt(this)};
   }
 };
 /// Block entity in Minecraft (also known as tile entity)

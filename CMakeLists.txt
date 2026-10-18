@@ -6,6 +6,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 option(MC_SCHEM_INSTALL "Install binaries" ON)
 option(MC_SCHEM_ENABLE_TESTS "Build the C++ wrapper unit tests" ON)
 set(MC_SCHEM_RUST_TARGET "default" CACHE STRING "Target to build rust codes. Should be consistent with C compiler. Valid values: default;guess; or any other triplet")
+set(MC_SCHEM_RUST_BUILD_FLAGS "" CACHE STRING "Extra flags to build rust part. Passed to cargo.")
+
 
 find_program(cargo_exe NAMES "cargo" REQUIRED)
 unset(cargo_build_flags)
@@ -58,9 +60,9 @@ endif ()
 
 file(GLOB_RECURSE rust_sources "*.rs")
 add_custom_target(mc_schem_rs ALL
-        COMMAND ${cargo_exe} build ${cargo_build_flags} --target-dir=${rust_build_dir}
-        SOURCES ${rust_sources} Cargo.toml
-        COMMENT "Building all rust binaries"
+    COMMAND ${cargo_exe} build ${cargo_build_flags} ${MC_SCHEM_RUST_BUILD_FLAGS} --target-dir=${rust_build_dir}
+    SOURCES ${rust_sources} Cargo.toml
+    COMMENT "Building all rust binaries"
     BYPRODUCTS ${shared_lib_loc} ${export_lib_loc} ${schemtool_loc}
 )
 
@@ -112,7 +114,7 @@ if (${MC_SCHEM_INSTALL})
     install(FILES "${CMAKE_BINARY_DIR}/mc_schemConfigVersion.cmake"
             DESTINATION lib/cmake/mc_schem)
 
-    install(FILES ${headers} "${CMAKE_BINARY_DIR}/mc_schem.hpp"
+    install(FILES ${headers} "${PROJECT_SOURCE_DIR}/c_sources/mc_schem.hpp"
         DESTINATION include/mc_schem)
     install(TARGETS mc_schem
             EXPORT mc_schem-targets

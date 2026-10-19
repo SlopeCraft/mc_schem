@@ -81,12 +81,12 @@ endif ()
 
 add_library(mc_schem INTERFACE)
 target_sources(mc_schem INTERFACE
-    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/c_sources/mc_schem.hpp>
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/c_sources/mc_schem.hpp>
 )
 add_dependencies(mc_schem mc_schem_rs)
 
 target_include_directories(mc_schem INTERFACE
-    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/c_sources>
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/c_sources>
     $<INSTALL_INTERFACE:include>
 )
 if (${link_shared_lib_directly})    # link to shared lib directly
@@ -111,7 +111,7 @@ if (${MC_SCHEM_INSTALL})
     write_basic_package_version_file(mc_schemConfigVersion.cmake
             VERSION ${PROJECT_VERSION}
             COMPATIBILITY AnyNewerVersion)
-    install(FILES "${CMAKE_BINARY_DIR}/mc_schemConfigVersion.cmake"
+    install(FILES "${PROJECT_BINARY_DIR}/mc_schemConfigVersion.cmake"
             DESTINATION lib/cmake/mc_schem)
 
     install(FILES ${headers} "${PROJECT_SOURCE_DIR}/c_sources/mc_schem.hpp"

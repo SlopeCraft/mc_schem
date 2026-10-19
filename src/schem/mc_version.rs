@@ -22,10 +22,26 @@ use strum::Display;
 /// Data version was introduced in snapshot 15w32a. Data version before 15w32a has no meaning without
 /// this crate, we assign i32 to these versions simply to satisfy the requirement of rust enumeration
 #[allow(non_camel_case_types)]
-#[derive(Debug, PartialEq, PartialOrd, Copy, Clone, Display)]
+#[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Copy, Clone, Display)]
 #[repr(i32)]
 #[allow(dead_code)]
 pub enum DataVersion {
+    Java_26_4_snapshot4 = 5124,
+    Java_26_4_snapshot3 = 5122,
+    Java_26_4_snapshot2 = 5120,
+    Java_26_4_snapshot1 = 5119,
+    Java_26_3 = 5023,
+    Java_26_3_rc3 = 5022,
+    Java_26_3_rc2 = 5021,
+    Java_26_3_rc1 = 5020,
+    Java_26_3_pre3 = 5019,
+    Java_26_3_pre2 = 5018,
+    Java_26_3_pre1 = 5017,
+    Java_26_3_snapshot10 = 5015,
+    Java_26_3_snapshot9 = 5011,
+    Java_26_3_snapshot8 = 5010,
+    Java_26_3_snapshot7 = 5009,
+    Java_26_3_snapshot6 = 5005,
     Java_26_3_snapshot5 = 5004,
     Java_26_3_snapshot4 = 5003,
     Java_26_3_snapshot3 = 5001,
@@ -1210,7 +1226,7 @@ pub enum DataVersion {
 impl DataVersion {
     /// The latest data version
     pub fn latest() -> DataVersion {
-        return DataVersion::Snapshot_23w51b;
+        return DataVersion::Java_26_4_snapshot4;
     }
 
     pub fn new() -> DataVersion {

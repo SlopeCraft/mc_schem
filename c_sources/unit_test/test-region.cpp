@@ -68,7 +68,8 @@ mc_schem::unique_block make_block(const std::string& full_id) {
 ///   mc_schem_region_set_block_by_block, mc_schem_region_shrink_palette,
 ///   mc_schem_region_fill_with, mc_schem_region_convert_to_sparse,
 ///   mc_schem_region_convert_to_dense, mc_schem_region_total_blocks,
-///   mc_schem_region_visit_blocks, mc_schem_region_update_mushroom_state,
+///   mc_schem_region_visit_blocks, mc_schem_region_update_mushroom_state
+/// The dense view section is only compiled with MC_SCHEM_HAS_mdspan, and covers
 ///   mc_schem_region_get_data, mc_schem_region_get_data_mut
 int main(int argc, char** argv) {
   using namespace mc_schem;
@@ -205,6 +206,7 @@ int main(int argc, char** argv) {
     MC_SCHEM_CHECK(again.mushroom_corrected_num == 0);
   }
 
+#ifdef MC_SCHEM_HAS_mdspan
   // mc_schem_region_get_data, mc_schem_region_get_data_mut: the dense view is
   // indexed in the internal yzx order, exactly like the array it points at
   {
@@ -259,6 +261,7 @@ int main(int argc, char** argv) {
     MC_SCHEM_CHECK(not cr.view_as_dense_yzx().has_value());
     MC_SCHEM_CHECK(not r->view_as_dense_yzx().has_value());
   }
+#endif
 
   // mc_schem_region_get_block_index, set_block_by_block, set_block_by_index,
   // block_at, block_info_at, find_in_palette, find_or_append_to_palette,

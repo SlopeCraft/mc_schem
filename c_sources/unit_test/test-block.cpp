@@ -22,6 +22,7 @@
 
 /// Coverage of the block wrapper. C functions behind every section:
 ///   mc_schem_create_block, mc_schem_create_block_from_common,
+///   mc_schem_create_block_from_id,
 ///   mc_schem_destroy_block (deleter of unique_block),
 ///   mc_schem_clone_block,
 ///   mc_schem_block_get_id, mc_schem_block_get_namespace,
@@ -59,6 +60,16 @@ int main(int, char**) {
     MC_SCHEM_CHECK(void_blk->is_structure_void());
     MC_SCHEM_CHECK(not void_blk->is_air());
     MC_SCHEM_CHECK(void_blk->full_id() == "minecraft:structure_void");
+  }
+
+  // mc_schem_create_block_from_id: one id that parses, one that does not
+  {
+    auto good = block::create("minecraft:oak_stairs[facing=north]");
+    MC_SCHEM_CHECK(good.has_value());
+
+    // A trailing comma in the attribute list is a parse error
+    auto bad = block::create("minecraft:stone[north=true,]");
+    MC_SCHEM_CHECK(not bad.has_value());
   }
 
   // mc_schem_clone_block, including deep copy of the attribute map

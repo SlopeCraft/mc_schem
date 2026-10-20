@@ -306,6 +306,8 @@ bool mc_schem_nbt_hashmap_dump_to_binary_stream(
 ////////////////////////////////////////////////////////////////////////////////
 [[nodiscard]] block* mc_schem_create_block();
 [[nodiscard]] block* mc_schem_create_block_from_common(common_block blk);
+[[nodiscard]] block* mc_schem_create_block_from_id(
+    const char* full_id, block_id_parse_error* dest_error_nonnull);
 void mc_schem_block_get_id(const block*, const rust_string_receiver* receiver);
 void mc_schem_block_get_namespace(const block*,
                                   const rust_string_receiver* receiver);
@@ -767,8 +769,24 @@ class block {
     return unique_block{mc_schem_create_block()};
   }
 
-  [[nodiscard]] static unique_block from_common(common_block cb) {
+  [[nodiscard]] static std::expected<unique_block, block_id_parse_error> create(
+      const std::string& id) {
+    block_id_parse_error err{};
+    auto ptr = mc_schem_create_block_from_id(id.c_str(), &err);
+    if (ptr) {
+      return unique_block{ptr};
+    }
+    return std::unexpected(err);
+  }
+
+  [[nodiscard]] static unique_block create(common_block cb) {
     return unique_block{mc_schem_create_block_from_common(cb)};
+
+  }
+  [[deprecated("Use block::create(common_block) instead")]]
+  [[nodiscard]] static unique_block
+  from_common(common_block cb) {
+    return create(cb);
   }
 
   [[nodiscard]] auto clone() const& {

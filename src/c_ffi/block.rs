@@ -35,6 +35,21 @@ pub unsafe extern "C" fn mc_schem_create_block_from_common(common: CommonBlock) 
     // }
     // null_mut()
 }
+// block* mc_schem_create_block_from_id(const char* full_id, block_id_parse_error* dest_error_nonnull)
+
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_create_block_from_id(full_id: *const c_char, block_id_parse_error: *mut BlockIdParseError) -> *mut Block {
+    let id = CStr::from_ptr(full_id).to_string_lossy().to_string();
+    match Block::from_id(&id) {
+        Ok(blk) => {
+            Box::into_raw(Box::from(blk))
+        },
+        Err(e) => {
+            *block_id_parse_error = e;
+            null_mut()
+        }
+    }
+}
 
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_block_get_id(

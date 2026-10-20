@@ -919,10 +919,13 @@ class region {
     return ret;
   }
 
-  [[nodiscard]] std::array<int32_t, 3> offset() const& {
+  template <typename int_t = int32_t>
+    requires std::is_integral_v<int_t>
+  [[nodiscard]] std::array<int_t, 3> offset() const& {
     int32_t x{0}, y{0}, z{0};
     mc_schem_region_get_offset(this, &x, &y, &z);
-    return {x, y, z};
+    return {static_cast<int_t>(x), static_cast<int_t>(y),
+            static_cast<int_t>(z)};
   }
 
   void set_name(const std::string& name) & {
@@ -936,18 +939,24 @@ class region {
     set_offset(std::span{offset});
   }
 
-  [[nodiscard]] std::array<int32_t, 3> size_xyz() const& {
+  template <typename int_t = int32_t>
+    requires std::is_integral_v<int_t>
+  [[nodiscard]] std::array<int_t, 3> size_xyz() const& {
     int32_t x{0}, y{0}, z{0};
     mc_schem_region_get_size(this, &x, &y, &z);
     assert(x >= 0);
     assert(y >= 0);
     assert(z >= 0);
-    return {x, y, z};
+    return {static_cast<int_t>(x), static_cast<int_t>(y),
+            static_cast<int_t>(z)};
   }
 
-  [[nodiscard]] std::array<int32_t, 3> size_yzx() const& {
+  template <typename int_t = int32_t>
+    requires std::is_integral_v<int_t>
+  [[nodiscard]] std::array<int_t, 3> size_yzx() const& {
     const auto [x, y, z] = size_xyz();
-    return {y, z, x};
+    return {static_cast<int_t>(y), static_cast<int_t>(z),
+            static_cast<int_t>(x)};
   }
 
   [[nodiscard]] bool is_dense() const& {
@@ -1506,10 +1515,13 @@ class metadata_ir {
     mc_schem_metadata_ir_set_schem_version(this, schem_version);
   }
 
-  [[nodiscard]] std::array<int32_t, 3> schem_offset() const& {
-    int32_t x, y, z;
+  template <typename int_t = int32_t>
+    requires std::is_integral_v<int_t>
+  [[nodiscard]] std::array<int_t, 3> schem_offset() const& {
+    int32_t x{0}, y{0}, z{0};
     mc_schem_metadata_ir_get_schem_offset(this, &x, &y, &z);
-    return {x, y, z};
+    return {static_cast<int_t>(x), static_cast<int_t>(y),
+            static_cast<int_t>(z)};
   }
   void set_schem_offset(std::span<const int32_t, 3> offset) & {
     mc_schem_metadata_ir_set_schem_offset(this, offset[0], offset[1],
@@ -1519,11 +1531,16 @@ class metadata_ir {
     set_schem_offset(std::span{offset});
   }
 
-  [[nodiscard]] std::optional<std::array<int32_t, 3>> schem_we_offset() const& {
-    int32_t x, y, z;
+  template <typename int_t = int32_t>
+    requires std::is_integral_v<int_t>
+  [[nodiscard]] std::optional<std::array<int_t, 3>> schem_we_offset() const& {
+    int32_t x{0}, y{0}, z{0};
     const bool exist =
         mc_schem_metadata_ir_get_schem_we_offset(this, &x, &y, &z);
-    if (exist) return std::array<int32_t, 3>{x, y, z};
+    if (exist) {
+      return std::array<int_t, 3>{static_cast<int_t>(x), static_cast<int_t>(y),
+                                  static_cast<int_t>(z)};
+    }
     return std::nullopt;
   }
   void set_schem_we_offset(std::span<const int32_t, 3> offset) & {
@@ -1552,10 +1569,15 @@ class metadata_ir {
     mc_schem_metadata_ir_set_schem_world_edit_version(this, nullptr);
   }
 
-  [[nodiscard]] std::optional<std::array<int32_t, 3>> schem_origin() const& {
-    int32_t x, y, z;
+  template <typename int_t = int32_t>
+    requires std::is_integral_v<int_t>
+  [[nodiscard]] std::optional<std::array<int_t, 3>> schem_origin() const& {
+    int32_t x{0}, y{0}, z{0};
     const bool exist = mc_schem_metadata_ir_get_schem_origin(this, &x, &y, &z);
-    if (exist) return std::array<int32_t, 3>{x, y, z};
+    if (exist) {
+      return std::array<int_t, 3>{static_cast<int_t>(x), static_cast<int_t>(y),
+                                  static_cast<int_t>(z)};
+    }
     return std::nullopt;
   }
   void set_schem_origin(std::span<const int32_t, 3> origin) & {
@@ -1728,10 +1750,13 @@ class schematic {
     return first_pending_ticks_at(std::span{pos});
   }
 
-  [[nodiscard]] std::array<int32_t, 3> shape() const& {
+  template <typename int_t = int32_t>
+    requires std::is_integral_v<int_t>
+  [[nodiscard]] std::array<int_t, 3> shape() const& {
     int32_t x = -1, y = -1, z = -1;
     mc_schem_schematic_get_shape(this, &x, &y, &z);
-    return {x, y, z};
+    return {static_cast<int_t>(x), static_cast<int_t>(y),
+            static_cast<int_t>(z)};
   }
   [[nodiscard]] uint64_t volume() const& {
     return mc_schem_schematic_get_volume(this);

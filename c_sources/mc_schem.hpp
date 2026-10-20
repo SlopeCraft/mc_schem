@@ -25,7 +25,6 @@
 #include <expected>
 #include <format>
 #include <istream>
-#include <mdspan>
 #include <memory>
 #include <optional>
 #include <ostream>
@@ -36,6 +35,10 @@
 #include <tuple>
 #include <type_traits>
 #include <vector>
+
+#ifdef MC_SCHEM_HAS_mdspan
+#include <mdspan>
+#endif
 
 namespace mc_schem {
 
@@ -1279,6 +1282,7 @@ class region {
   [[nodiscard]] uint64_t total_blocks(bool include_air) const& {
     return mc_schem_region_total_blocks(this, include_air);
   }
+#ifdef MC_SCHEM_HAS_mdspan
   /// Try to give a dense view. Only valid if region is dense
   [[nodiscard]] std::optional<
       std::mdspan<const uint16_t, std::dextents<size_t, 3>, std::layout_right>>
@@ -1307,8 +1311,9 @@ class region {
       assert(ptr);
     }
     return std::mdspan<uint16_t, std::dextents<size_t, 3>, std::layout_right>{
-        ptr, y, z, x};
+      ptr, y, z, x};
   }
+#endif
 };
 /// Entity in Minecraft
 /// Note: sizeof is fake. Never construct from C/C++, only construct,

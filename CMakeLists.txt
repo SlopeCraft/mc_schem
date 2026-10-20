@@ -7,7 +7,7 @@ option(MC_SCHEM_INSTALL "Install binaries" ON)
 option(MC_SCHEM_ENABLE_TESTS "Build the C++ wrapper unit tests" ON)
 set(MC_SCHEM_RUST_TARGET "default" CACHE STRING "Target to build rust codes. Should be consistent with C compiler. Valid values: default;guess; or any other triplet")
 set(MC_SCHEM_RUST_BUILD_FLAGS "" CACHE STRING "Extra flags to build rust part. Passed to cargo.")
-
+option(MC_SCHEM_HAS_mdspan "Enable mdspan for schem. This is an option because some platforms are not very new" ON)
 
 find_program(cargo_exe NAMES "cargo" REQUIRED)
 unset(cargo_build_flags)
@@ -109,8 +109,11 @@ else ()
 endif ()
 
 target_compile_features(mc_schem INTERFACE cxx_std_23)
+if (${MC_SCHEM_HAS_mdspan})
+    target_compile_definitions(mc_schem INTERFACE MC_SCHEM_HAS_mdspan=1)
+endif ()
 
-if (NOT ${PROJECT_SOURCE_DIR} EQUAL ${CMAKE_SOURCE_DIR})
+if (NOT ${PROJECT_SOURCE_DIR} STREQUAL ${CMAKE_SOURCE_DIR})
     # Support fetched mode
     add_library(mc_schem::mc_schem ALIAS mc_schem)
     set(mc_schem_SHARED_LIB_FILENAME ${shared_lib_name} PARENT_SCOPE)

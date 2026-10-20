@@ -441,9 +441,12 @@ void mc_schem_region_visit_blocks(
 // Entity
 ////////////////////////////////////////////////////////////////////////////////
 /// Create entity from nbt tags (deep copy tags)
-[[nodiscard]] entity* mc_schem_create_entity(const nbt_hashmap*nbt, error**error_dest_non_null);
-/// Create entity from nbt tags (nbt must be from box, always consumed in rust side even failed)
-[[nodiscard]] entity* mc_schem_create_entity_move(nbt_hashmap*nbt, error**error_dest_non_null);
+[[nodiscard]] entity* mc_schem_create_entity(const nbt_hashmap* nbt,
+                                             error** error_dest_non_null);
+/// Create entity from nbt tags (nbt must be from box, always consumed in rust
+/// side even failed)
+[[nodiscard]] entity* mc_schem_create_entity_move(nbt_hashmap* nbt,
+                                                  error** error_dest_non_null);
 
 void mc_schem_entity_get_position(const entity*, int32_t* x, int32_t* y,
                                   int32_t* z, double* fp_x, double* fp_y,
@@ -469,7 +472,7 @@ nbt_hashmap* mc_schem_block_entity_set_tags(block_entity*,
 ////////////////////////////////////////////////////////////////////////////////
 [[nodiscard]] metadata_ir* mc_schem_create_metadata_ir(
     int32_t data_version, error** dest_err_non_null);
-
+// getter
 int32_t mc_schem_metadata_ir_get_mc_data_version(const metadata_ir*);
 int64_t mc_schem_metadata_ir_get_time_created(const metadata_ir*);
 int64_t mc_schem_metadata_ir_get_time_modified(const metadata_ir*);
@@ -494,6 +497,30 @@ bool mc_schem_metadata_ir_get_schem_origin(const metadata_ir*, int32_t* dest_x,
                                            int32_t* dest_y, int32_t* dest_z);
 void mc_schem_metadata_ir_get_schem_material(const metadata_ir*,
                                              const rust_string_receiver*);
+// setter
+[[nodiscard]] error* mc_schem_metadata_ir_set_mc_data_version(metadata_ir*,
+                                                              int32_t version);
+void mc_schem_metadata_ir_set_time_created(metadata_ir*, int64_t time);
+void mc_schem_metadata_ir_set_time_modified(metadata_ir*, int64_t time);
+void mc_schem_metadata_ir_set_author(metadata_ir*, const char*);
+void mc_schem_metadata_ir_set_name(metadata_ir*, const char*);
+void mc_schem_metadata_ir_set_litematica_version(metadata_ir*, int32_t);
+// if exist=false, ignore subver; otherwise use subver
+void mc_schem_metadata_ir_set_litematica_subversion(metadata_ir*,
+                                                    int32_t subver, bool exist);
+void mc_schem_metadata_ir_set_schem_version(metadata_ir*, int32_t);
+void mc_schem_metadata_ir_set_schem_offset(metadata_ir*, int32_t x, int32_t y,
+                                           int32_t z);
+void mc_schem_metadata_ir_set_we_offset(metadata_ir*, int32_t x, int32_t y,
+                                        int32_t z, bool exist);
+// if we_version=null, erase this tag; otherwise set to we_
+void mc_schem_metadata_ir_set_schem_world_edit_version(
+    metadata_ir*, const char* we_version_nullable);
+void mc_schem_metadata_ir_set_schem_editing_platform(
+    metadata_ir*, const char* we_editing_platform_nullable);
+void mc_schem_metadata_ir_set_schem_origin(metadata_ir*, int32_t x, int32_t y,
+                                           int32_t z, bool exist);
+void mc_schem_metadata_ir_set_schem_material(metadata_ir*, const char*);
 // Schematic
 ////////////////////////////////////////////////////////////////////////////////
 /// Create and return an empty schematic, with default metadata
@@ -902,9 +929,9 @@ class region {
   [[nodiscard]] std::array<int32_t, 3> size_xyz() const& {
     int32_t x{0}, y{0}, z{0};
     mc_schem_region_get_size(this, &x, &y, &z);
-    assert(x>=0);
-    assert(y>=0);
-    assert(z>=0);
+    assert(x >= 0);
+    assert(y >= 0);
+    assert(z >= 0);
     return {x, y, z};
   }
 
@@ -1197,25 +1224,27 @@ class entity {
   entity& operator=(entity&&) = delete;
   ~entity() = delete;
 
-  [[nodiscard]] static std::expected<unique_entity,unique_error> create(const nbt_hashmap&src) {
-    error*err{nullptr};
-    auto ptr = mc_schem_create_entity(&src,&err);
+  [[nodiscard]] static std::expected<unique_entity, unique_error> create(
+      const nbt_hashmap& src) {
+    error* err{nullptr};
+    auto ptr = mc_schem_create_entity(&src, &err);
     if (ptr) {
-      assert(err==nullptr);
+      assert(err == nullptr);
       return unique_entity{ptr};
     }
-    assert(ptr==nullptr);
+    assert(ptr == nullptr);
     return std::unexpected{unique_error{err}};
   }
 
-  [[nodiscard]] static std::expected<unique_entity,unique_error> create(unique_nbt_hashmap nbt) {
-    error*err{nullptr};
-    auto ptr = mc_schem_create_entity_move(nbt.release(),&err);
+  [[nodiscard]] static std::expected<unique_entity, unique_error> create(
+      unique_nbt_hashmap nbt) {
+    error* err{nullptr};
+    auto ptr = mc_schem_create_entity_move(nbt.release(), &err);
     if (ptr) {
-      assert(err==nullptr);
+      assert(err == nullptr);
       return unique_entity{ptr};
     }
-    assert(ptr==nullptr);
+    assert(ptr == nullptr);
     return std::unexpected{unique_error{err}};
   }
 
@@ -1254,7 +1283,7 @@ class entity {
   }
   /// Serialize entity to nbt. This differs from tags() because: tags() contains
   /// only non-parsed tags, but to_nbt() gives full tags
-  [[nodiscard]] unique_nbt_hashmap to_nbt()const & {
+  [[nodiscard]] unique_nbt_hashmap to_nbt() const& {
     return unique_nbt_hashmap{mc_schem_entity_to_nbt(this)};
   }
 };
@@ -1334,27 +1363,56 @@ class metadata_ir {
   [[nodiscard]] int32_t mc_data_version() const& {
     return mc_schem_metadata_ir_get_mc_data_version(this);
   }
+  void set_mc_data_version(int32_t data_version) & {
+    unique_error error{
+        mc_schem_metadata_ir_set_mc_data_version(this, data_version)};
+    if (error not_eq nullptr) {
+      throw std::runtime_error{
+          std::format("Failed to set mc data version: {}", error->message())};
+    }
+  }
+
   [[nodiscard]] int64_t time_created() const& {
     return mc_schem_metadata_ir_get_time_created(this);
   }
+  void set_time_created(int64_t time_created) & {
+    mc_schem_metadata_ir_set_time_created(this, time_created);
+  }
+
   [[nodiscard]] int64_t time_modified() const& {
     return mc_schem_metadata_ir_get_time_modified(this);
   }
+  void set_time_modified(int64_t time) & {
+    mc_schem_metadata_ir_set_time_modified(this, time);
+  }
+
   [[nodiscard]] std::string author() const& {
     std::string ret;
     rust_string_receiver rsr{ret};
     mc_schem_metadata_ir_get_author(this, &rsr);
     return ret;
   }
+  void set_author(const std::string& author) & {
+    mc_schem_metadata_ir_set_author(this, author.c_str());
+  }
+
   [[nodiscard]] std::string name() const& {
     std::string ret;
     rust_string_receiver rsr{ret};
     mc_schem_metadata_ir_get_name(this, &rsr);
     return ret;
   }
+  void set_name(const std::string& name) & {
+    mc_schem_metadata_ir_set_name(this, name.c_str());
+  }
+
   [[nodiscard]] int32_t litematica_version() const& {
     return mc_schem_metadata_ir_get_litematica_version(this);
   }
+  void set_litematica_version(int32_t litematica_version) & {
+    mc_schem_metadata_ir_set_litematica_version(this, litematica_version);
+  }
+
   [[nodiscard]] std::optional<int32_t> litematica_subversion() const& {
     bool exist{false};
     const auto ret =
@@ -1362,13 +1420,27 @@ class metadata_ir {
     if (exist) return ret;
     return std::nullopt;
   }
+  void set_litematica_subversion(int32_t v) & {
+    mc_schem_metadata_ir_set_litematica_subversion(this, v, true);
+  }
+  void set_litematica_subversion() & {
+    mc_schem_metadata_ir_set_litematica_subversion(this, 0, false);
+  }
+
   [[nodiscard]] int32_t schem_version() const& {
     return mc_schem_metadata_ir_get_schem_version(this);
+  }
+  void set_schem_version(int32_t schem_version) & {
+    mc_schem_metadata_ir_set_schem_version(this, schem_version);
   }
   [[nodiscard]] std::array<int32_t, 3> schem_offset() const& {
     int32_t x, y, z;
     mc_schem_metadata_ir_get_schem_offset(this, &x, &y, &z);
     return {x, y, z};
+  }
+  void set_schem_offset(std::span<const int32_t, 3> offset) & {
+    mc_schem_metadata_ir_set_schem_offset(this, offset[0], offset[1],
+                                          offset[2]);
   }
   [[nodiscard]] std::optional<std::array<int32_t, 3>> schem_we_offset() const& {
     int32_t x, y, z;
@@ -1377,6 +1449,14 @@ class metadata_ir {
     if (exist) return std::array<int32_t, 3>{x, y, z};
     return std::nullopt;
   }
+  void set_schem_we_offset(std::span<const int32_t, 3> offset) & {
+    mc_schem_metadata_ir_set_we_offset(this, offset[0], offset[1], offset[2],
+                                       true);
+  }
+  void set_schem_we_offset() & {
+    mc_schem_metadata_ir_set_we_offset(this, 0, 0, 0, false);
+  }
+
   [[nodiscard]] std::optional<std::string> schem_world_edit_version() const& {
     std::string ret;
     rust_string_receiver rsr{ret};
@@ -1385,18 +1465,37 @@ class metadata_ir {
     if (exist) return ret;
     return std::nullopt;
   }
+  void set_schem_world_edit_version(const std::string& version) & {
+    mc_schem_metadata_ir_set_schem_world_edit_version(this, version.c_str());
+  }
+  void set_schem_world_edit_version() & {
+    mc_schem_metadata_ir_set_schem_world_edit_version(this, nullptr);
+  }
+
   [[nodiscard]] std::optional<std::array<int32_t, 3>> schem_origin() const& {
     int32_t x, y, z;
     const bool exist = mc_schem_metadata_ir_get_schem_origin(this, &x, &y, &z);
     if (exist) return std::array<int32_t, 3>{x, y, z};
     return std::nullopt;
   }
+  void set_schem_origin(std::span<const int32_t, 3> origin) & {
+    mc_schem_metadata_ir_set_schem_origin(this, origin[0], origin[1], origin[2],
+                                          true);
+  }
+  void set_schem_origin() & {
+    mc_schem_metadata_ir_set_schem_origin(this, 0, 0, 0, false);
+  }
+
   [[nodiscard]] std::string schem_material() const& {
     std::string ret;
     rust_string_receiver rsr{ret};
     mc_schem_metadata_ir_get_schem_material(this, &rsr);
     return ret;
   }
+  void set_schem_material(const std::string& material) & {
+    mc_schem_metadata_ir_set_schem_material(this, material.c_str());
+  }
+
   [[nodiscard]] std::optional<std::string> schem_editing_platform() const& {
     std::string ret;
     rust_string_receiver rsr{ret};
@@ -1404,6 +1503,12 @@ class metadata_ir {
         mc_schem_metadata_ir_get_schem_editing_platform(this, &rsr);
     if (exist) return ret;
     return std::nullopt;
+  }
+  void set_schem_editing_platform(const std::string& platform) & {
+    mc_schem_metadata_ir_set_schem_editing_platform(this, platform.c_str());
+  }
+  void set_schem_editing_platform() & {
+    mc_schem_metadata_ir_set_schem_editing_platform(this, nullptr);
   }
 };
 

@@ -17,12 +17,13 @@
 
 use std::cmp::Ordering;
 use strum::Display;
+use strum_macros::EnumIter;
 
 /// Minecraft data versions.
 /// Data version was introduced in snapshot 15w32a. Data version before 15w32a has no meaning without
 /// this crate, we assign i32 to these versions simply to satisfy the requirement of rust enumeration
 #[allow(non_camel_case_types)]
-#[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Copy, Clone, Display)]
+#[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Copy, Clone, Display, EnumIter)]
 #[repr(i32)]
 #[allow(dead_code)]
 pub enum DataVersion {

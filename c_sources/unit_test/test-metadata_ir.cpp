@@ -87,7 +87,20 @@ meta_snapshot snapshot_of(const mc_schem::metadata_ir& md) {
 ///   mc_schem_metadata_ir_get_schem_world_edit_version,
 ///   mc_schem_metadata_ir_get_schem_editing_platform,
 ///   mc_schem_metadata_ir_get_schem_origin,
-///   mc_schem_metadata_ir_get_schem_material
+///   mc_schem_metadata_ir_get_schem_material,
+///   mc_schem_metadata_ir_set_mc_data_version,
+///   mc_schem_metadata_ir_set_time_created,
+///   mc_schem_metadata_ir_set_time_modified,
+///   mc_schem_metadata_ir_set_author, mc_schem_metadata_ir_set_name,
+///   mc_schem_metadata_ir_set_litematica_version,
+///   mc_schem_metadata_ir_set_litematica_subversion,
+///   mc_schem_metadata_ir_set_schem_version,
+///   mc_schem_metadata_ir_set_schem_offset,
+///   mc_schem_metadata_ir_set_we_offset,
+///   mc_schem_metadata_ir_set_schem_world_edit_version,
+///   mc_schem_metadata_ir_set_schem_origin,
+///   mc_schem_metadata_ir_set_schem_material,
+///   mc_schem_metadata_ir_set_schem_editing_platform
 int main(int argc, char** argv) {
   using namespace mc_schem;
 
@@ -171,6 +184,46 @@ int main(int argc, char** argv) {
     first_handle->swap(*second_handle);
     MC_SCHEM_CHECK(first_handle->mc_data_version() == 222);
     MC_SCHEM_CHECK(second_handle->mc_data_version() == 111);
+  }
+
+  // The whole setter series. Only that every one of them is called matters
+  // here: whether the values come back out again is the business of the Rust
+  // side, and asan is what watches the handles on the way through
+  {
+    auto handle = metadata_ir::create(3578);
+    MC_SCHEM_CHECK(handle.has_value());
+    metadata_ir& md = **handle;
+
+    md.set_mc_data_version(3578);
+    md.set_time_created(1707202812934);
+    md.set_time_modified(1707202812935);
+    md.set_author("unit-test");
+    md.set_name("unit-test");
+    md.set_litematica_version(6);
+    md.set_litematica_subversion(1);
+    md.set_litematica_subversion();
+    md.set_schem_version(2);
+
+    const pos_t offset{1, 2, 3};
+    md.set_schem_offset(offset);
+    const pos_t we_offset{4, 5, 6};
+    md.set_schem_we_offset(we_offset);
+    md.set_schem_we_offset();
+
+    md.set_schem_world_edit_version("1.13");
+    md.set_schem_world_edit_version();
+
+    const pos_t origin{7, 8, 9};
+    md.set_schem_origin(origin);
+    md.set_schem_origin();
+
+    md.set_schem_material("Alpha");
+    md.set_schem_editing_platform("worldedit");
+    md.set_schem_editing_platform();
+
+    // After being written to that much the object still clones
+    auto copy = md.clone();
+    MC_SCHEM_CHECK(copy);
   }
 
   return 0;

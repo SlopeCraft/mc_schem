@@ -37,8 +37,6 @@
 #include <type_traits>
 #include <vector>
 
-#include "mc_schem.hpp"
-
 namespace mc_schem {
 
 enum class block_id_parse_error : uint8_t {

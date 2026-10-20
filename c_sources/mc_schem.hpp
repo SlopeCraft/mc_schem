@@ -191,7 +191,10 @@ struct rust_writer {
                     void* handle) -> size_t {
       auto& dest = *static_cast<std::vector<uint8_t>*>(handle);
       try {
-        dest.append_range(std::span{buf, buf_bytes});
+        dest.reserve(dest.size() + buf_bytes);
+        for (size_t i = 0; i < buf_bytes; i++) {
+          dest.emplace_back(buf[i]);
+        }
         *ok = true;
         return buf_bytes;
       } catch (const std::exception& e) {

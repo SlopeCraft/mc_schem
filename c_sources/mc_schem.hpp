@@ -276,14 +276,14 @@ void mc_schem_destroy_vanilla_structure_metadata(
 [[nodiscard]] nbt_hashmap* mc_schem_clone_nbt_hashmap(const nbt_hashmap*);
 
 // swap: deep-swap on data. No memory allocation or release
-void mc_schem_swap_block(block* a, block* b);
-void mc_schem_swap_region(region* a, region* b);
-void mc_schem_swap_entity(entity* a, entity* b);
-void mc_schem_swap_block_entity(block_entity* a, block_entity* b);
-void mc_schem_swap_pending_tick(pending_tick* a, pending_tick* b);
-void mc_schem_swap_metadata_ir(metadata_ir* a, metadata_ir* b);
-void mc_schem_swap_nbt_hashmap(nbt_hashmap* a, nbt_hashmap* b);
-void mc_schem_swap_schematic(schematic* a, schematic* b);
+void mc_schem_swap_block(block* a, block* b) noexcept;
+void mc_schem_swap_region(region* a, region* b) noexcept;
+void mc_schem_swap_entity(entity* a, entity* b) noexcept;
+void mc_schem_swap_block_entity(block_entity* a, block_entity* b) noexcept;
+void mc_schem_swap_pending_tick(pending_tick* a, pending_tick* b) noexcept;
+void mc_schem_swap_metadata_ir(metadata_ir* a, metadata_ir* b) noexcept;
+void mc_schem_swap_nbt_hashmap(nbt_hashmap* a, nbt_hashmap* b) noexcept;
+void mc_schem_swap_schematic(schematic* a, schematic* b) noexcept;
 
 // NBT
 ////////////////////////////////////////////////////////////////////////////////
@@ -713,7 +713,7 @@ class nbt_hashmap {
     return unique_nbt_hashmap{ptr};
   }
 
-  void swap(nbt_hashmap& another) & {
+  void swap(nbt_hashmap& another) & noexcept {
     mc_schem_swap_nbt_hashmap(this, &another);
   }
 
@@ -781,7 +781,6 @@ class block {
 
   [[nodiscard]] static unique_block create(common_block cb) {
     return unique_block{mc_schem_create_block_from_common(cb)};
-
   }
   [[deprecated("Use block::create(common_block) instead")]]
   [[nodiscard]] static unique_block
@@ -793,7 +792,7 @@ class block {
     return unique_block{mc_schem_clone_block(this)};
   }
 
-  void swap(block& another) & { mc_schem_swap_block(this, &another); }
+  void swap(block& another) & noexcept { mc_schem_swap_block(this, &another); }
 
   [[nodiscard]] std::string id() const& {
     std::string ret;
@@ -928,7 +927,9 @@ class region {
     return unique_region{mc_schem_clone_region(this)};
   }
 
-  void swap(region& another) & { mc_schem_swap_region(this, &another); }
+  void swap(region& another) & noexcept {
+    mc_schem_swap_region(this, &another);
+  }
 
   [[nodiscard]] std::string name() const& {
     std::string ret;
@@ -1351,7 +1352,9 @@ class entity {
     return unique_entity{mc_schem_clone_entity(this)};
   }
 
-  void swap(entity& another) & { mc_schem_swap_entity(this, &another); }
+  void swap(entity& another) & noexcept {
+    mc_schem_swap_entity(this, &another);
+  }
 
   [[nodiscard]] std::pair<std::array<int32_t, 3>, std::array<double, 3>>
   position() const& {
@@ -1406,7 +1409,7 @@ class block_entity {
     return unique_block_entity{mc_schem_clone_block_entity(this)};
   }
 
-  void swap(block_entity& another) & {
+  void swap(block_entity& another) & noexcept {
     mc_schem_swap_block_entity(this, &another);
   }
 
@@ -1455,7 +1458,7 @@ class metadata_ir {
     return unique_metadata_ir{mc_schem_clone_metadata_ir(this)};
   }
 
-  void swap(metadata_ir& another) & {
+  void swap(metadata_ir& another) & noexcept {
     mc_schem_swap_metadata_ir(this, &another);
   }
 
@@ -1655,7 +1658,9 @@ class schematic {
     return unique_schematic{mc_schem_clone_schematic(this)};
   }
 
-  void swap(schematic& another) & { mc_schem_swap_schematic(this, &another); }
+  void swap(schematic& another) & noexcept {
+    mc_schem_swap_schematic(this, &another);
+  }
 
   [[nodiscard]] const metadata_ir* metadata() const& {
     return mc_schem_schematic_get_metadata(this);

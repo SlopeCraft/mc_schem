@@ -9,10 +9,11 @@ readme = "README.md"
 homepage = "https://github.com/SlopeCraft/mc_schem"
 repository = "https://github.com/SlopeCraft/mc_schem"
 license = "GPL-3.0-only"
+build = "build.rs"
 #license-file = "LICENSE"
 keywords = ["Minecraft"]
 categories = ["game-development"]
-include = ["/src", "/tests", "/docs", "/c_sources", "/cmake", "/CMakeLists.txt"]
+include = ["/src", "/tests", "/docs", "/c_sources", "/cmake", "/CMakeLists.txt", "/build.rs"]
 
 # Example of customizing the library in Cargo.toml.
 [lib]
@@ -44,3 +45,8 @@ rayon = "1.9.0"
 serde = { version = "1.0.198", features = ["derive"] }
 web-time = "1"
 strum_macros = "0.28.0"
+
+# Build scripts can only see [build-dependencies]; a [dependencies] entry is not
+# visible from build.rs (`error[E0432]: no external crate winres`).
+[target.'cfg(windows)'.build-dependencies]
+winres = "0.1.12"

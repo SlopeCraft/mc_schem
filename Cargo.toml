@@ -13,7 +13,7 @@ build = "build.rs"
 #license-file = "LICENSE"
 keywords = ["Minecraft"]
 categories = ["game-development"]
-include = ["/src", "/tests", "/docs", "/c_sources", "/cmake", "/CMakeLists.txt", "/build.rs"]
+include = ["/src", "/tests", "/docs", "/c_sources", "/cmake", "/CMakeLists.txt", "/build.rs", "/res"]
 
 # Example of customizing the library in Cargo.toml.
 [lib]
@@ -26,7 +26,6 @@ name = "schemtool"
 [profile.release]
 panic = "abort"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 strum = { version = "0.28.0", features = ["derive", "strum_macros"] }
@@ -46,7 +45,6 @@ serde = { version = "1.0.198", features = ["derive"] }
 web-time = "1"
 strum_macros = "0.28.0"
 
-# Build scripts can only see [build-dependencies]; a [dependencies] entry is not
-# visible from build.rs (`error[E0432]: no external crate winres`).
+
 [target.'cfg(windows)'.build-dependencies]
-winres = "0.1.12"
+embed-resource = "3.0"

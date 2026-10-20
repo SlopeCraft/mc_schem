@@ -1,0 +1,36 @@
+// Version resource of schemtool.exe.
+//
+// The numbers come from Cargo.toml: build.rs passes them to rc.exe as
+// MC_SCHEM_VERSION_* macros. The constants below are spelled out numerically on
+// purpose, so that this file needs no Windows headers (rc.exe would otherwise
+// need the SDK include path).
+
+1 VERSIONINFO
+  FILEVERSION MC_SCHEM_VERSION_MAJOR, MC_SCHEM_VERSION_MINOR, MC_SCHEM_VERSION_PATCH, 0
+  PRODUCTVERSION MC_SCHEM_VERSION_MAJOR, MC_SCHEM_VERSION_MINOR, MC_SCHEM_VERSION_PATCH, 0
+  FILEFLAGSMASK 0x3f          // VS_FFI_FILEFLAGSMASK
+  FILEFLAGS 0x0
+  FILEOS 0x40004              // VOS_NT_WINDOWS32
+  FILETYPE 0x1                // VFT_APP
+  FILESUBTYPE 0x0
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904b0"          // English (United States), Unicode
+    BEGIN
+      VALUE "CompanyName", "SlopeCraft"
+      VALUE "FileDescription", "Utility for manipulating Minecraft schematic"
+      VALUE "FileVersion", MC_SCHEM_VERSION_STRING
+      VALUE "InternalName", "schemtool"
+      VALUE "LegalCopyright", "Copyright (C) 2026 ToKiNoBug. Licensed under GPL-3.0-only"
+      VALUE "OriginalFilename", "schemtool.exe"
+      VALUE "ProductName", "mc_schem"
+      VALUE "ProductVersion", MC_SCHEM_VERSION_STRING
+      VALUE "Comments", "https://github.com/SlopeCraft/mc_schem"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x409, 1200
+  END
+END

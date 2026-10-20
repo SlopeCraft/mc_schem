@@ -165,42 +165,66 @@ pub unsafe extern "C" fn mc_schem_destroy_block_entity(ptr: *mut BlockEntity) {
 
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_destroy_region(region: *mut Region) {
+    if region.is_null() {
+        return;
+    }
     let _ = Box::from_raw(region);
 }
 //void mc_schem_destroy_pending_tick(pending_tick* tick);
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_destroy_pending_tick(ptr: *mut PendingTick) {
+    if ptr.is_null() {
+        return;
+    }
     let _ = Box::from_raw(ptr);
 }
 // void mc_schem_destroy_schematic(schematic* schematic);
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_destroy_schematic(ptr: *mut Schematic) {
+    if ptr.is_null() {
+        return;
+    }
     let _ = Box::from_raw(ptr);
 }
 // void mc_schem_destroy_metadata_ir(metadata_ir* mdata);
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_destroy_metadata_ir(ptr: *mut MetaDataIR) {
+    if ptr.is_null() {
+        return;
+    }
     let _ = Box::from_raw(ptr);
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_destroy_nbt_hashmap(ptr: *mut HashMap<String, Value>) {
+    if ptr.is_null() {
+        return;
+    }
     let _ = Box::from_raw(ptr);
 }
 
 // void mc_schem_destroy_litematica_metadata(litematica_metadata* mdata);
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_destroy_litematica_metadata(ptr: *mut LitematicaMetaData) {
+    if ptr.is_null() {
+        return;
+    }
     let _ = Box::from_raw(ptr);
 }
 // void mc_schem_destroy_world_edit12_metadata(world_edit12_metadata* mdata);
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_destroy_world_edit12_metadata(ptr: *mut WE12MetaData) {
+    if ptr.is_null() {
+        return;
+    }
     let _ = Box::from_raw(ptr);
 }
 // void mc_schem_destroy_world_edit13_metadata(world_edit13_metadata* mdata);
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_destroy_world_edit13_metadata(ptr: *mut WE13MetaData) {
+    if ptr.is_null() {
+        return;
+    }
     let _ = Box::from_raw(ptr);
 }
 // void mc_schem_destroy_vanilla_structure_metadata(vanilla_structure_metadata* mdata);
@@ -208,6 +232,9 @@ pub unsafe extern "C" fn mc_schem_destroy_world_edit13_metadata(ptr: *mut WE13Me
 pub unsafe extern "C" fn mc_schem_destroy_vanilla_structure_metadata(
     ptr: *mut VanillaStructureMetaData,
 ) {
+    if ptr.is_null() {
+        return;
+    }
     let _ = Box::from_raw(ptr);
 }
 

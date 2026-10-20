@@ -25,7 +25,7 @@ function(rust_binary_names manually_assigned_target out_var_shared_lib out_var_e
     endif ()
 
 
-    if (DARWIN)
+    if (APPLE)
         set(${out_var_shared_lib} "libmc_schem.dylib" PARENT_SCOPE)
         set(${out_var_link_shared_lib} ON PARENT_SCOPE)
         return()

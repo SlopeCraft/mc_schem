@@ -85,18 +85,26 @@ target_sources(mc_schem INTERFACE
 )
 add_dependencies(mc_schem mc_schem_rs)
 
+include(GNUInstallDirs)
 target_include_directories(mc_schem INTERFACE
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/c_sources>
-    $<INSTALL_INTERFACE:include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 if (${link_shared_lib_directly})    # link to shared lib directly
     target_link_libraries(mc_schem INTERFACE
             $<BUILD_INTERFACE:${shared_lib_loc}>
             $<INSTALL_INTERFACE:${shared_lib_name}>)
+    target_link_directories(mc_schem INTERFACE
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_LIBDIR}>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_BINDIR}>
+    )
 else ()
     target_link_libraries(mc_schem INTERFACE
             $<BUILD_INTERFACE:${export_lib_loc}>
             $<INSTALL_INTERFACE:${export_lib_name}>)
+    target_link_directories(mc_schem INTERFACE
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_LIBDIR}>
+    )
 endif ()
 
 target_compile_features(mc_schem INTERFACE cxx_std_23)
@@ -107,38 +115,5 @@ if (${MC_SCHEM_ENABLE_TESTS})
 endif ()
 
 if (${MC_SCHEM_INSTALL})
-    include(CMakePackageConfigHelpers)
-    write_basic_package_version_file(mc_schemConfigVersion.cmake
-            VERSION ${PROJECT_VERSION}
-            COMPATIBILITY AnyNewerVersion)
-    install(FILES "${PROJECT_BINARY_DIR}/mc_schemConfigVersion.cmake"
-            DESTINATION lib/cmake/mc_schem)
-
-    install(FILES ${headers} "${PROJECT_SOURCE_DIR}/c_sources/mc_schem.hpp"
-        DESTINATION include/mc_schem)
-    install(TARGETS mc_schem
-            EXPORT mc_schem-targets
-            COMPONENT core
-            RUNTIME DESTINATION bin
-            LIBRARY DESTINATION lib)
-    install(FILES ${schemtool_loc}
-            COMPONENT schemtool
-            DESTINATION bin)
-    if (${WIN32})
-        install(FILES ${shared_lib_loc}
-                DESTINATION bin)
-    else ()
-        install(FILES ${shared_lib_loc}
-                DESTINATION lib)
-    endif ()
-    if (EXISTS ${export_lib_loc})
-        install(FILES ${export_lib_loc}
-            DESTINATION lib)
-    endif ()
-
-    install(EXPORT mc_schem-targets
-        NAMESPACE mc_schem::
-        DESTINATION lib/cmake/mc_schem)
-
-    include(CPack)
+    include(cmake/install.cmake)
 endif ()

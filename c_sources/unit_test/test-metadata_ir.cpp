@@ -34,6 +34,7 @@ struct meta_snapshot {
   int64_t time_modified;
   std::string author;
   std::string name;
+  std::string description;
   int32_t litematica_version;
   std::optional<int32_t> litematica_subversion;
   int32_t schem_version;
@@ -54,6 +55,7 @@ meta_snapshot snapshot_of(const mc_schem::metadata_ir& md) {
       .time_modified = md.time_modified(),
       .author = md.author(),
       .name = md.name(),
+      .description = md.description(),
       .litematica_version = md.litematica_version(),
       .litematica_subversion = md.litematica_subversion(),
       .schem_version = md.schem_version(),
@@ -79,6 +81,7 @@ meta_snapshot snapshot_of(const mc_schem::metadata_ir& md) {
 ///   mc_schem_metadata_ir_get_time_created,
 ///   mc_schem_metadata_ir_get_time_modified,
 ///   mc_schem_metadata_ir_get_author, mc_schem_metadata_ir_get_name,
+///   mc_schem_metadata_ir_get_description,
 ///   mc_schem_metadata_ir_get_litematica_version,
 ///   mc_schem_metadata_ir_get_litematica_subversion,
 ///   mc_schem_metadata_ir_get_schem_version,
@@ -92,6 +95,7 @@ meta_snapshot snapshot_of(const mc_schem::metadata_ir& md) {
 ///   mc_schem_metadata_ir_set_time_created,
 ///   mc_schem_metadata_ir_set_time_modified,
 ///   mc_schem_metadata_ir_set_author, mc_schem_metadata_ir_set_name,
+///   mc_schem_metadata_ir_set_description,
 ///   mc_schem_metadata_ir_set_litematica_version,
 ///   mc_schem_metadata_ir_set_litematica_subversion,
 ///   mc_schem_metadata_ir_set_schem_version,
@@ -199,6 +203,7 @@ int main(int argc, char** argv) {
     md.set_time_modified(1707202812935);
     md.set_author("unit-test");
     md.set_name("unit-test");
+    md.set_description("unit-test");
     md.set_litematica_version(6);
     md.set_litematica_subversion(1);
     md.set_litematica_subversion();

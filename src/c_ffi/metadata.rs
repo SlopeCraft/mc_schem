@@ -178,6 +178,12 @@ pub unsafe extern "C" fn mc_schem_metadata_ir_get_schem_material(
     (*dest).receive(&(*ir).schem_material);
 }
 
+//void mc_schem_metadata_ir_get_description(const metadata_ir*, const rust_string_receiver*);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_metadata_ir_get_description(ir: *const MetaDataIR, dest: *const rust_string_receiver) {
+    (*dest).receive(&(ir.as_ref_unchecked().description));
+}
+
 // [[nodiscard]] error* mc_schem_metadata_ir_set_mc_data_version(metadata_ir*,  int32_t version);
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_metadata_ir_set_mc_data_version(
@@ -303,4 +309,10 @@ pub unsafe extern "C" fn mc_schem_metadata_ir_set_schem_material(
     schem_mat: *const c_char,
 ) {
     ir.as_mut_unchecked().schem_material = CStr::from_ptr(schem_mat).to_string_lossy().to_string();
+}
+
+//void mc_schem_metadata_ir_set_description(metadata_ir*, const char*);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_metadata_ir_set_description(ir: *mut MetaDataIR, val: *const c_char) {
+    ir.as_mut_unchecked().description = CStr::from_ptr(val).to_string_lossy().to_string();
 }

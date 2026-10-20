@@ -503,6 +503,8 @@ bool mc_schem_metadata_ir_get_schem_origin(const metadata_ir*, int32_t* dest_x,
                                            int32_t* dest_y, int32_t* dest_z);
 void mc_schem_metadata_ir_get_schem_material(const metadata_ir*,
                                              const rust_string_receiver*);
+void mc_schem_metadata_ir_get_description(const metadata_ir*,
+                                          const rust_string_receiver*);
 // setter
 [[nodiscard]] error* mc_schem_metadata_ir_set_mc_data_version(metadata_ir*,
                                                               int32_t version);
@@ -527,6 +529,7 @@ void mc_schem_metadata_ir_set_schem_editing_platform(
 void mc_schem_metadata_ir_set_schem_origin(metadata_ir*, int32_t x, int32_t y,
                                            int32_t z, bool exist);
 void mc_schem_metadata_ir_set_schem_material(metadata_ir*, const char*);
+void mc_schem_metadata_ir_set_description(metadata_ir*, const char*);
 // Schematic
 ////////////////////////////////////////////////////////////////////////////////
 /// Create and return an empty schematic, with default metadata
@@ -1512,6 +1515,16 @@ class metadata_ir {
   }
   void set_name(const std::string& name) & {
     mc_schem_metadata_ir_set_name(this, name.c_str());
+  }
+
+  [[nodiscard]] std::string description() const& {
+    std::string ret;
+    rust_string_receiver rsr{ret};
+    mc_schem_metadata_ir_get_description(this, &rsr);
+    return ret;
+  }
+  void set_description(const std::string& description) & {
+    mc_schem_metadata_ir_set_description(this, description.c_str());
   }
 
   [[nodiscard]] int32_t litematica_version() const& {

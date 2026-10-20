@@ -109,6 +109,13 @@ endif ()
 
 target_compile_features(mc_schem INTERFACE cxx_std_23)
 
+if (NOT ${PROJECT_SOURCE_DIR} EQUAL ${CMAKE_SOURCE_DIR})
+    # Support fetched mode
+    add_library(mc_schem::mc_schem ALIAS mc_schem)
+    set(mc_schem_SHARED_LIB_FILENAME ${shared_lib_name} PARENT_SCOPE)
+    set(mc_schem_SHARED_LIB_LOCATION ${shared_lib_loc} PARENT_SCOPE)
+endif ()
+
 if (${MC_SCHEM_ENABLE_TESTS})
     enable_testing()
     add_subdirectory(c_sources/unit_test)

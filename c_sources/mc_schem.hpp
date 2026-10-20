@@ -884,9 +884,11 @@ class region {
   }
 
   [[nodiscard]] static std::expected<unique_region, unique_error>
-  create_with_palette(const std::array<int32_t, 3>& shape,
+  create_with_palette(std::span<const int32_t, 3> shape,
                       const std::span<const block* const> palette) {
-    const auto [x, y, z] = shape;
+    const auto x = shape[0];
+    const auto y = shape[1];
+    const auto z = shape[2];
 
     error* err{nullptr};
     auto result = mc_schem_create_region_with_palette(x, y, z, palette.data(),
@@ -897,6 +899,11 @@ class region {
     }
     assert(err);
     return std::unexpected{unique_error{err}};
+  }
+  [[nodiscard]] static std::expected<unique_region, unique_error>
+  create_with_palette(const std::array<int32_t, 3>& shape,
+                      const std::span<const block* const> palette) {
+    return create_with_palette(std::span{shape}, palette);
   }
 
   [[nodiscard]] auto clone() const& {
@@ -922,8 +929,11 @@ class region {
     mc_schem_region_set_name(this, name.c_str());
   }
 
-  void set_offset(const std::array<int32_t, 3>& offset) & {
+  void set_offset(std::span<const int32_t, 3> offset) & {
     mc_schem_region_set_offset(this, offset[0], offset[1], offset[2]);
+  }
+  void set_offset(const std::array<int32_t, 3>& offset) & {
+    set_offset(std::span{offset});
   }
 
   [[nodiscard]] std::array<int32_t, 3> size_xyz() const& {
@@ -945,8 +955,11 @@ class region {
   }
   [[nodiscard]] bool is_sparse() const& { return not is_dense(); }
 
-  void reshape(const std::array<int32_t, 3>& shape) & {
+  void reshape(std::span<const int32_t, 3> shape) & {
     mc_schem_region_reshape(this, shape[0], shape[1], shape[2]);
+  }
+  void reshape(const std::array<int32_t, 3>& shape) & {
+    reshape(std::span{shape});
   }
 
   [[nodiscard]] size_t palette_size() const& {
@@ -1017,42 +1030,67 @@ class region {
     mc_schem_region_visit_block_entities(this, func, &visitor);
   }
   [[nodiscard]] const block_entity* get_block_entity(
-      const std::array<int32_t, 3>& pos) const& {
+      std::span<const int32_t, 3> pos) const& {
     return mc_schem_region_get_block_entity(this, pos[0], pos[1], pos[2]);
+  }
+  [[nodiscard]] const block_entity* get_block_entity(
+      const std::array<int32_t, 3>& pos) const& {
+    return get_block_entity(std::span{pos});
+  }
+
+  [[nodiscard]] block_entity* get_block_entity(
+      std::span<const int32_t, 3> pos) & {
+    return mc_schem_region_get_block_entity_mut(this, pos[0], pos[1], pos[2]);
   }
   [[nodiscard]] block_entity* get_block_entity(
       const std::array<int32_t, 3>& pos) & {
-    return mc_schem_region_get_block_entity_mut(this, pos[0], pos[1], pos[2]);
+    return get_block_entity(std::span{pos});
   }
+
   /// Insert new, returns previous value (if exist)
-  unique_block_entity add_block_entity(const std::array<int32_t, 3>& pos,
+  unique_block_entity add_block_entity(std::span<const int32_t, 3> pos,
                                        const block_entity& e) & {
     auto ret =
         mc_schem_region_add_block_entity(this, pos[0], pos[1], pos[2], &e);
     return unique_block_entity{ret};
   }
-  /// Insert new (by moving), returns previous value (if exist)
   unique_block_entity add_block_entity(const std::array<int32_t, 3>& pos,
+                                       const block_entity& e) & {
+    return add_block_entity(std::span{pos}, e);
+  }
+  /// Insert new (by moving), returns previous value (if exist)
+  unique_block_entity add_block_entity(std::span<const int32_t, 3> pos,
                                        unique_block_entity new_be) & {
     auto ret = mc_schem_region_add_block_entity_move(this, pos[0], pos[1],
                                                      pos[2], new_be.release());
     return unique_block_entity{ret};
   }
+  unique_block_entity add_block_entity(const std::array<int32_t, 3>& pos,
+                                       unique_block_entity new_be) & {
+    return add_block_entity(std::span{pos}, std::move(new_be));
+  }
   /// Returns previous value (if exist)
-  unique_block_entity erase_block_entity(const std::array<int32_t, 3>& pos) & {
+  unique_block_entity erase_block_entity(std::span<const int32_t, 3> pos) & {
     auto ret =
         mc_schem_region_add_block_entity(this, pos[0], pos[1], pos[2], nullptr);
     return unique_block_entity{ret};
   }
+  unique_block_entity erase_block_entity(const std::array<int32_t, 3>& pos) & {
+    return erase_block_entity(std::span{pos});
+  }
 
   [[nodiscard]] size_t pending_ticks_count_at(
-      const std::array<int32_t, 3>& pos) const& {
+      std::span<const int32_t, 3> pos) const& {
     return mc_schem_region_get_pending_ticks_count(this, pos[0], pos[1],
                                                    pos[2]);
   }
+  [[nodiscard]] size_t pending_ticks_count_at(
+      const std::array<int32_t, 3>& pos) const& {
+    return pending_ticks_count_at(std::span{pos});
+  }
 
   [[nodiscard]] std::vector<std::reference_wrapper<const pending_tick>>
-  pending_ticks_at(const std::array<int32_t, 3>& pos) const& {
+  pending_ticks_at(std::span<const int32_t, 3> pos) const& {
     std::vector<std::reference_wrapper<const pending_tick>> ret;
     const size_t n = pending_ticks_count_at(pos);
     ret.reserve(n);
@@ -1063,8 +1101,12 @@ class region {
     }
     return ret;
   }
+  [[nodiscard]] std::vector<std::reference_wrapper<const pending_tick>>
+  pending_ticks_at(const std::array<int32_t, 3>& pos) const& {
+    return pending_ticks_at(std::span{pos});
+  }
   [[nodiscard]] std::vector<std::reference_wrapper<pending_tick>>
-  pending_ticks_at(const std::array<int32_t, 3>& pos) & {
+  pending_ticks_at(std::span<const int32_t, 3> pos) & {
     std::vector<std::reference_wrapper<pending_tick>> ret;
     const size_t n = pending_ticks_count_at(pos);
     ret.reserve(n);
@@ -1075,9 +1117,13 @@ class region {
     }
     return ret;
   }
+  [[nodiscard]] std::vector<std::reference_wrapper<pending_tick>>
+  pending_ticks_at(const std::array<int32_t, 3>& pos) & {
+    return pending_ticks_at(std::span{pos});
+  }
 
   [[nodiscard]] std::optional<uint16_t> block_index_at(
-      const std::array<int32_t, 3>& pos) const& {
+      std::span<const int32_t, 3> pos) const& {
     bool ok = false;
     const uint16_t ret =
         mc_schem_region_get_block_index(this, pos[0], pos[1], pos[2], &ok);
@@ -1087,15 +1133,23 @@ class region {
     assert(ret < this->palette_size());
     return ret;
   }
+  [[nodiscard]] std::optional<uint16_t> block_index_at(
+      const std::array<int32_t, 3>& pos) const& {
+    return block_index_at(std::span{pos});
+  }
 
   [[nodiscard]] bool contains_coordinate(
-      const std::array<int32_t, 3>& pos) const& {
+      std::span<const int32_t, 3> pos) const& {
     return this->block_index_at(pos).has_value();
+  }
+  [[nodiscard]] bool contains_coordinate(
+      const std::array<int32_t, 3>& pos) const& {
+    return contains_coordinate(std::span{pos});
   }
 
   [[nodiscard]] std::optional<
       std::tuple<uint16_t, std::reference_wrapper<const block>>>
-  block_at(const std::array<int32_t, 3>& pos) const& {
+  block_at(std::span<const int32_t, 3> pos) const& {
     const auto idx_opt = this->block_index_at(pos);
     if (not idx_opt) {
       return std::nullopt;
@@ -1105,11 +1159,16 @@ class region {
     assert(blkp);
     return std::make_tuple(idx, std::ref(*blkp));
   }
+  [[nodiscard]] std::optional<
+      std::tuple<uint16_t, std::reference_wrapper<const block>>>
+  block_at(const std::array<int32_t, 3>& pos) const& {
+    return block_at(std::span{pos});
+  }
 
   [[nodiscard]] std::optional<std::tuple<
       uint16_t, std::reference_wrapper<const block>, const block_entity*,
       std::vector<std::reference_wrapper<const pending_tick>>>>
-  block_info_at(const std::array<int32_t, 3>& pos) const& {
+  block_info_at(std::span<const int32_t, 3> pos) const& {
     const auto blk_opt = this->block_at(pos);
     if (not blk_opt) {
       return std::nullopt;
@@ -1120,8 +1179,14 @@ class region {
     auto pts = this->pending_ticks_at(pos);
     return std::make_tuple(idx, blk, bep, std::move(pts));
   }
+  [[nodiscard]] std::optional<std::tuple<
+      uint16_t, std::reference_wrapper<const block>, const block_entity*,
+      std::vector<std::reference_wrapper<const pending_tick>>>>
+  block_info_at(const std::array<int32_t, 3>& pos) const& {
+    return block_info_at(std::span{pos});
+  }
 
-  void set_block(const std::array<int32_t, 3>& pos, uint16_t blkid) & {
+  void set_block(std::span<const int32_t, 3> pos, uint16_t blkid) & {
     if (not mc_schem_region_set_block_by_index(this, pos[0], pos[1], pos[2],
                                                blkid)) {
       // This error is rare. Usually don't process with exception
@@ -1131,7 +1196,11 @@ class region {
                       pos[0], pos[1], pos[2], blkid)};
     }
   }
-  void set_block(const std::array<int32_t, 3>& pos, const block& blk) & {
+  void set_block(const std::array<int32_t, 3>& pos, uint16_t blkid) & {
+    set_block(std::span{pos}, blkid);
+  }
+
+  void set_block(std::span<const int32_t, 3> pos, const block& blk) & {
     if (not mc_schem_region_set_block_by_block(this, pos[0], pos[1], pos[2],
                                                &blk)) {
       // This error is rare. Usually don't process with exception
@@ -1140,6 +1209,9 @@ class region {
                       "palette size out of range",
                       pos[0], pos[1], pos[2])};
     }
+  }
+  void set_block(const std::array<int32_t, 3>& pos, const block& blk) & {
+    set_block(std::span{pos}, blk);
   }
 
   std::expected<void, unique_error> shrink_palette() & {
@@ -1433,6 +1505,7 @@ class metadata_ir {
   void set_schem_version(int32_t schem_version) & {
     mc_schem_metadata_ir_set_schem_version(this, schem_version);
   }
+
   [[nodiscard]] std::array<int32_t, 3> schem_offset() const& {
     int32_t x, y, z;
     mc_schem_metadata_ir_get_schem_offset(this, &x, &y, &z);
@@ -1442,6 +1515,10 @@ class metadata_ir {
     mc_schem_metadata_ir_set_schem_offset(this, offset[0], offset[1],
                                           offset[2]);
   }
+  void set_schem_offset(const std::array<int32_t, 3>& offset) & {
+    set_schem_offset(std::span{offset});
+  }
+
   [[nodiscard]] std::optional<std::array<int32_t, 3>> schem_we_offset() const& {
     int32_t x, y, z;
     const bool exist =
@@ -1452,6 +1529,9 @@ class metadata_ir {
   void set_schem_we_offset(std::span<const int32_t, 3> offset) & {
     mc_schem_metadata_ir_set_we_offset(this, offset[0], offset[1], offset[2],
                                        true);
+  }
+  void set_schem_we_offset(const std::array<int32_t, 3>& offset) & {
+    set_schem_we_offset(std::span{offset});
   }
   void set_schem_we_offset() & {
     mc_schem_metadata_ir_set_we_offset(this, 0, 0, 0, false);
@@ -1481,6 +1561,9 @@ class metadata_ir {
   void set_schem_origin(std::span<const int32_t, 3> origin) & {
     mc_schem_metadata_ir_set_schem_origin(this, origin[0], origin[1], origin[2],
                                           true);
+  }
+  void set_schem_origin(const std::array<int32_t, 3>& origin) & {
+    set_schem_origin(std::span{origin});
   }
   void set_schem_origin() & {
     mc_schem_metadata_ir_set_schem_origin(this, 0, 0, 0, false);
@@ -1584,7 +1667,7 @@ class schematic {
   }
 
   [[nodiscard]] std::optional<size_t> first_region_index_at(
-      const std::array<int32_t, 3>& pos) const& {
+      std::span<const int32_t, 3> pos) const& {
     const ptrdiff_t ret = mc_schem_schematic_get_first_region_index_at(
         this, pos[0], pos[1], pos[2]);
     if (ret >= 0) {
@@ -1592,8 +1675,12 @@ class schematic {
     }
     return std::nullopt;
   }
-  [[nodiscard]] std::optional<uint16_t> first_block_index_at(
+  [[nodiscard]] std::optional<size_t> first_region_index_at(
       const std::array<int32_t, 3>& pos) const& {
+    return first_region_index_at(std::span{pos});
+  }
+  [[nodiscard]] std::optional<uint16_t> first_block_index_at(
+      std::span<const int32_t, 3> pos) const& {
     bool ok = false;
     const auto ret = mc_schem_schematic_get_first_block_index_at(
         this, pos[0], pos[1], pos[2], &ok);
@@ -1602,17 +1689,29 @@ class schematic {
     }
     return ret;
   }
-  [[nodiscard]] const block* first_block_at(
+  [[nodiscard]] std::optional<uint16_t> first_block_index_at(
       const std::array<int32_t, 3>& pos) const& {
+    return first_block_index_at(std::span{pos});
+  }
+  [[nodiscard]] const block* first_block_at(
+      std::span<const int32_t, 3> pos) const& {
     return mc_schem_schematic_get_first_block_at(this, pos[0], pos[1], pos[2]);
   }
-  [[nodiscard]] const block_entity* first_block_entity_at(
+  [[nodiscard]] const block* first_block_at(
       const std::array<int32_t, 3>& pos) const& {
+    return first_block_at(std::span{pos});
+  }
+  [[nodiscard]] const block_entity* first_block_entity_at(
+      std::span<const int32_t, 3> pos) const& {
     return mc_schem_schematic_get_first_block_entity_at(this, pos[0], pos[1],
                                                         pos[2]);
   }
-  [[nodiscard]] std::vector<const pending_tick*> first_pending_ticks_at(
+  [[nodiscard]] const block_entity* first_block_entity_at(
       const std::array<int32_t, 3>& pos) const& {
+    return first_block_entity_at(std::span{pos});
+  }
+  [[nodiscard]] std::vector<const pending_tick*> first_pending_ticks_at(
+      std::span<const int32_t, 3> pos) const& {
     const size_t num = mc_schem_schematic_get_first_pending_ticks_count_at(
         this, pos[0], pos[1], pos[2]);
     std::vector<const pending_tick*> ret;
@@ -1623,6 +1722,10 @@ class schematic {
       assert(ret.back() not_eq nullptr);
     }
     return ret;
+  }
+  [[nodiscard]] std::vector<const pending_tick*> first_pending_ticks_at(
+      const std::array<int32_t, 3>& pos) const& {
+    return first_pending_ticks_at(std::span{pos});
   }
 
   [[nodiscard]] std::array<int32_t, 3> shape() const& {

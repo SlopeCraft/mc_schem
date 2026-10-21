@@ -25,6 +25,7 @@
 #include <expected>
 #include <format>
 #include <istream>
+#include <map>
 #include <memory>
 #include <optional>
 #include <ostream>
@@ -35,6 +36,8 @@
 #include <tuple>
 #include <type_traits>
 #include <vector>
+
+#include "mc_schem.hpp"
 
 #ifdef MC_SCHEM_HAS_mdspan
 #include <mdspan>
@@ -321,16 +324,25 @@ void mc_schem_block_get_full_id(const block* block,
                                 const rust_string_receiver* receiver);
 bool mc_schem_block_reset(block* block, const char* full_id,
                           block_id_parse_error* detail_nullable);
+[[nodiscard]] bool mc_schem_block_get_attribute(
+    const block*, const char* key, const rust_string_receiver* value);
 void mc_schem_block_visit_attributes(
     const block* block,
     void (*callback)(const char8_t* key, size_t key_bytes, const char8_t* value,
                      size_t value_bytes, void* custom_data),
     void* custom_data);
-void mc_schem_block_erase_attribute(block* block, const char* key);
+[[deprecated("Use mc_schem_block_set_attribute instead")]] void
+mc_schem_block_erase_attribute(block* block, const char* key);
+/// if value is nullptr, erase this attribute
 void mc_schem_block_set_attribute(block* block, const char* key,
                                   const char* value);
-bool mc_schem_block_is_air(const block*);
-bool mc_schem_block_is_structure_void(const block*);
+[[nodiscard]] bool mc_schem_block_is_air(const block*);
+[[nodiscard]] bool mc_schem_block_is_structure_void(const block*);
+/// Compare blocks by value
+[[nodiscard]] bool mc_schem_block_is_equal(const block*, const block*);
+
+// Error
+////////////////////////////////////////////////////////////////////////////////
 void mc_schem_error_get_message(const error*,
                                 const rust_string_receiver* receiver);
 
@@ -856,17 +868,41 @@ class block {
     mc_schem_block_visit_attributes(this, callback, &visitor);
   }
 
-  void erase_attribute(const std::string& key) & {
-    mc_schem_block_erase_attribute(this, key.c_str());
+  [[nodiscard]] std::optional<std::string> get_attribute(
+      const std::string& key) const& {
+    std::string ret;
+    rust_string_receiver receiver{ret};
+    const bool exist =
+        mc_schem_block_get_attribute(this, key.c_str(), &receiver);
+    if (exist) return ret;
+    return std::nullopt;
   }
 
   void set_attribute(const std::string& key, const std::string& value) & {
     mc_schem_block_set_attribute(this, key.c_str(), value.c_str());
   }
+  void erase_attribute(const std::string& key) & {
+    mc_schem_block_set_attribute(this, key.c_str(), nullptr);
+  }
+  /// Returns a deep copy of attributes.
+  [[nodiscard]] std::map<std::string, std::string> clone_attributes() const& {
+    std::map<std::string, std::string> ret;
+    this->visit_attributes([&](std::string key, std::string value) {
+      ret.emplace(std::move(key), std::move(value));
+    });
+    return ret;
+  }
 
   [[nodiscard]] bool is_air() const& { return mc_schem_block_is_air(this); }
   [[nodiscard]] bool is_structure_void() const& {
     return mc_schem_block_is_structure_void(this);
+  }
+
+  [[nodiscard]] bool operator==(const block& another) const& {
+    return mc_schem_block_is_equal(this, &another);
+  }
+  [[nodiscard]] bool operator!=(const block& another) const& {
+    return not operator==(another);
   }
 };
 
@@ -1317,7 +1353,7 @@ class region {
       assert(ptr);
     }
     return std::mdspan<uint16_t, std::dextents<size_t, 3>, std::layout_right>{
-      ptr, y, z, x};
+        ptr, y, z, x};
   }
 #endif
 };

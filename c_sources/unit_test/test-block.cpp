@@ -28,9 +28,11 @@
 ///   mc_schem_block_get_id, mc_schem_block_get_namespace,
 ///   mc_schem_block_set_id, mc_schem_block_set_namespace,
 ///   mc_schem_block_get_full_id, mc_schem_block_reset,
-///   mc_schem_block_visit_attributes, mc_schem_block_erase_attribute,
+///   mc_schem_block_visit_attributes, mc_schem_block_get_attribute,
+///   mc_schem_block_erase_attribute,
 ///   mc_schem_block_set_attribute,
-///   mc_schem_block_is_air, mc_schem_block_is_structure_void
+///   mc_schem_block_is_air, mc_schem_block_is_structure_void,
+///   mc_schem_block_is_equal
 int main(int, char**) {
   using namespace mc_schem;
 
@@ -138,6 +140,12 @@ int main(int, char**) {
     MC_SCHEM_CHECK(blk->full_id() ==
                    "minecraft:oak_stairs[facing=north,half=bottom]");
 
+    // mc_schem_block_get_attribute: a present key reports its value, a missing
+    // one reports nothing
+    MC_SCHEM_CHECK(blk->get_attribute("facing") == "north");
+    MC_SCHEM_CHECK(blk->get_attribute("half") == "bottom");
+    MC_SCHEM_CHECK(not blk->get_attribute("not_exist").has_value());
+
     // Setting an existing key overwrites its value
     blk->set_attribute("half", "top");
     MC_SCHEM_CHECK(blk->full_id() ==
@@ -184,6 +192,12 @@ int main(int, char**) {
       visited.append(value);
     });
     MC_SCHEM_CHECK(visited == "facing=north,half=bottom,waterlogged=false");
+
+    // clone_attributes builds the same content as a map
+    const auto copied = blk->clone_attributes();
+    MC_SCHEM_CHECK(copied.size() == 3);
+    MC_SCHEM_CHECK(copied.at("facing") == "north");
+    MC_SCHEM_CHECK(copied.at("waterlogged") == "false");
 
     // Visiting a block without attributes calls the callback zero times
     bool called = false;
@@ -244,6 +258,46 @@ int main(int, char**) {
     MC_SCHEM_CHECK(blk->namespace_() == "minecraft");
     MC_SCHEM_CHECK(blk->id() == "stone");
     MC_SCHEM_CHECK(blk->full_id() == "minecraft:stone");
+  }
+
+  // mc_schem_block_is_equal: namespace, id and the attribute map decide. The map
+  // is key-sorted, so the order the attributes were inserted in does not matter
+  {
+    auto first = block::create();
+    first->set_id("oak_stairs");
+    first->set_namespace("minecraft");
+    first->set_attribute("facing", "north");
+    first->set_attribute("half", "top");
+
+    auto same = block::create();
+    same->set_id("oak_stairs");
+    same->set_namespace("minecraft");
+    // the same two attributes, inserted in the opposite order
+    same->set_attribute("half", "top");
+    same->set_attribute("facing", "north");
+
+    MC_SCHEM_CHECK(*first == *same);
+    MC_SCHEM_CHECK(not(*first != *same));
+    MC_SCHEM_CHECK(*first == *first);
+
+    // A different attribute value breaks equality
+    auto other_value = first->clone();
+    other_value->set_attribute("half", "bottom");
+    MC_SCHEM_CHECK(not(*first == *other_value));
+    MC_SCHEM_CHECK(*first != *other_value);
+
+    // So does a different id, a different namespace, or a missing attribute
+    auto other_id = first->clone();
+    other_id->set_id("spruce_stairs");
+    MC_SCHEM_CHECK(*first != *other_id);
+
+    auto other_namespace = first->clone();
+    other_namespace->set_namespace("my_pack");
+    MC_SCHEM_CHECK(*first != *other_namespace);
+
+    auto fewer = first->clone();
+    fewer->erase_attribute("half");
+    MC_SCHEM_CHECK(*first != *fewer);
   }
 
   return 0;

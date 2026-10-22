@@ -325,6 +325,18 @@ struct alignas(8) world_edit12_load_option {
 };
 static_assert(sizeof(world_edit12_load_option) == 64);
 
+// Version and ABI anchors
+extern "C" {
+
+/// Returns 0x<major>'<minor>'<tweak>'<patch>. 1.3.0 -> 0x01'03'00'00
+[[nodiscard]] uint32_t mc_schem_version();
+// version anchor for 1.3.0
+uint32_t mc_schem_v1_3_0_anchor();
+}
+namespace internal {
+inline const uint32_t anchor_v1_3_0 [[maybe_unused]] = mc_schem_v1_3_0_anchor();
+}
+
 extern "C" {
 // destroy
 void mc_schem_destroy_block(block* block);

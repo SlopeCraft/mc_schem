@@ -23,6 +23,7 @@ mod metadata;
 mod nbt_tags;
 mod region;
 mod schematic;
+mod version;
 
 use crate::block::Block;
 use crate::error::Error;

@@ -127,11 +127,20 @@ struct rust_reader {
       auto& is = *reinterpret_cast<std::istream*>(custom_data);
 
       try {
-        const size_t read_bytes =
-            is.readsome(reinterpret_cast<char*>(dest),
-                        static_cast<std::streamsize>(dest_capacity));
-        *ok = is.good() or is.eof();
-        return read_bytes;
+        // Do not use `readsome` here. On MSVC a freshly opened file has no get
+        // area yet, so `readsome` returns 0 while the stream is still good, and
+        // the rust side reads a zero byte count as end of input: every stream
+        // would look empty. `read` fills the buffer and `gcount` reports how
+        // many bytes really arrived.
+        is.read(reinterpret_cast<char*>(dest),
+                static_cast<std::streamsize>(dest_capacity));
+        const std::streamsize read_bytes = is.gcount();
+        // A short read is the normal way to reach the end of the input, so a
+        // positive count, end of file, or a healthy stream all count as
+        // success. Only reading nothing while the stream is neither exhausted
+        // nor healthy is a failure.
+        *ok = (read_bytes > 0) or is.eof() or is.good();
+        return static_cast<size_t>(read_bytes);
       } catch (const std::exception& e) {
         *ok = false;
         internal::save_error_info(e.what(), error_message_dest,

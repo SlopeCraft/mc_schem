@@ -266,6 +266,10 @@ void check_reader_compression(const std::string& path, option_type option,
 
     // `option` still carries the defaults, among them is_compressed
     auto result = load(stream, option);
+    if (not result.has_value()) {
+      std::println(stderr, "Failed to load {} through its reader: {}", path,
+                   result.error()->message());
+    }
     MC_SCHEM_CHECK(result.has_value());
     const auto& loaded = *result;
     MC_SCHEM_CHECK(std::get<0>(loaded) not_eq nullptr);

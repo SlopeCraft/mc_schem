@@ -1,7 +1,7 @@
 @PACKAGE_INIT@
 
-set(mc_schem_SHARED_LIB_FILENAME @shared_lib_name@)
-
-set(mc_schem_SHARED_LIB_LOCATION ${CMAKE_CURRENT_LIST_DIR}/../../${mc_schem_SHARED_LIB_FILENAME})
+#set(mc_schem_SHARED_LIB_FILENAME @shared_lib_name@)
+#
+#set(mc_schem_SHARED_LIB_LOCATION ${CMAKE_CURRENT_LIST_DIR}/../../${mc_schem_SHARED_LIB_FILENAME})
 
 include(${CMAKE_CURRENT_LIST_DIR}/mc_schem-targets.cmake)

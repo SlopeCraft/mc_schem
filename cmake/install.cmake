@@ -3,30 +3,27 @@ include(GNUInstallDirs)
 install(FILES ${headers} ${PROJECT_SOURCE_DIR}/c_sources/mc_schem.hpp
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
-install(TARGETS mc_schem
-    EXPORT mc_schem-targets
-    COMPONENT core
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-)
-install(FILES ${schemtool_loc}
-    COMPONENT schemtool
-    DESTINATION ${CMAKE_INSTALL_BINDIR}
-)
-if (${WIN32})
-    install(FILES ${shared_lib_loc}
-        DESTINATION ${CMAKE_INSTALL_BINDIR}
+
+if (WIN32)
+    corrosion_install(TARGETS mc_schem #schemtool
+        EXPORT mc_schem-targets
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_BINDIR}
+    )
+    # Install import lib
+    install(FILES $<TARGET_PROPERTY:mc_schem-shared,IMPORTED_IMPLIB>
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}
     )
 else ()
-    install(FILES ${shared_lib_loc}
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    corrosion_install(TARGETS mc_schem #schemtool
+        EXPORT mc_schem-targets
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     )
 endif ()
-if (EXISTS ${export_lib_loc})
-    install(FILES ${export_lib_loc}
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    )
-endif ()
+# corrosion_install(EXPORT) just produces this file. Have to install it manually
+install(FILES ${CMAKE_BINARY_DIR}/corrosion/mc_schem-targetsCorrosion.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/mc_schem)
 
 install(EXPORT mc_schem-targets
     NAMESPACE mc_schem::

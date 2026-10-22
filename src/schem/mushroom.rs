@@ -218,7 +218,6 @@ impl<'palette> MushroomMap<'palette> {
     }
 }
 
-#[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct MushroomStatistic {
     pub mushroom_total_num: u64,
@@ -237,7 +236,6 @@ impl Default for MushroomStatistic {
     }
 }
 
-#[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct MushroomStateUpdateOption {
     pub canonicalize_block_id: bool,

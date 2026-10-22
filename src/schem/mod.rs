@@ -770,7 +770,6 @@ pub fn id_of_nbt_tag(tag: &fastnbt::Value) -> u8 {
 }
 
 /// Options to load vanilla structure
-#[repr(C)]
 #[derive(Debug)]
 pub struct VanillaStructureLoadOption {
     /// Background block of the schematic. vanilla structure will not store structure void.
@@ -786,7 +785,6 @@ impl VanillaStructureLoadOption {
 }
 
 /// Options to save vanilla structure
-#[repr(C)]
 #[derive(Debug)]
 pub struct VanillaStructureSaveOption {
     /// Level of gzip compression, 0<= level <=9.
@@ -804,8 +802,6 @@ impl Default for VanillaStructureSaveOption {
     }
 }
 
-//#[derive(Debug)]
-#[repr(C)]
 /// Options to load litematica
 pub struct LitematicaLoadOption {}
 
@@ -816,7 +812,6 @@ impl LitematicaLoadOption {
 }
 
 /// Options to save litematica
-#[repr(C)]
 #[derive(Debug)]
 pub struct LitematicaSaveOption {
     /// Level of gzip compression, 0<= level <=9.
@@ -836,7 +831,6 @@ impl Default for LitematicaSaveOption {
 }
 
 /// Options to load litematica
-#[repr(C)]
 #[derive(Debug)]
 pub struct WorldEdit13LoadOption {}
 
@@ -848,7 +842,6 @@ impl WorldEdit13LoadOption {
 }
 
 /// Options to save world edit 1.13+
-#[repr(C)]
 #[derive(Debug)]
 pub struct WorldEdit13SaveOption {
     /// Level of gzip compression, 0<= level <=9.
@@ -870,7 +863,6 @@ impl Default for WorldEdit13SaveOption {
 }
 
 /// Options to load litematica
-#[repr(C)]
 #[derive(Debug)]
 pub struct WorldEdit12LoadOption {
     /// Data version of this schematic. Data version is not stored in `.schematic`, so we should assign it.

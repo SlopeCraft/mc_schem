@@ -30,12 +30,13 @@ use crate::region::{BlockEntity, PendingTick};
 use crate::schem::{
     LitematicaMetaData, MetaDataIR, Schematic, VanillaStructureMetaData, WE12MetaData, WE13MetaData,
 };
-use crate::{Entity, Region};
+use crate::{CommonBlock, Entity, Region};
 use fastnbt::Value;
 use std::collections::HashMap;
 use std::ffi::{c_char, c_void, CStr};
 use std::ptr::null_mut;
 use Box;
+use static_assertions::{const_assert, const_assert_eq};
 
 #[repr(C)]
 pub struct rust_string_receiver {
@@ -131,6 +132,111 @@ impl std::io::Write for rust_writer {
         }
     }
 }
+
+
+//mirror types
+#[repr(C, align(8))]
+#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone)]
+struct mirror_VanillaStructureLoadOption {
+    pub background_block: CommonBlock,
+    pub is_compressed: bool,
+
+    _reserved: [u8; 61],
+}
+const_assert!(size_of::<mirror_VanillaStructureLoadOption>()==64);
+
+#[repr(C, align(8))]
+#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone)]
+struct mirror_VanillaStructureSaveOption {
+    pub compress_level: i32,
+    pub keep_air: bool,
+
+    _reserved: [u8; 59],
+}
+const_assert!(size_of::<mirror_VanillaStructureSaveOption>()==64);
+
+
+#[repr(C, align(8))]
+#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone)]
+struct mirror_LitematicaLoadOptions {
+    pub is_compressed: bool,
+    _reserved: [u8; 63],
+}
+const_assert!(size_of::<mirror_LitematicaLoadOptions>()==64);
+
+
+#[repr(C, align(8))]
+#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone)]
+struct mirror_LitematicaSaveOptions {
+    pub compress_level: i32,
+    pub rename_duplicated_regions: bool,
+    _reserved: [u8; 59],
+}
+const_assert!(size_of::<mirror_LitematicaSaveOptions>()==64);
+
+#[repr(C, align(8))]
+#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone)]
+struct mirror_WorldEdit13LoadOptions {
+    pub is_compressed: bool,
+    _reserved: [u8; 63],
+}
+const_assert!(size_of::<mirror_WorldEdit13LoadOptions>()==64);
+#[repr(C, align(8))]
+#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone)]
+struct mirror_WorldEdit13SaveOptions {
+    pub compress_level: i32,
+    pub background_block: CommonBlock,
+    _reserved: [u8; 58],
+}
+const_assert!(size_of::<mirror_WorldEdit13SaveOptions>()==64);
+#[repr(C, align(8))]
+#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone)]
+struct mirror_WorldEdit12LoadOptions {
+    pub data_version: i32,
+    pub is_compressed: bool,
+    _reserved: [u8; 59],
+}
+const_assert!(size_of::<mirror_WorldEdit12LoadOptions>()==64);
+
+
+#[repr(C, align(8))]
+#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone)]
+struct mirror_MushroomStatistic {
+    pub mushroom_total_num: u64,
+    pub mushroom_corrected_num: u64,
+    /// More blocks appended to palette
+    pub palette_growth: u16,
+    _reserved: [u8; 46],
+}
+const_assert!(size_of::<mirror_MushroomStatistic>()==64);
+
+#[repr(C, align(8))]
+#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone)]
+struct mirror_MushroomStateUpdateOption {
+    pub canonicalize_block_id: bool,
+    _reserved: [u8; 63],
+}
+const_assert!(size_of::<mirror_MushroomStateUpdateOption>()==64);
+/*
+
+#[repr(C, align(8))]
+#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone)]
+struct mirror_ {
+    _reserved: [u8; 64],
+}
+const_assert!(size_of::<mirror_>()==64);
+
+*/
 
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_destroy_block(ptr: *mut Block) {

@@ -56,4 +56,6 @@ install(FILES
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/mc_schem
 )
 
-include(CPack)
+if (${PROJECT_SOURCE_DIR} STREQUAL ${CMAKE_SOURCE_DIR})
+    include(CPack)
+endif ()

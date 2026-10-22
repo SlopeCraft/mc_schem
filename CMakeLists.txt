@@ -38,13 +38,21 @@ if (${MC_SCHEM_HAS_mdspan})
     target_compile_definitions(mc_schem INTERFACE MC_SCHEM_HAS_mdspan=1)
 endif ()
 
-if (NOT ${PROJECT_SOURCE_DIR} STREQUAL ${CMAKE_SOURCE_DIR})
-    add_library(mc_schem::mc_schem ALIAS mc_schem)
-endif ()
 
 if (${MC_SCHEM_ENABLE_TESTS})
     enable_testing()
     add_subdirectory(c_sources/unit_test)
+endif ()
+
+if (NOT ${PROJECT_SOURCE_DIR} STREQUAL ${CMAKE_SOURCE_DIR})
+    add_library(mc_schem::mc_schem ALIAS mc_schem)
+
+    cmake_language(DEFER mc_schem_export_shared_lib_location)
+    macro(mc_schem_export_shared_lib_location)
+        get_test_property(loc mc_schem-shared IMPORTED_LOCATION)
+        message(STATUS "mc_schem_SHARED_LIB_LOCATION = ${loc}")
+        set(mc_schem_SHARED_LIB_LOCATION ${loc} PARENT_SCOPE)
+    endmacro()
 endif ()
 
 if (${MC_SCHEM_INSTALL})

@@ -45,19 +45,31 @@ int main(int, char**) {
     MC_SCHEM_CHECK(blk->namespace_() == "minecraft");
     MC_SCHEM_CHECK(blk->id() == "air");
     MC_SCHEM_CHECK(blk->full_id() == "minecraft:air");
-    MC_SCHEM_CHECK(blk->is_air());
     MC_SCHEM_CHECK(not blk->is_structure_void());
+    MC_SCHEM_CHECK(blk->is_air());
+    // `air`
+    blk->set_namespace("");
+    MC_SCHEM_CHECK(blk->is_air());
+    // `cave_air`
+    blk->set_id("cave_air");
+    MC_SCHEM_CHECK(blk->is_air());
+    // `minecraft:cave_air`
+    blk->set_namespace("minecraft");
+    MC_SCHEM_CHECK(blk->is_air());
+    // `minecraft:cave_air[key=value]`, not air
+    blk->set_attribute("key", "value");
+    MC_SCHEM_CHECK(not blk->is_air());
   }
 
   // mc_schem_create_block_from_common
   {
-    auto air = block::from_common(common_block::air);
+    auto air = block::create(common_block::air);
     MC_SCHEM_CHECK(air);
     MC_SCHEM_CHECK(air->is_air());
     MC_SCHEM_CHECK(not air->is_structure_void());
     MC_SCHEM_CHECK(air->full_id() == "minecraft:air");
 
-    auto void_blk = block::from_common(common_block::structure_void);
+    auto void_blk = block::create(common_block::structure_void);
     MC_SCHEM_CHECK(void_blk);
     MC_SCHEM_CHECK(void_blk->is_structure_void());
     MC_SCHEM_CHECK(not void_blk->is_air());

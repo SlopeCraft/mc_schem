@@ -334,18 +334,16 @@ impl Block {
 
         true
     }
-    /// Returns true if the block is `minecraft:air`
+    /// Returns true if the block is `minecraft:air` or `minecraft:cave_air`
     pub fn is_air(&self) -> bool {
-        if self.namespace != "minecraft" {
-            return false;
+        if self.namespace.is_empty() || self.namespace == "minecraft" {
+            if self.id == "air" || self.id == "cave_air" {
+                if self.attributes.is_empty() {
+                    return true;
+                }
+            }
         }
-        if self.id != "air" {
-            return false;
-        }
-        if !self.attributes.is_empty() {
-            return false;
-        }
-        true
+        false
     }
     /// Returns `minecraft:air`
     pub fn air() -> Block {

@@ -109,6 +109,7 @@ inline void save_error_info(std::string_view msg, char* error_message_dest,
 }
 }  // namespace internal
 
+/// Encapsulate std::istream as std::io::Read for rust
 struct rust_reader {
   size_t (*func_read)(uint8_t* dest, size_t dest_capacity, bool* ok_nonnull,
                       char* error_message_dest, size_t error_message_capacity,
@@ -141,7 +142,7 @@ struct rust_reader {
     };
   }
 };
-
+/// Encapsulate std::ofstream or std::vector into std::io::Write for rust
 struct rust_writer {
   size_t (*func_write)(const uint8_t* buf, size_t buf_bytes, bool* ok_nonnull,
                        char* error_message_dest, size_t error_message_capacity,
@@ -218,6 +219,7 @@ struct rust_writer {
   }
 };
 
+/// Statistic result for updating mushroom state
 struct mushroom_statistic {
   uint64_t mushroom_total_num;
   uint64_t mushroom_corrected_num;
@@ -236,6 +238,9 @@ struct vanilla_structure_load_option {
 };
 struct vanilla_structure_save_option {
   uint32_t compress_level{9};
+  /// If true, air blocks are explicitly written. Otherwise treated as
+  /// structure_void. Vanilla structure is a sparse format that stores
+  /// non-void blocks explicitly by position and block index
   bool keep_air{true};
 };
 struct litematica_load_option {};
@@ -246,6 +251,9 @@ struct litematica_save_option {
 struct world_edit13_load_option {};
 struct world_edit13_save_option {
   uint32_t compress_level{9};
+  /// Schematic may contains multiple region but WE stores only 1 region in
+  /// dense. Space inside volume but outside any region is filled with that
+  /// background block.
   common_block background_block{common_block::air};
 };
 struct world_edit12_load_option {
@@ -701,10 +709,14 @@ class nbt_hashmap {
   nbt_hashmap& operator=(const nbt_hashmap&) = delete;
   nbt_hashmap& operator=(nbt_hashmap&&) = delete;
 
+  /// Create an empty nbt hashmap.
   [[nodiscard]] static unique_nbt_hashmap create() {
     return unique_nbt_hashmap{mc_schem_create_nbt_hashmap()};
   }
 
+  /// Parse an uncompressed binary nbt document stored in memory. Returns the
+  /// top level tags, or the parser message if the bytes are not a valid nbt
+  /// document
   [[nodiscard]] static std::expected<unique_nbt_hashmap, std::string>
   create_from_binary(std::span<const uint8_t> buffer) {
     std::string error_msg;
@@ -718,6 +730,8 @@ class nbt_hashmap {
     return unique_nbt_hashmap{ptr};
   }
 
+  /// Parse an uncompressed binary nbt document from a stream. Returns the top
+  /// level tags, or the parser message if reading or parsing fails
   [[nodiscard]] static std::expected<unique_nbt_hashmap, std::string>
   create_from_binary_stream(std::istream& is) {
     std::string error_msg;
@@ -736,10 +750,13 @@ class nbt_hashmap {
     mc_schem_swap_nbt_hashmap(this, &another);
   }
 
+  /// Count of top level tags in this hashmap
   [[nodiscard]] size_t size() const& {
     return mc_schem_nbt_hashmap_get_size(this);
   }
 
+  /// Write this hashmap as uncompressed binary nbt to `os`. Returns the
+  /// serializer message on failure
   [[nodiscard]] std::expected<void, std::string> dump_to_stream(
       std::ostream& os) const& {
     std::string error_msg;
@@ -753,6 +770,8 @@ class nbt_hashmap {
     return {};
   }
 
+  /// Write this hashmap as uncompressed binary nbt to `dest`, replacing its
+  /// previous contents. Throws std::runtime_error if serialization fails
   void dump_to_vector(std::vector<uint8_t>& dest) const& {
     dest.clear();
     rust_writer osw{dest};
@@ -765,6 +784,7 @@ class nbt_hashmap {
     }
   }
 
+  /// Serialize this hashmap to uncompressed binary nbt
   [[nodiscard]] std::vector<uint8_t> dump() const& {
     std::vector<uint8_t> result;
     dump_to_vector(result);
@@ -784,10 +804,15 @@ class block {
   block& operator=(const block&) = delete;
   block& operator=(block&&) = delete;
 
+  /// Create an air block (minecraft:air)
   [[nodiscard]] static unique_block create() {
     return unique_block{mc_schem_create_block()};
   }
 
+  /// Create a block by parsing a full block id, for example
+  /// `minecraft:oak_stairs[facing=north,half=bottom]`. Both the namespace and
+  /// the attribute list may be omitted. Returns the parse error if `id` is not
+  /// a valid block id
   [[nodiscard]] static std::expected<unique_block, block_id_parse_error> create(
       const std::string& id) {
     block_id_parse_error err{};
@@ -798,6 +823,7 @@ class block {
     return std::unexpected(err);
   }
 
+  /// Create one of the common blocks, like air or structure void
   [[nodiscard]] static unique_block create(common_block cb) {
     return unique_block{mc_schem_create_block_from_common(cb)};
   }
@@ -813,6 +839,7 @@ class block {
 
   void swap(block& another) & noexcept { mc_schem_swap_block(this, &another); }
 
+  /// Id of this block without the namespace, for example `stone`
   [[nodiscard]] std::string id() const& {
     std::string ret;
     rust_string_receiver receiver{ret};
@@ -820,6 +847,7 @@ class block {
     return ret;
   }
 
+  /// Namespace of this block. Vanilla blocks use `minecraft`
   [[nodiscard]] std::string namespace_() const& {
     std::string ret;
     rust_string_receiver receiver{ret};
@@ -827,13 +855,17 @@ class block {
     return ret;
   }
 
+  /// Replace the id of this block. Namespace and attributes are kept
   void set_id(const std::string& id) & {
     mc_schem_block_set_id(this, id.c_str());
   }
+  /// Replace the namespace of this block. Id and attributes are kept
   void set_namespace(const std::string& ns) & {
     mc_schem_block_set_namespace(this, ns.c_str());
   }
 
+  /// Full id of this block, like `minecraft:oak_stairs[facing=north]`. The
+  /// namespace is omitted when empty and so is the attribute list
   [[nodiscard]] std::string full_id() const& {
     std::string ret;
     rust_string_receiver receiver{ret};
@@ -841,6 +873,8 @@ class block {
     return ret;
   }
 
+  /// Replace this block with the one parsed from `full_id`. Returns the parse
+  /// error and leaves this block untouched if `full_id` is invalid
   [[nodiscard]] std::expected<void, block_id_parse_error> reset(
       const std::string& full_id) & {
     block_id_parse_error err{};
@@ -850,6 +884,8 @@ class block {
     return std::unexpected{err};
   }
 
+  /// Visit every attribute of this block. The visitor receives the attribute
+  /// name and value by value, in ascending name order
   template <class visitor_type>
     requires std::is_invocable_r_v<void, visitor_type, std::string&&,
                                    std::string&&>
@@ -868,6 +904,7 @@ class block {
     mc_schem_block_visit_attributes(this, callback, &visitor);
   }
 
+  /// Value of attribute `key`, or nullopt if this block has no such attribute
   [[nodiscard]] std::optional<std::string> get_attribute(
       const std::string& key) const& {
     std::string ret;
@@ -878,9 +915,11 @@ class block {
     return std::nullopt;
   }
 
+  /// Set attribute `key` to `value`, overwriting the previous value if any
   void set_attribute(const std::string& key, const std::string& value) & {
     mc_schem_block_set_attribute(this, key.c_str(), value.c_str());
   }
+  /// Remove attribute `key` if it exists
   void erase_attribute(const std::string& key) & {
     mc_schem_block_set_attribute(this, key.c_str(), nullptr);
   }
@@ -893,14 +932,18 @@ class block {
     return ret;
   }
 
+  /// True if this is air or cave air, without any attribute
   [[nodiscard]] bool is_air() const& { return mc_schem_block_is_air(this); }
+  /// True if this is minecraft:structure_void without any attribute
   [[nodiscard]] bool is_structure_void() const& {
     return mc_schem_block_is_structure_void(this);
   }
 
+  /// Compare blocks by value: namespace, id and all attributes must be equal
   [[nodiscard]] bool operator==(const block& another) const& {
     return mc_schem_block_is_equal(this, &another);
   }
+  /// Negation of operator==
   [[nodiscard]] bool operator!=(const block& another) const& {
     return not operator==(another);
   }
@@ -918,6 +961,7 @@ class error {
   error& operator=(const error&) = delete;
   error& operator=(error&&) = delete;
 
+  /// Human readable description of this error
   [[nodiscard]] std::string message() const& {
     std::string ret;
     rust_string_receiver receiver{ret};
@@ -938,11 +982,16 @@ class region {
   region& operator=(const region&) = delete;
   region& operator=(region&&) = delete;
 
+  /// Create a dense region of the given shape (xyz). The region is filled with
+  /// air and its palette holds only air
   [[nodiscard]] static unique_region create(int32_t shape_x, int32_t shape_y,
                                             int32_t shape_z) {
     return unique_region{mc_schem_create_region(shape_x, shape_y, shape_z)};
   }
 
+  /// Create a dense region of the given `shape` (xyz) whose palette is a deep
+  /// copy of `palette`. Every block of the region is set to `palette[0]`, so
+  /// the palette must not be empty. Returns an error if it is
   [[nodiscard]] static std::expected<unique_region, unique_error>
   create_with_palette(std::span<const int32_t, 3> shape,
                       const std::span<const block* const> palette) {
@@ -960,6 +1009,7 @@ class region {
     assert(err);
     return std::unexpected{unique_error{err}};
   }
+  /// Convenience overload taking the shape as std::array
   [[nodiscard]] static std::expected<unique_region, unique_error>
   create_with_palette(const std::array<int32_t, 3>& shape,
                       const std::span<const block* const> palette) {
@@ -974,6 +1024,7 @@ class region {
     mc_schem_swap_region(this, &another);
   }
 
+  /// Name of this region. Only litematica persists it
   [[nodiscard]] std::string name() const& {
     std::string ret;
     rust_string_receiver receiver{ret};
@@ -981,6 +1032,7 @@ class region {
     return ret;
   }
 
+  /// Offset of this region inside the schematic, in blocks (xyz)
   template <typename int_t = int32_t>
     requires std::is_integral_v<int_t>
   [[nodiscard]] std::array<int_t, 3> offset() const& {
@@ -990,10 +1042,12 @@ class region {
             static_cast<int_t>(z)};
   }
 
+  /// Set the name of this region. Only litematica persists it
   void set_name(const std::string& name) & {
     mc_schem_region_set_name(this, name.c_str());
   }
 
+  /// Set the offset of this region inside the schematic, in blocks (xyz)
   void set_offset(std::span<const int32_t, 3> offset) & {
     mc_schem_region_set_offset(this, offset[0], offset[1], offset[2]);
   }
@@ -1001,6 +1055,7 @@ class region {
     set_offset(std::span{offset});
   }
 
+  /// Size of this region in x, y, z order
   template <typename int_t = int32_t>
     requires std::is_integral_v<int_t>
   [[nodiscard]] std::array<int_t, 3> size_xyz() const& {
@@ -1013,6 +1068,8 @@ class region {
             static_cast<int_t>(z)};
   }
 
+  /// Size of this region in y, z, x order. This is the axis order of the
+  /// internal dense array and of all schematic file formats
   template <typename int_t = int32_t>
     requires std::is_integral_v<int_t>
   [[nodiscard]] std::array<int_t, 3> size_yzx() const& {
@@ -1021,11 +1078,15 @@ class region {
             static_cast<int_t>(x)};
   }
 
+  /// True if blocks are stored in a dense array instead of a sparse map
   [[nodiscard]] bool is_dense() const& {
     return mc_schem_region_is_dense(this);
   }
+  /// True if blocks are stored in a sparse map
   [[nodiscard]] bool is_sparse() const& { return not is_dense(); }
 
+  /// Resize this region to `shape` (xyz). All blocks become the first palette
+  /// entry; palette, entities and block entities are kept
   void reshape(std::span<const int32_t, 3> shape) & {
     mc_schem_region_reshape(this, shape[0], shape[1], shape[2]);
   }
@@ -1033,18 +1094,24 @@ class region {
     reshape(std::span{shape});
   }
 
+  /// Number of distinct blocks in the palette
   [[nodiscard]] size_t palette_size() const& {
     return mc_schem_region_palette_get_size(this);
   }
 
+  /// Block at `index` of the palette, or null if `index` is out of range
   [[nodiscard]] const block* palette(size_t index) const& {
     return mc_schem_region_palette_get_block(this, index);
   }
 
+  /// Index of `blk` in the palette. If no equal block exists yet, `blk` is
+  /// deep copied and appended to the palette first
   [[nodiscard]] uint16_t find_or_append_to_palette(const block& blk) & {
     return mc_schem_region_find_or_append_to_palette(this, &blk);
   }
 
+  /// Index of `blk` in the palette, or nullopt if the palette contains no
+  /// equal block
   [[nodiscard]] std::optional<uint16_t> find_in_palette(
       const block& blk) const& {
     bool ok = false;
@@ -1056,6 +1123,7 @@ class region {
     return result;
   }
 
+  /// Pointers to all blocks of the palette, in palette order
   [[nodiscard]] std::vector<const block*> full_palette() const {
     std::vector<const block*> ret;
     const size_t n = palette_size();
@@ -1066,29 +1134,38 @@ class region {
     return ret;
   }
 
+  /// Number of entities in this region
   [[nodiscard]] size_t entities_count() const& {
     return mc_schem_region_get_entities_count(this);
   }
+  /// Entity at `index`, or null if `index` is out of range
   [[nodiscard]] const entity* get_entity(size_t index) const& {
     return mc_schem_region_get_entity(this, index);
   }
+  /// Mutable entity at `index`, or null if `index` is out of range
   [[nodiscard]] entity* get_entity(size_t index) & {
     return mc_schem_region_get_entity_mut(this, index);
   }
+  /// Remove and return the entity at `index`. `index` must be less than
+  /// entities_count()
   unique_entity erase_entity(size_t index) & {
     auto ptr = mc_schem_region_erase_entity(this, index);
     return unique_entity{ptr};
   }
+  /// Append a deep copy of `entity` to this region and return its index
   size_t add_entity(const entity& entity) & {
     return mc_schem_region_add_entity(this, &entity);
   }
+  /// Move `entity` into this region and return its index
   size_t add_entity(unique_entity entity) & {
     return mc_schem_region_add_entity_move(this, entity.release());
   }
 
+  /// Number of block entities in this region
   [[nodiscard]] size_t block_entities_count() const& {
     return mc_schem_region_get_block_entities_count(this);
   }
+  /// Visit every block entity of this region together with its position (xyz)
   template <class visitor_type>
     requires std::is_invocable_r_v<void, visitor_type, int32_t, int32_t,
                                    int32_t, const block_entity&>
@@ -1100,6 +1177,7 @@ class region {
     };
     mc_schem_region_visit_block_entities(this, func, &visitor);
   }
+  /// Block entity at `pos` (xyz), or null if there is none
   [[nodiscard]] const block_entity* get_block_entity(
       std::span<const int32_t, 3> pos) const& {
     return mc_schem_region_get_block_entity(this, pos[0], pos[1], pos[2]);
@@ -1109,6 +1187,7 @@ class region {
     return get_block_entity(std::span{pos});
   }
 
+  /// Mutable block entity at `pos` (xyz), or null if there is none
   [[nodiscard]] block_entity* get_block_entity(
       std::span<const int32_t, 3> pos) & {
     return mc_schem_region_get_block_entity_mut(this, pos[0], pos[1], pos[2]);
@@ -1118,7 +1197,8 @@ class region {
     return get_block_entity(std::span{pos});
   }
 
-  /// Insert new, returns previous value (if exist)
+  /// Insert a deep copy of `e` at `pos` (xyz), returning the block entity that
+  /// was stored there before, if any
   unique_block_entity add_block_entity(std::span<const int32_t, 3> pos,
                                        const block_entity& e) & {
     auto ret =
@@ -1129,7 +1209,8 @@ class region {
                                        const block_entity& e) & {
     return add_block_entity(std::span{pos}, e);
   }
-  /// Insert new (by moving), returns previous value (if exist)
+  /// Move `new_be` to `pos` (xyz), returning the block entity that was stored
+  /// there before, if any
   unique_block_entity add_block_entity(std::span<const int32_t, 3> pos,
                                        unique_block_entity new_be) & {
     auto ret = mc_schem_region_add_block_entity_move(this, pos[0], pos[1],
@@ -1140,7 +1221,7 @@ class region {
                                        unique_block_entity new_be) & {
     return add_block_entity(std::span{pos}, std::move(new_be));
   }
-  /// Returns previous value (if exist)
+  /// Remove the block entity at `pos` (xyz), returning it if there was one
   unique_block_entity erase_block_entity(std::span<const int32_t, 3> pos) & {
     auto ret =
         mc_schem_region_add_block_entity(this, pos[0], pos[1], pos[2], nullptr);
@@ -1150,6 +1231,7 @@ class region {
     return erase_block_entity(std::span{pos});
   }
 
+  /// Number of pending ticks at `pos` (xyz)
   [[nodiscard]] size_t pending_ticks_count_at(
       std::span<const int32_t, 3> pos) const& {
     return mc_schem_region_get_pending_ticks_count(this, pos[0], pos[1],
@@ -1160,6 +1242,7 @@ class region {
     return pending_ticks_count_at(std::span{pos});
   }
 
+  /// All pending ticks at `pos` (xyz)
   [[nodiscard]] std::vector<std::reference_wrapper<const pending_tick>>
   pending_ticks_at(std::span<const int32_t, 3> pos) const& {
     std::vector<std::reference_wrapper<const pending_tick>> ret;
@@ -1176,6 +1259,7 @@ class region {
   pending_ticks_at(const std::array<int32_t, 3>& pos) const& {
     return pending_ticks_at(std::span{pos});
   }
+  /// Mutable references to all pending ticks at `pos` (xyz)
   [[nodiscard]] std::vector<std::reference_wrapper<pending_tick>>
   pending_ticks_at(std::span<const int32_t, 3> pos) & {
     std::vector<std::reference_wrapper<pending_tick>> ret;
@@ -1193,6 +1277,8 @@ class region {
     return pending_ticks_at(std::span{pos});
   }
 
+  /// Palette index of the block at `pos` (xyz), or nullopt if `pos` is outside
+  /// this region
   [[nodiscard]] std::optional<uint16_t> block_index_at(
       std::span<const int32_t, 3> pos) const& {
     bool ok = false;
@@ -1209,6 +1295,7 @@ class region {
     return block_index_at(std::span{pos});
   }
 
+  /// True if `pos` (xyz) is inside this region
   [[nodiscard]] bool contains_coordinate(
       std::span<const int32_t, 3> pos) const& {
     return this->block_index_at(pos).has_value();
@@ -1218,6 +1305,8 @@ class region {
     return contains_coordinate(std::span{pos});
   }
 
+  /// Palette index and block at `pos` (xyz), or nullopt if `pos` is outside
+  /// this region
   [[nodiscard]] std::optional<
       std::tuple<uint16_t, std::reference_wrapper<const block>>>
   block_at(std::span<const int32_t, 3> pos) const& {
@@ -1236,6 +1325,9 @@ class region {
     return block_at(std::span{pos});
   }
 
+  /// Everything stored at `pos` (xyz): block index, block, block entity (may
+  /// be null) and pending ticks. Returns nullopt if `pos` is outside this
+  /// region
   [[nodiscard]] std::optional<std::tuple<
       uint16_t, std::reference_wrapper<const block>, const block_entity*,
       std::vector<std::reference_wrapper<const pending_tick>>>>
@@ -1257,6 +1349,9 @@ class region {
     return block_info_at(std::span{pos});
   }
 
+  /// Set the block at `pos` (xyz) to palette index `blkid`. Throws
+  /// std::runtime_error if `pos` is outside this region or `blkid` is not a
+  /// valid palette index
   void set_block(std::span<const int32_t, 3> pos, uint16_t blkid) & {
     if (not mc_schem_region_set_block_by_index(this, pos[0], pos[1], pos[2],
                                                blkid)) {
@@ -1271,6 +1366,9 @@ class region {
     set_block(std::span{pos}, blkid);
   }
 
+  /// Set the block at `pos` (xyz), appending `blk` to the palette if no equal
+  /// block is there yet. Throws std::runtime_error if `pos` is outside this
+  /// region or the palette is already full
   void set_block(std::span<const int32_t, 3> pos, const block& blk) & {
     if (not mc_schem_region_set_block_by_block(this, pos[0], pos[1], pos[2],
                                                &blk)) {
@@ -1285,6 +1383,9 @@ class region {
     set_block(std::span{pos}, blk);
   }
 
+  /// Drop palette entries that no block refers to and renumber the remaining
+  /// ones. Returns an error if a block refers to an index that is not in the
+  /// palette
   std::expected<void, unique_error> shrink_palette() & {
     auto err = unique_error{mc_schem_region_shrink_palette(this)};
     if (err) {
@@ -1303,10 +1404,18 @@ class region {
     return mc_schem_region_update_mushroom_state(this, &option);
   }
 
+  /// Set every block of this region to `blk`
   void fill_with(const block& blk) & { mc_schem_region_fill_with(this, &blk); }
+  /// Store blocks as a sparse map of non zero palette indices. No-op if this
+  /// region is already sparse
   void convert_to_sparse() & { mc_schem_region_convert_to_sparse(this); }
+  /// Store blocks as a dense array. No-op if this region is already dense
   void convert_to_dense() & { mc_schem_region_convert_to_dense(this); }
 
+  /// Visit every block of this region together with its position, block index,
+  /// block and block entity (may be null). If `explicit_only` is true, blocks
+  /// that are not explicitly stored, that is palette index 0 of a sparse
+  /// region, are skipped
   template <class visitor_type>
     requires std::is_invocable_r_v<void, visitor_type, std::array<int32_t, 3>,
                                    uint16_t, const block&, const block_entity*>
@@ -1321,6 +1430,8 @@ class region {
     mc_schem_region_visit_blocks(this, explicit_only, func, &visitor);
   }
 
+  /// Count of blocks in this region. Blocks are counted by palette entry: air
+  /// only counts when `include_air` is true, every other entry always counts
   [[nodiscard]] uint64_t total_blocks(bool include_air) const& {
     return mc_schem_region_total_blocks(this, include_air);
   }
@@ -1369,6 +1480,8 @@ class entity {
   entity& operator=(entity&&) = delete;
   ~entity() = delete;
 
+  /// Create an entity from the nbt tags `src`, which are deep copied. Returns
+  /// an error if `src` has no usable `Pos` field
   [[nodiscard]] static std::expected<unique_entity, unique_error> create(
       const nbt_hashmap& src) {
     error* err{nullptr};
@@ -1381,6 +1494,8 @@ class entity {
     return std::unexpected{unique_error{err}};
   }
 
+  /// Create an entity from the nbt tags `nbt` it takes over. Returns an error
+  /// if `nbt` has no usable `Pos` field
   [[nodiscard]] static std::expected<unique_entity, unique_error> create(
       unique_nbt_hashmap nbt) {
     error* err{nullptr};
@@ -1401,6 +1516,8 @@ class entity {
     mc_schem_swap_entity(this, &another);
   }
 
+  /// Position of this entity (xyz): the block it is in and its exact position
+  /// as double
   [[nodiscard]] std::pair<std::array<int32_t, 3>, std::array<double, 3>>
   position() const& {
     std::array<int32_t, 3> block_pos{0, 0, 0};
@@ -1410,19 +1527,23 @@ class entity {
     return std::make_pair(block_pos, pos);
   }
 
+  /// Nbt tags of this entity that are not parsed into other fields
   [[nodiscard]] const nbt_hashmap* tags() const& {
     return mc_schem_entity_get_tags(this);
   }
+  /// Mutable nbt tags of this entity. `Pos` and `id` are regenerated when the
+  /// entity is serialized
   [[nodiscard]] nbt_hashmap* tags() & {
     return mc_schem_entity_get_tags_mut(this);
   }
-  /// Deep copy src, move old value onto heap and returns (transfer ownership)
+  /// Deep copy `src` into this entity and return the tags that were stored
+  /// before. `src` must not be the tags of this entity itself
   unique_nbt_hashmap set_tags(const nbt_hashmap& src) & {
     auto old_value = mc_schem_entity_set_tags(this, &src);
     return unique_nbt_hashmap{old_value};
   }
-  /// Move new_value into entity, move old value to box and return it.
-  /// Expected usage: set_tags(std::move(new-value-in-unique))
+  /// Move `new_value` into this entity and return the tags that were stored
+  /// before. Expected usage: set_tags(std::move(new-value-in-unique))
   unique_nbt_hashmap set_tags(unique_nbt_hashmap new_value) & {
     assert(new_value);
     this->tags()->swap(*new_value);
@@ -1446,6 +1567,7 @@ class block_entity {
   block_entity& operator=(block_entity&&) = delete;
   ~block_entity() = delete;
 
+  /// Create a block entity without any nbt tag
   [[nodiscard]] static unique_block_entity create() {
     return unique_block_entity{mc_schem_create_block_entity()};
   }
@@ -1458,18 +1580,23 @@ class block_entity {
     mc_schem_swap_block_entity(this, &another);
   }
 
+  /// Nbt tags of this block entity
   [[nodiscard]] const nbt_hashmap* tags() const& {
     return mc_schem_block_entity_get_tags(this);
   }
+  /// Mutable nbt tags of this block entity
   [[nodiscard]] nbt_hashmap* tags() & {
     return mc_schem_block_entity_get_tags_mut(this);
   }
+  /// Deep copy `new_value` into this block entity and return the tags that
+  /// were stored before. `new_value` must not be the tags of this block entity
+  /// itself
   unique_nbt_hashmap set_tags(const nbt_hashmap& new_value) & {
     auto old_value = mc_schem_block_entity_set_tags(this, &new_value);
     return unique_nbt_hashmap{old_value};
   }
-  /// Move new_value into entity, move old value to box and return it.
-  /// Expected usage: set_tags(std::move(new-value-in-unique))
+  /// Move `new_value` into this block entity and return the tags that were
+  /// stored before. Expected usage: set_tags(std::move(new-value-in-unique))
   unique_nbt_hashmap set_tags(unique_nbt_hashmap new_value) & {
     assert(new_value);
     this->tags()->swap(*new_value);
@@ -1488,6 +1615,8 @@ class metadata_ir {
   metadata_ir& operator=(metadata_ir&&) = delete;
   ~metadata_ir() = delete;
 
+  /// Create default metadata for the given minecraft data version. The version
+  /// is currently not validated
   [[nodiscard]] static std::expected<unique_metadata_ir, unique_error> create(
       int32_t data_version) {
     error* dest_err = nullptr;
@@ -1507,9 +1636,11 @@ class metadata_ir {
     mc_schem_swap_metadata_ir(this, &another);
   }
 
+  /// Minecraft data version stored in this metadata
   [[nodiscard]] int32_t mc_data_version() const& {
     return mc_schem_metadata_ir_get_mc_data_version(this);
   }
+  /// Set the minecraft data version. The version is currently not validated
   void set_mc_data_version(int32_t data_version) & {
     unique_error error{
         mc_schem_metadata_ir_set_mc_data_version(this, data_version)};
@@ -1519,57 +1650,71 @@ class metadata_ir {
     }
   }
 
+  /// Creation time of the schematic, as a unix timestamp in milliseconds
   [[nodiscard]] int64_t time_created() const& {
     return mc_schem_metadata_ir_get_time_created(this);
   }
+  /// Set the creation time, as a unix timestamp in milliseconds
   void set_time_created(int64_t time_created) & {
     mc_schem_metadata_ir_set_time_created(this, time_created);
   }
 
+  /// Last modification time of the schematic, as a unix timestamp in
+  /// milliseconds
   [[nodiscard]] int64_t time_modified() const& {
     return mc_schem_metadata_ir_get_time_modified(this);
   }
+  /// Set the last modification time, as a unix timestamp in milliseconds
   void set_time_modified(int64_t time) & {
     mc_schem_metadata_ir_set_time_modified(this, time);
   }
 
+  /// Author recorded in this metadata
   [[nodiscard]] std::string author() const& {
     std::string ret;
     rust_string_receiver rsr{ret};
     mc_schem_metadata_ir_get_author(this, &rsr);
     return ret;
   }
+  /// Set the author recorded in this metadata
   void set_author(const std::string& author) & {
     mc_schem_metadata_ir_set_author(this, author.c_str());
   }
 
+  /// Name of the schematic recorded in this metadata
   [[nodiscard]] std::string name() const& {
     std::string ret;
     rust_string_receiver rsr{ret};
     mc_schem_metadata_ir_get_name(this, &rsr);
     return ret;
   }
+  /// Set the name of the schematic recorded in this metadata
   void set_name(const std::string& name) & {
     mc_schem_metadata_ir_set_name(this, name.c_str());
   }
 
+  /// Free form description of the schematic
   [[nodiscard]] std::string description() const& {
     std::string ret;
     rust_string_receiver rsr{ret};
     mc_schem_metadata_ir_get_description(this, &rsr);
     return ret;
   }
+  /// Set the free form description of the schematic
   void set_description(const std::string& description) & {
     mc_schem_metadata_ir_set_description(this, description.c_str());
   }
 
+  /// Litematica file version stored in this metadata
   [[nodiscard]] int32_t litematica_version() const& {
     return mc_schem_metadata_ir_get_litematica_version(this);
   }
+  /// Set the litematica file version
   void set_litematica_version(int32_t litematica_version) & {
     mc_schem_metadata_ir_set_litematica_version(this, litematica_version);
   }
 
+  /// Litematica sub version, or nullopt if this metadata has none
   [[nodiscard]] std::optional<int32_t> litematica_subversion() const& {
     bool exist{false};
     const auto ret =
@@ -1577,20 +1722,25 @@ class metadata_ir {
     if (exist) return ret;
     return std::nullopt;
   }
+  /// Set the litematica sub version
   void set_litematica_subversion(int32_t v) & {
     mc_schem_metadata_ir_set_litematica_subversion(this, v, true);
   }
+  /// Remove the litematica sub version
   void set_litematica_subversion() & {
     mc_schem_metadata_ir_set_litematica_subversion(this, 0, false);
   }
 
+  /// WorldEdit `.schem` file version stored in this metadata
   [[nodiscard]] int32_t schem_version() const& {
     return mc_schem_metadata_ir_get_schem_version(this);
   }
+  /// Set the WorldEdit `.schem` file version
   void set_schem_version(int32_t schem_version) & {
     mc_schem_metadata_ir_set_schem_version(this, schem_version);
   }
 
+  /// Offset of the region in a WorldEdit `.schem` file (xyz)
   template <typename int_t = int32_t>
     requires std::is_integral_v<int_t>
   [[nodiscard]] std::array<int_t, 3> schem_offset() const& {
@@ -1599,6 +1749,7 @@ class metadata_ir {
     return {static_cast<int_t>(x), static_cast<int_t>(y),
             static_cast<int_t>(z)};
   }
+  /// Set the offset of the region in a WorldEdit `.schem` file (xyz)
   void set_schem_offset(std::span<const int32_t, 3> offset) & {
     mc_schem_metadata_ir_set_schem_offset(this, offset[0], offset[1],
                                           offset[2]);
@@ -1607,6 +1758,8 @@ class metadata_ir {
     set_schem_offset(std::span{offset});
   }
 
+  /// WorldEdit offset, the origin of the schematic in the world (xyz), or
+  /// nullopt if this metadata has none
   template <typename int_t = int32_t>
     requires std::is_integral_v<int_t>
   [[nodiscard]] std::optional<std::array<int_t, 3>> schem_we_offset() const& {
@@ -1619,6 +1772,7 @@ class metadata_ir {
     }
     return std::nullopt;
   }
+  /// Set the WorldEdit offset (xyz)
   void set_schem_we_offset(std::span<const int32_t, 3> offset) & {
     mc_schem_metadata_ir_set_we_offset(this, offset[0], offset[1], offset[2],
                                        true);
@@ -1626,10 +1780,13 @@ class metadata_ir {
   void set_schem_we_offset(const std::array<int32_t, 3>& offset) & {
     set_schem_we_offset(std::span{offset});
   }
+  /// Remove the WorldEdit offset
   void set_schem_we_offset() & {
     mc_schem_metadata_ir_set_we_offset(this, 0, 0, 0, false);
   }
 
+  /// Version of WorldEdit that created the `.schem`, or nullopt if this
+  /// metadata has none
   [[nodiscard]] std::optional<std::string> schem_world_edit_version() const& {
     std::string ret;
     rust_string_receiver rsr{ret};
@@ -1638,13 +1795,16 @@ class metadata_ir {
     if (exist) return ret;
     return std::nullopt;
   }
+  /// Set the version of WorldEdit that created the `.schem`
   void set_schem_world_edit_version(const std::string& version) & {
     mc_schem_metadata_ir_set_schem_world_edit_version(this, version.c_str());
   }
+  /// Remove the WorldEdit version
   void set_schem_world_edit_version() & {
     mc_schem_metadata_ir_set_schem_world_edit_version(this, nullptr);
   }
 
+  /// Origin of the schematic (xyz), or nullopt if this metadata has none
   template <typename int_t = int32_t>
     requires std::is_integral_v<int_t>
   [[nodiscard]] std::optional<std::array<int_t, 3>> schem_origin() const& {
@@ -1656,6 +1816,7 @@ class metadata_ir {
     }
     return std::nullopt;
   }
+  /// Set the origin of the schematic (xyz)
   void set_schem_origin(std::span<const int32_t, 3> origin) & {
     mc_schem_metadata_ir_set_schem_origin(this, origin[0], origin[1], origin[2],
                                           true);
@@ -1663,20 +1824,24 @@ class metadata_ir {
   void set_schem_origin(const std::array<int32_t, 3>& origin) & {
     set_schem_origin(std::span{origin});
   }
+  /// Remove the origin
   void set_schem_origin() & {
     mc_schem_metadata_ir_set_schem_origin(this, 0, 0, 0, false);
   }
 
+  /// Material of the `.schem`, either `Alpha` or `Classic`
   [[nodiscard]] std::string schem_material() const& {
     std::string ret;
     rust_string_receiver rsr{ret};
     mc_schem_metadata_ir_get_schem_material(this, &rsr);
     return ret;
   }
+  /// Set the material of the `.schem`, either `Alpha` or `Classic`
   void set_schem_material(const std::string& material) & {
     mc_schem_metadata_ir_set_schem_material(this, material.c_str());
   }
 
+  /// Platform that created the `.schem`, or nullopt if this metadata has none
   [[nodiscard]] std::optional<std::string> schem_editing_platform() const& {
     std::string ret;
     rust_string_receiver rsr{ret};
@@ -1685,9 +1850,11 @@ class metadata_ir {
     if (exist) return ret;
     return std::nullopt;
   }
+  /// Set the platform that created the `.schem`
   void set_schem_editing_platform(const std::string& platform) & {
     mc_schem_metadata_ir_set_schem_editing_platform(this, platform.c_str());
   }
+  /// Remove the editing platform
   void set_schem_editing_platform() & {
     mc_schem_metadata_ir_set_schem_editing_platform(this, nullptr);
   }
@@ -1705,6 +1872,7 @@ class schematic {
   schematic& operator=(const schematic&) = delete;
   schematic& operator=(schematic&&) = delete;
 
+  /// Create an empty schematic without any region, with default metadata
   [[nodiscard]] static unique_schematic create() {
     return unique_schematic{mc_schem_create_schematic()};
   }
@@ -1717,55 +1885,74 @@ class schematic {
     mc_schem_swap_schematic(this, &another);
   }
 
+  /// Metadata of this schematic
   [[nodiscard]] const metadata_ir* metadata() const& {
     return mc_schem_schematic_get_metadata(this);
   }
+  /// Mutable metadata of this schematic
   [[nodiscard]] metadata_ir* metadata() & {
     return mc_schem_schematic_get_metadata_mut(this);
   }
-  /// Deep copy given new value, move previous value onto heap and return
+  /// Deep copy `new_metadata` into this schematic and return the metadata that
+  /// was stored before
   unique_metadata_ir set_metadata(const metadata_ir& new_metadata) & {
     auto previous_value = mc_schem_schematic_set_metadata(this, &new_metadata);
     return unique_metadata_ir{previous_value};
   }
+  /// Move `new_metadata` into this schematic and return the metadata that was
+  /// stored before
   unique_metadata_ir set_metadata(unique_metadata_ir new_metadata) & {
     new_metadata->swap(*this->metadata());
     return new_metadata;
   }
 
+  /// Number of regions in this schematic
   [[nodiscard]] size_t regions_count() const& {
     return mc_schem_schematic_get_regions_count(this);
   }
+  /// Region at `region_index`, or null if `region_index` is out of range
   [[nodiscard]] const region* get_region(size_t region_index) const& {
     return mc_schem_schematic_get_region(this, region_index);
   }
+  /// Mutable region at `region_index`, or null if `region_index` is out of
+  /// range
   [[nodiscard]] region* get_region(size_t region_index) & {
     return mc_schem_schematic_get_region_mut(this, region_index);
   }
+  /// Remove and return the region at `region_index`, or null if `region_index`
+  /// is out of range
   unique_region remove_region(size_t region_index) & {
     return unique_region{mc_schem_schematic_remove_region(this, region_index)};
   }
+  /// Remove all regions from this schematic
   void clear_all_regions() & { mc_schem_schematic_clear_all_regions(this); }
-  /// Deep copy new region and insert into schematic. Returns mut reference to
-  /// inserted region. new_region is not modified.
+  /// Deep copy `new_r` and insert it at `region_index`. Returns a pointer to
+  /// the inserted region, or null if `region_index` is greater than
+  /// regions_count()
   region* insert_region(const region* new_r, size_t region_index) & {
     return mc_schem_schematic_insert_region(this, new_r, region_index);
   }
+  /// Deep copy `new_r` and append it after the last region
   region* append_region(const region* new_r) & {
     return mc_schem_schematic_insert_region(this, new_r, this->regions_count());
   }
-  /// Inset new_region into schematic by moving. new_region will be release,
-  /// mustn't use after this operation. Returns mut reference to inserted
-  /// region.
+  /// Move `new_r` into this schematic at `region_index`. Returns a pointer to
+  /// the inserted region, or null if `region_index` is greater than
+  /// regions_count(). `new_r` must not be used after this operation
   region* insert_region(unique_region new_r, size_t region_index) & {
     auto ret = mc_schem_schematic_insert_region_move(this, new_r.release(),
                                                      region_index);
     return ret;
   }
+  /// Move `new_r` into this schematic after the last region. `new_r` must not
+  /// be used after this operation
   region* append_region(unique_region new_r) & {
     return this->insert_region(std::move(new_r), this->regions_count());
   }
 
+  /// Index of the first region containing the global position `pos`, or nullopt
+  /// if no region does. "First" means the region with the lowest index, so if
+  /// regions overlap the block of the lowest indexed region wins
   [[nodiscard]] std::optional<size_t> first_region_index_at(
       std::span<const int32_t, 3> pos) const& {
     const ptrdiff_t ret = mc_schem_schematic_get_first_region_index_at(
@@ -1779,6 +1966,8 @@ class schematic {
       const std::array<int32_t, 3>& pos) const& {
     return first_region_index_at(std::span{pos});
   }
+  /// Palette index of the block at the global position `pos`, taken from the
+  /// first region containing it. Returns nullopt if no region contains `pos`
   [[nodiscard]] std::optional<uint16_t> first_block_index_at(
       std::span<const int32_t, 3> pos) const& {
     bool ok = false;
@@ -1793,6 +1982,8 @@ class schematic {
       const std::array<int32_t, 3>& pos) const& {
     return first_block_index_at(std::span{pos});
   }
+  /// Block at the global position `pos`, taken from the first region containing
+  /// it. Returns null if no region contains `pos`
   [[nodiscard]] const block* first_block_at(
       std::span<const int32_t, 3> pos) const& {
     return mc_schem_schematic_get_first_block_at(this, pos[0], pos[1], pos[2]);
@@ -1801,6 +1992,8 @@ class schematic {
       const std::array<int32_t, 3>& pos) const& {
     return first_block_at(std::span{pos});
   }
+  /// Block entity at the global position `pos`, taken from the first region
+  /// that has one there. Returns null if no region has one
   [[nodiscard]] const block_entity* first_block_entity_at(
       std::span<const int32_t, 3> pos) const& {
     return mc_schem_schematic_get_first_block_entity_at(this, pos[0], pos[1],
@@ -1810,6 +2003,8 @@ class schematic {
       const std::array<int32_t, 3>& pos) const& {
     return first_block_entity_at(std::span{pos});
   }
+  /// Pending ticks at the global position `pos`, taken from the first region
+  /// that has any there. Returns an empty vector if no region has one
   [[nodiscard]] std::vector<const pending_tick*> first_pending_ticks_at(
       std::span<const int32_t, 3> pos) const& {
     const size_t num = mc_schem_schematic_get_first_pending_ticks_count_at(
@@ -1828,6 +2023,8 @@ class schematic {
     return first_pending_ticks_at(std::span{pos});
   }
 
+  /// Enclosing shape (xyz) of all regions. Returns {0, 0, 0} if this schematic
+  /// has no region
   template <typename int_t = int32_t>
     requires std::is_integral_v<int_t>
   [[nodiscard]] std::array<int_t, 3> shape() const& {
@@ -1836,23 +2033,30 @@ class schematic {
     return {static_cast<int_t>(x), static_cast<int_t>(y),
             static_cast<int_t>(z)};
   }
+  /// Volume of the enclosing box of all regions
   [[nodiscard]] uint64_t volume() const& {
     return mc_schem_schematic_get_volume(this);
   }
+  /// Count of blocks over all regions. Air is counted only when `include_air`
+  /// is true
   [[nodiscard]] uint64_t total_blocks(bool include_air) const& {
     return mc_schem_schematic_get_total_blocks(this, include_air);
   }
-  /// Merge all regions without changing original schematic
+  /// Merge all regions into one region without changing this schematic. Space
+  /// that no region covers is filled with `background_block`
   [[nodiscard]] unique_region to_single_region(
       const block& background_block) const& {
     return unique_region{
         mc_schem_schematic_to_single_region(this, &background_block)};
   }
-  /// Merge all regions in place
+  /// Merge all regions in place, leaving exactly one region. Space that no
+  /// region covers is filled with `background_block`
   void merge_regions(const block& background_block) & {
     mc_schem_schematic_merge_regions(this, &background_block);
   }
-  /// Load schematic from litematica (*.litematic)
+  /// Load a litematica (*.litematic) schematic from `is`, which must supply
+  /// decompressed nbt. Returns the schematic together with its raw litematica
+  /// metadata
   [[nodiscard]] static std::expected<
       std::tuple<unique_schematic, unique_litematica_metadata>, unique_error>
   load_litematica(std::istream& is, const litematica_load_option& opt) {
@@ -1870,7 +2074,9 @@ class schematic {
     assert(err not_eq nullptr);
     return std::unexpected(unique_error{err});
   }
-  /// Load schematic from vanilla structure (*.nbt)
+  /// Load a vanilla structure (*.nbt) schematic from `is`, which must supply
+  /// decompressed nbt. Returns the schematic together with its raw vanilla
+  /// structure metadata
   [[nodiscard]] static std::expected<
       std::tuple<unique_schematic, unique_vanilla_structure_metadata>,
       unique_error>
@@ -1890,7 +2096,9 @@ class schematic {
     assert(err not_eq nullptr);
     return std::unexpected(unique_error{err});
   }
-  /// Load schematic from world edit 1.13+ (*.schem)
+  /// Load a WorldEdit 1.13+ (*.schem) schematic from `is`, which must supply
+  /// decompressed nbt. Returns the schematic together with its raw WorldEdit
+  /// metadata
   [[nodiscard]] static std::expected<
       std::tuple<unique_schematic, unique_world_edit13_metadata>, unique_error>
   load_world_edit13(std::istream& is, const world_edit13_load_option& opt) {
@@ -1908,7 +2116,9 @@ class schematic {
     assert(err not_eq nullptr);
     return std::unexpected(unique_error{err});
   }
-  /// Load schematic from world edit 1.12 (*.schematic)
+  /// Load a WorldEdit 1.12 (*.schematic) schematic from `is`, which must supply
+  /// decompressed nbt. Returns the schematic together with its raw WorldEdit
+  /// metadata
   [[nodiscard]] static std::expected<
       std::tuple<unique_schematic, unique_world_edit12_metadata>, unique_error>
   load_world_edit12(std::istream& is, const world_edit12_load_option& opt) {
@@ -1926,8 +2136,9 @@ class schematic {
     assert(err not_eq nullptr);
     return std::unexpected(unique_error{err});
   }
-  /// Load schematic from file, identify format by filename extension
-  /// automatically
+  /// Load a schematic from a file, identifying the format by the filename
+  /// extension. Decompression is handled internally and the raw per-format
+  /// metadata is not exposed
   [[nodiscard]] static std::expected<unique_schematic, unique_error>
   load_from_file(const char* filename) {
     error* err = nullptr;
@@ -1939,7 +2150,8 @@ class schematic {
     assert(err not_eq nullptr);
     return std::unexpected(unique_error{err});
   }
-  /// Save as litematica (*.litematic)
+  /// Save as litematica (*.litematic). The bytes written to `os` are gzip
+  /// compressed
   std::expected<void, unique_error> save_litematica(
       std::ostream& os, const litematica_save_option& opt) const& {
     rust_writer osw{os};
@@ -1949,7 +2161,8 @@ class schematic {
     }
     return std::unexpected(unique_error{err});
   }
-  /// Save as world edit 1.13+ (*.schem)
+  /// Save as WorldEdit 1.13+ (*.schem). The bytes written to `os` are gzip
+  /// compressed
   std::expected<void, unique_error> save_world_edit13(
       std::ostream& os, const world_edit13_save_option& opt) const& {
     rust_writer osw{os};
@@ -1959,7 +2172,8 @@ class schematic {
     }
     return std::unexpected(unique_error{err});
   }
-  /// Save to vanilla structure (*.nbt)
+  /// Save to vanilla structure (*.nbt). The bytes written to `os` are gzip
+  /// compressed
   std::expected<void, unique_error> save_vanilla_structure(
       std::ostream& os, const vanilla_structure_save_option& opt) const& {
     rust_writer osw{os};
@@ -1970,8 +2184,8 @@ class schematic {
     }
     return std::unexpected(unique_error{err});
   }
-  /// Save schematic to file, identify format by filename extension
-  /// automatically
+  /// Save this schematic to a file, identifying the format by the filename
+  /// extension. Compression is handled inside
   std::expected<void, unique_error> save_to_file(const char* filename) const& {
     auto error = mc_schem_schematic_save_to_file(this, filename);
     if (not error) {

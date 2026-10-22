@@ -17,7 +17,7 @@
 
 
 use crate::block::Block;
-use crate::c_ffi::{rust_reader, rust_writer};
+use crate::c_ffi::{mirror_LitematicaLoadOption, rust_reader, rust_writer};
 use crate::schem::{LitematicaMetaData, VanillaStructureMetaData, WE12MetaData, WE13MetaData};
 use crate::{
     BlockEntity, Error, LitematicaLoadOption, LitematicaSaveOption, MetaDataIR, PendingTick,
@@ -298,7 +298,7 @@ pub unsafe extern "C" fn mc_schem_schematic_merge_regions(
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_schematic_load_litematica_from_reader(
     src: *mut rust_reader,
-    option: *const LitematicaLoadOption,
+    option: *const mirror_LitematicaLoadOption,
     error_dest: *mut *mut Error,
     raw_metadata_dest: *mut *mut LitematicaMetaData,
 ) -> *mut Schematic {
@@ -320,7 +320,7 @@ pub unsafe extern "C" fn mc_schem_schematic_load_litematica_from_reader(
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_schematic_load_vanilla_structure_from_reader(
     src: *mut rust_reader,
-    option: *const VanillaStructureLoadOption,
+    option: *const mirror_VanillaStructureLoadOption,
     error_dest: *mut *mut Error,
     raw_metadata_dest: *mut *mut VanillaStructureMetaData,
 ) -> *mut Schematic {
@@ -345,7 +345,7 @@ pub unsafe extern "C" fn mc_schem_schematic_load_vanilla_structure_from_reader(
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_schematic_load_world_edit13_from_reader(
     src: *mut rust_reader,
-    option: *const WorldEdit13LoadOption,
+    option: *const mirror_WorldEdit13LoadOption,
     error_dest: *mut *mut Error,
     raw_metadata_dest: *mut *mut WE13MetaData,
 ) -> *mut Schematic {
@@ -367,7 +367,7 @@ pub unsafe extern "C" fn mc_schem_schematic_load_world_edit13_from_reader(
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_schematic_load_world_edit12_from_reader(
     src: *mut rust_reader,
-    option: *const WorldEdit12LoadOption,
+    option: *const mirror_WorldEdit12LoadOption,
     error_dest: *mut *mut Error,
     raw_metadata_dest: *mut *mut WE12MetaData,
 ) -> *mut Schematic {
@@ -390,7 +390,7 @@ pub unsafe extern "C" fn mc_schem_schematic_load_world_edit12_from_reader(
 pub unsafe extern "C" fn mc_schem_schematic_save_litematica_to_writer(
     schem: *const Schematic,
     dest: *mut rust_writer,
-    option: *const LitematicaSaveOption,
+    option: *const mirror_LitematicaSaveOption,
 ) -> *mut Error {
     match schem
         .as_ref_unchecked()
@@ -405,7 +405,7 @@ pub unsafe extern "C" fn mc_schem_schematic_save_litematica_to_writer(
 pub unsafe extern "C" fn mc_schem_schematic_save_vanilla_structure_to_writer(
     schem: *const Schematic,
     dest: *mut rust_writer,
-    option: *const VanillaStructureSaveOption,
+    option: *const mirror_VanillaStructureSaveOption,
 ) -> *mut Error {
     match schem
         .as_ref_unchecked()
@@ -420,7 +420,7 @@ pub unsafe extern "C" fn mc_schem_schematic_save_vanilla_structure_to_writer(
 pub unsafe extern "C" fn mc_schem_schematic_save_world_edit13_to_writer(
     schem: *const Schematic,
     dest: *mut rust_writer,
-    option: *const WorldEdit13SaveOption,
+    option: *const mirror_WorldEdit13SaveOption,
 ) -> *mut Error {
     match schem
         .as_ref_unchecked()

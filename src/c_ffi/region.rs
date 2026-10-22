@@ -1,28 +1,30 @@
 /*
- mc_schem is a rust library to generate, load, manipulate and save minecraft
- schematic files. Copyright (C) 2026 ToKiNoBug
+mc_schem is a rust library to generate, load, manipulate and save minecraft
+schematic files. Copyright (C) 2026 ToKiNoBug
 
- This program is free software: you can redistribute it and/or modify it under
- the terms of the GNU General Public License as published by the Free Software
- Foundation, either version 3 of the License, or (at your option) any later
- version.
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
 
- This program is distributed in the hope that it will be useful, but WITHOUT ANY
- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
- PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
- You should have received a copy of the GNU General Public License
- along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
 
 use crate::block::Block;
-use crate::c_ffi::rust_string_receiver;
+use crate::c_ffi::{
+    mirror_MushroomStateUpdateOption, mirror_MushroomStatistic, rust_string_receiver,
+};
 use crate::error::Error;
 use crate::region::{Array3DVariant, BlockEntity, HasPalette, WorldSlice};
-use crate::schem::mushroom::{MushroomStateUpdateOption, MushroomStatistic};
 use crate::{Entity, PendingTick, Region};
 use std::ffi::{c_char, c_void, CStr};
 use std::ptr::{null, null_mut, slice_from_raw_parts};
+use crate::schem::mushroom::MushroomStateUpdateOption;
 
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_create_region(
@@ -441,8 +443,24 @@ pub unsafe extern "C" fn mc_schem_region_shrink_palette(region: *mut Region) -> 
 }
 // mushroom_statistic mc_schem_region_update_mushroom_state(region*, bool canonicalize_block_id);
 #[no_mangle]
-pub unsafe extern "C" fn mc_schem_region_update_mushroom_state(region: *mut Region, option: *const MushroomStateUpdateOption) -> MushroomStatistic {
-    region.as_mut_unchecked().update_mushroom_state(option.as_ref_unchecked())
+pub unsafe extern "C" fn mc_schem_region_update_mushroom_state(
+    region: *mut Region,
+    c_option: *const mirror_MushroomStateUpdateOption,
+) -> mirror_MushroomStatistic {
+    let option = MushroomStateUpdateOption {
+        canonicalize_block_id: (*c_option).canonicalize_block_id,
+    };
+
+    let result = region
+        .as_mut_unchecked()
+        .update_mushroom_state(&option);
+
+    mirror_MushroomStatistic {
+        mushroom_total_num: result.mushroom_total_num,
+        mushroom_corrected_num: result.mushroom_corrected_num,
+        palette_growth: result.palette_growth,
+        _reserved: [0; 46],
+    }
 }
 
 // void mc_schem_region_fill_with(region*, const block* blk);

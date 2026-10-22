@@ -83,7 +83,7 @@ class world_edit13_metadata;
 class vanilla_structure_metadata;
 
 /// Copy rust str to std::string
-struct rust_string_receiver {
+struct alignas(8) rust_string_receiver {
  private:
   static void callback_receive_string(const char8_t* str, size_t bytes,
                                       void* custom_data) {
@@ -99,7 +99,11 @@ struct rust_string_receiver {
 
   explicit rust_string_receiver(std::string& dest)
       : func_receive_string{callback_receive_string}, custom_data{&dest} {}
+
+private:
+  [[maybe_unused]] uint8_t reserved[48]{};
 };
+static_assert(sizeof(rust_string_receiver) == 64);
 
 namespace internal {
 inline void save_error_info(std::string_view msg, char* error_message_dest,
@@ -141,7 +145,12 @@ struct rust_reader {
       }
     };
   }
+
+private:
+  [[maybe_unused]] uint8_t reserved[48]{};
 };
+static_assert(sizeof(rust_reader) == 64);
+
 /// Encapsulate std::ofstream or std::vector into std::io::Write for rust
 struct rust_writer {
   size_t (*func_write)(const uint8_t* buf, size_t buf_bytes, bool* ok_nonnull,
@@ -217,50 +226,94 @@ struct rust_writer {
       return true;
     };
   }
+private:
+  [[maybe_unused]] uint8_t reserved[40]{};
 };
+static_assert(sizeof(rust_writer) == 64);
 
 /// Statistic result for updating mushroom state
-struct mushroom_statistic {
-  uint64_t mushroom_total_num;
-  uint64_t mushroom_corrected_num;
+struct alignas(8) mushroom_statistic  {
+  uint64_t mushroom_total_num{0};
+  uint64_t mushroom_corrected_num{0};
   /// More blocks appended to palette
-  uint16_t palette_growth;
-};
+  uint16_t palette_growth{0};
 
-struct mushroom_state_update_option {
+  [[maybe_unused]] uint8_t reserved[46]{};
+};
+static_assert(sizeof(mushroom_statistic) == 64);
+
+struct alignas(8) mushroom_state_update_option {
   /// Canonicalize mushroom block id. Palette may contain non-canonical mushroom
   /// block id, for example that skips some field in block state
   bool canonicalize_block_id{false};
-};
 
-struct vanilla_structure_load_option {
-  common_block background_block{common_block::structure_void};
+  [[maybe_unused]] uint8_t reserved[63]{};
 };
-struct vanilla_structure_save_option {
+static_assert(sizeof(mushroom_state_update_option) == 64);
+
+struct alignas(8) vanilla_structure_load_option {
+  common_block background_block{common_block::structure_void};
+  bool is_compressed{true};
+
+  [[maybe_unused]] uint8_t reserved[61]{};
+};
+static_assert(sizeof(vanilla_structure_load_option) == 64);
+
+struct alignas(8) vanilla_structure_save_option {
   uint32_t compress_level{9};
   /// If true, air blocks are explicitly written. Otherwise treated as
   /// structure_void. Vanilla structure is a sparse format that stores
   /// non-void blocks explicitly by position and block index
   bool keep_air{true};
+  [[maybe_unused]] uint8_t reserved[58]{};
 };
-struct litematica_load_option {};
-struct litematica_save_option {
+static_assert(sizeof(vanilla_structure_save_option) == 64);
+
+struct alignas(8)litematica_load_option {
+  /// True if loading from gzip-compressed input
+  bool is_compressed{true};
+
+  [[maybe_unused]] uint8_t reserved[63]{};
+};
+static_assert(sizeof(litematica_load_option) == 64);
+
+struct alignas(8)litematica_save_option {
   uint32_t compress_level{9};
   bool rename_duplicated_regions{true};
+
+  [[maybe_unused]] uint8_t reserved[59]{};
 };
-struct world_edit13_load_option {};
-struct world_edit13_save_option {
+static_assert(sizeof(litematica_save_option) == 64);
+
+struct alignas(8)world_edit13_load_option {
+  /// True if loading from gzip-compressed input
+  bool is_compressed{true};
+  
+  [[maybe_unused]] uint8_t reserved[63]{};
+};
+static_assert(sizeof(world_edit13_load_option) == 64);
+
+struct alignas(8)world_edit13_save_option {
   uint32_t compress_level{9};
   /// Schematic may contains multiple region but WE stores only 1 region in
   /// dense. Space inside volume but outside any region is filled with that
   /// background block.
   common_block background_block{common_block::air};
+
+  [[maybe_unused]] uint8_t reserved[58]{};
 };
-struct world_edit12_load_option {
+static_assert(sizeof(world_edit13_save_option) == 64);
+
+struct alignas(8)world_edit12_load_option {
   /// Data version of this schematic. Data version is not stored in
   /// `.schematic`, so we should assign it.
   int32_t data_version{1343};  // Java_1_12_2
+  /// True if loading from gzip-compressed input
+  bool is_compressed{true};
+
+  [[maybe_unused]] uint8_t reserved[59]{};
 };
+static_assert(sizeof(world_edit12_load_option) == 64);
 
 extern "C" {
 // destroy

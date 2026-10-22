@@ -100,7 +100,7 @@ struct alignas(8) rust_string_receiver {
   explicit rust_string_receiver(std::string& dest)
       : func_receive_string{callback_receive_string}, custom_data{&dest} {}
 
-private:
+ private:
   [[maybe_unused]] uint8_t reserved[48]{};
 };
 static_assert(sizeof(rust_string_receiver) == 64);
@@ -146,7 +146,7 @@ struct rust_reader {
     };
   }
 
-private:
+ private:
   [[maybe_unused]] uint8_t reserved[48]{};
 };
 static_assert(sizeof(rust_reader) == 64);
@@ -226,13 +226,14 @@ struct rust_writer {
       return true;
     };
   }
-private:
+
+ private:
   [[maybe_unused]] uint8_t reserved[40]{};
 };
 static_assert(sizeof(rust_writer) == 64);
 
 /// Statistic result for updating mushroom state
-struct alignas(8) mushroom_statistic  {
+struct alignas(8) mushroom_statistic {
   uint64_t mushroom_total_num{0};
   uint64_t mushroom_corrected_num{0};
   /// More blocks appended to palette
@@ -269,7 +270,7 @@ struct alignas(8) vanilla_structure_save_option {
 };
 static_assert(sizeof(vanilla_structure_save_option) == 64);
 
-struct alignas(8)litematica_load_option {
+struct alignas(8) litematica_load_option {
   /// True if loading from gzip-compressed input
   bool is_compressed{true};
 
@@ -277,7 +278,7 @@ struct alignas(8)litematica_load_option {
 };
 static_assert(sizeof(litematica_load_option) == 64);
 
-struct alignas(8)litematica_save_option {
+struct alignas(8) litematica_save_option {
   uint32_t compress_level{9};
   bool rename_duplicated_regions{true};
 
@@ -285,15 +286,15 @@ struct alignas(8)litematica_save_option {
 };
 static_assert(sizeof(litematica_save_option) == 64);
 
-struct alignas(8)world_edit13_load_option {
+struct alignas(8) world_edit13_load_option {
   /// True if loading from gzip-compressed input
   bool is_compressed{true};
-  
+
   [[maybe_unused]] uint8_t reserved[63]{};
 };
 static_assert(sizeof(world_edit13_load_option) == 64);
 
-struct alignas(8)world_edit13_save_option {
+struct alignas(8) world_edit13_save_option {
   uint32_t compress_level{9};
   /// Schematic may contains multiple region but WE stores only 1 region in
   /// dense. Space inside volume but outside any region is filled with that
@@ -304,7 +305,7 @@ struct alignas(8)world_edit13_save_option {
 };
 static_assert(sizeof(world_edit13_save_option) == 64);
 
-struct alignas(8)world_edit12_load_option {
+struct alignas(8) world_edit12_load_option {
   /// Data version of this schematic. Data version is not stored in
   /// `.schematic`, so we should assign it.
   int32_t data_version{1343};  // Java_1_12_2
@@ -2107,9 +2108,9 @@ class schematic {
   void merge_regions(const block& background_block) & {
     mc_schem_schematic_merge_regions(this, &background_block);
   }
-  /// Load a litematica (*.litematic) schematic from `is`, which must supply
-  /// decompressed nbt. Returns the schematic together with its raw litematica
-  /// metadata
+  /// Load a litematica (*.litematic) schematic from `is`. The stream raw nbt
+  /// unless `opt.is_compressed` is false. Returns the schematic together with
+  /// its raw litematica metadata
   [[nodiscard]] static std::expected<
       std::tuple<unique_schematic, unique_litematica_metadata>, unique_error>
   load_litematica(std::istream& is, const litematica_load_option& opt) {
@@ -2127,9 +2128,9 @@ class schematic {
     assert(err not_eq nullptr);
     return std::unexpected(unique_error{err});
   }
-  /// Load a vanilla structure (*.nbt) schematic from `is`, which must supply
-  /// decompressed nbt. Returns the schematic together with its raw vanilla
-  /// structure metadata
+  /// Load a vanilla structure (*.nbt) schematic from `is`. The stream is
+  /// raw nbt unless `opt.is_compressed` is false. Returns the schematic
+  /// together with its raw vanilla structure metadata
   [[nodiscard]] static std::expected<
       std::tuple<unique_schematic, unique_vanilla_structure_metadata>,
       unique_error>
@@ -2149,9 +2150,9 @@ class schematic {
     assert(err not_eq nullptr);
     return std::unexpected(unique_error{err});
   }
-  /// Load a WorldEdit 1.13+ (*.schem) schematic from `is`, which must supply
-  /// decompressed nbt. Returns the schematic together with its raw WorldEdit
-  /// metadata
+  /// Load a WorldEdit 1.13+ (*.schem) schematic from `is`. The stream is
+  /// raw nbt unless `opt.is_compressed` is false. Returns the schematic
+  /// together with its raw WorldEdit metadata
   [[nodiscard]] static std::expected<
       std::tuple<unique_schematic, unique_world_edit13_metadata>, unique_error>
   load_world_edit13(std::istream& is, const world_edit13_load_option& opt) {
@@ -2169,9 +2170,9 @@ class schematic {
     assert(err not_eq nullptr);
     return std::unexpected(unique_error{err});
   }
-  /// Load a WorldEdit 1.12 (*.schematic) schematic from `is`, which must supply
-  /// decompressed nbt. Returns the schematic together with its raw WorldEdit
-  /// metadata
+  /// Load a WorldEdit 1.12 (*.schematic) schematic from `is`. The stream is
+  /// raw nbt unless `opt.is_compressed` is false. Returns the schematic
+  /// together with its raw WorldEdit metadata
   [[nodiscard]] static std::expected<
       std::tuple<unique_schematic, unique_world_edit12_metadata>, unique_error>
   load_world_edit12(std::istream& is, const world_edit12_load_option& opt) {

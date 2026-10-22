@@ -18,11 +18,13 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <mc_schem.hpp>
 #include <optional>
 #include <print>
 #include <sstream>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -247,35 +249,82 @@ unique_schematic load_or_abort(const std::string& path) {
   return *std::move(result);
 }
 
-/// The reader based loaders take uncompressed nbt, while every fixture is
-/// gzipped, so feeding a file to them has to fail with an error
-void check_reader_rejects_gzip(const std::string& path) {
-  std::ifstream stream{path, std::ios::binary};
-  MC_SCHEM_CHECK(stream.is_open());
+/// Every fixture is gzipped, and the reader based loaders decompress by
+/// default. Both ends of that switch are checked here: the default option has
+/// to accept the fixture, and once the option says the stream holds plain nbt,
+/// the loader has to report an error instead of handing gzip bytes to the nbt
+/// parser.
+///
+/// The default is part of the contract: an option built with `{}` promises a
+/// compressed stream, which is what the writers produce.
+template <class option_type, class loader_type>
+void check_reader_compression(const std::string& path, option_type option,
+                              loader_type&& load) {
+  {
+    std::ifstream stream{path, std::ios::binary};
+    MC_SCHEM_CHECK(stream.is_open());
 
-  auto litematica =
-      schematic::load_litematica(stream, litematica_load_option{});
-  MC_SCHEM_CHECK(not litematica.has_value());
-  MC_SCHEM_CHECK(not litematica.error()->message().empty());
+    // `option` still carries the defaults, among them is_compressed
+    auto result = load(stream, option);
+    MC_SCHEM_CHECK(result.has_value());
+    const auto& loaded = *result;
+    MC_SCHEM_CHECK(std::get<0>(loaded) not_eq nullptr);
+    MC_SCHEM_CHECK(std::get<0>(loaded)->regions_count() >= 1);
+    MC_SCHEM_CHECK(std::get<1>(loaded) not_eq nullptr);
+  }
 
-  stream.clear();
-  stream.seekg(0);
-  auto vanilla = schematic::load_vanilla_structure(
-      stream, vanilla_structure_load_option{});
-  MC_SCHEM_CHECK(not vanilla.has_value());
-  MC_SCHEM_CHECK(not vanilla.error()->message().empty());
+  {
+    std::ifstream stream{path, std::ios::binary};
+    MC_SCHEM_CHECK(stream.is_open());
 
-  stream.clear();
-  stream.seekg(0);
-  auto we13 = schematic::load_world_edit13(stream, world_edit13_load_option{});
-  MC_SCHEM_CHECK(not we13.has_value());
-  MC_SCHEM_CHECK(not we13.error()->message().empty());
+    option.is_compressed = false;
+    auto result = load(stream, option);
+    MC_SCHEM_CHECK(not result.has_value());
+    MC_SCHEM_CHECK(not result.error()->message().empty());
+  }
+}
 
-  stream.clear();
-  stream.seekg(0);
-  auto we12 = schematic::load_world_edit12(stream, world_edit12_load_option{});
-  MC_SCHEM_CHECK(not we12.has_value());
-  MC_SCHEM_CHECK(not we12.error()->message().empty());
+/// Hand a fixture to the loader of its own format, so the compression switch is
+/// exercised on a document that loader really accepts
+void check_reader_compression(const std::string& path) {
+  if (path.ends_with(".litematic")) {
+    check_reader_compression(
+        path, litematica_load_option{},
+        [](std::istream& stream, const auto& option) {
+          return schematic::load_litematica(stream, option);
+        });
+  } else if (path.ends_with(".schem")) {
+    check_reader_compression(
+        path, world_edit13_load_option{},
+        [](std::istream& stream, const auto& option) {
+          return schematic::load_world_edit13(stream, option);
+        });
+  } else if (path.ends_with(".schematic")) {
+    check_reader_compression(
+        path, world_edit12_load_option{},
+        [](std::istream& stream, const auto& option) {
+          return schematic::load_world_edit12(stream, option);
+        });
+
+    // The data version of this format is chosen by the caller, and only the
+    // versions known to the library can be expressed. A value outside that set
+    // is refused before the nbt is even read
+    std::ifstream stream{path, std::ios::binary};
+    MC_SCHEM_CHECK(stream.is_open());
+    world_edit12_load_option option{};
+    option.data_version = std::numeric_limits<int32_t>::max();
+    auto result = schematic::load_world_edit12(stream, option);
+    MC_SCHEM_CHECK(not result.has_value());
+    MC_SCHEM_CHECK(not result.error()->message().empty());
+  } else if (path.ends_with(".nbt")) {
+    check_reader_compression(
+        path, vanilla_structure_load_option{},
+        [](std::istream& stream, const auto& option) {
+          return schematic::load_vanilla_structure(stream, option);
+        });
+  } else {
+    MC_SCHEM_CHECK(false);
+  }
 }
 
 }  // namespace
@@ -545,9 +594,9 @@ int main(int argc, char** argv) {
         MC_SCHEM_CHECK(reg->palette(0) not_eq nullptr);
       }
 
-      // The reader based loaders take uncompressed nbt, while the fixtures are
-      // gzipped, so they have to report an error instead of parsing
-      check_reader_rejects_gzip(path);
+      // The reader based loaders decompress by default, so they accept the
+      // gzipped fixtures, and refuse them once compression is switched off
+      check_reader_compression(path);
     }
   }
 

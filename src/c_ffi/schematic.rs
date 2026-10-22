@@ -1,31 +1,39 @@
 /*
- mc_schem is a rust library to generate, load, manipulate and save minecraft
- schematic files. Copyright (C) 2026 ToKiNoBug
+mc_schem is a rust library to generate, load, manipulate and save minecraft
+schematic files. Copyright (C) 2026 ToKiNoBug
 
- This program is free software: you can redistribute it and/or modify it under
- the terms of the GNU General Public License as published by the Free Software
- Foundation, either version 3 of the License, or (at your option) any later
- version.
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
 
- This program is distributed in the hope that it will be useful, but WITHOUT ANY
- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
- PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
- You should have received a copy of the GNU General Public License
- along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
 
 use crate::block::Block;
-use crate::c_ffi::{mirror_LitematicaLoadOption, rust_reader, rust_writer};
-use crate::schem::{LitematicaMetaData, VanillaStructureMetaData, WE12MetaData, WE13MetaData};
+use crate::c_ffi::{
+    mirror_LitematicaLoadOption, mirror_LitematicaSaveOption, mirror_VanillaStructureLoadOption,
+    mirror_VanillaStructureSaveOption, mirror_WorldEdit12LoadOption, mirror_WorldEdit13LoadOption,
+    mirror_WorldEdit13SaveOption, rust_reader, rust_writer,
+};
+use crate::schem::{
+    DataVersion, LitematicaMetaData, VanillaStructureMetaData, WE12MetaData, WE13MetaData,
+};
 use crate::{
     BlockEntity, Error, LitematicaLoadOption, LitematicaSaveOption, MetaDataIR, PendingTick,
     Region, Schematic, VanillaStructureLoadOption, VanillaStructureSaveOption,
     WorldEdit12LoadOption, WorldEdit13LoadOption, WorldEdit13SaveOption,
 };
+use flate2::read::GzDecoder;
+use flate2::Compression;
 use std::ffi::{c_char, CStr};
 use std::ptr::{null, null_mut};
+use strum::IntoEnumIterator;
 
 // [[nodiscard]] schematic* mc_schem_create_schematic();
 #[no_mangle]
@@ -298,11 +306,21 @@ pub unsafe extern "C" fn mc_schem_schematic_merge_regions(
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_schematic_load_litematica_from_reader(
     src: *mut rust_reader,
-    option: *const mirror_LitematicaLoadOption,
+    c_option: *const mirror_LitematicaLoadOption,
     error_dest: *mut *mut Error,
     raw_metadata_dest: *mut *mut LitematicaMetaData,
 ) -> *mut Schematic {
-    match Schematic::from_litematica_reader(src.as_mut_unchecked(), option.as_ref_unchecked()) {
+    let option = LitematicaLoadOption {};
+
+    let result;
+    if (*c_option).is_compressed {
+        let mut new_src = GzDecoder::new(src.as_mut_unchecked());
+        result = Schematic::from_litematica_reader(&mut new_src, &option);
+    } else {
+        result = Schematic::from_litematica_reader(src.as_mut_unchecked(), &option);
+    }
+
+    match result {
         Ok((schem, md)) => {
             *error_dest = null_mut();
             *raw_metadata_dest = Box::into_raw(Box::from(md));
@@ -320,14 +338,21 @@ pub unsafe extern "C" fn mc_schem_schematic_load_litematica_from_reader(
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_schematic_load_vanilla_structure_from_reader(
     src: *mut rust_reader,
-    option: *const mirror_VanillaStructureLoadOption,
+    c_option: *const mirror_VanillaStructureLoadOption,
     error_dest: *mut *mut Error,
     raw_metadata_dest: *mut *mut VanillaStructureMetaData,
 ) -> *mut Schematic {
-    match Schematic::from_vanilla_structure_reader(
-        src.as_mut_unchecked(),
-        option.as_ref_unchecked(),
-    ) {
+    let option = VanillaStructureLoadOption {
+        background_block: (*c_option).background_block,
+    };
+    let result = if (*c_option).is_compressed {
+        let mut decoder = GzDecoder::new(src.as_mut_unchecked());
+        Schematic::from_vanilla_structure_reader(&mut decoder, &option)
+    } else {
+        Schematic::from_vanilla_structure_reader(src.as_mut_unchecked(), &option)
+    };
+
+    match result {
         Ok((schem, md)) => {
             *error_dest = null_mut();
             *raw_metadata_dest = Box::into_raw(Box::from(md));
@@ -345,11 +370,20 @@ pub unsafe extern "C" fn mc_schem_schematic_load_vanilla_structure_from_reader(
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_schematic_load_world_edit13_from_reader(
     src: *mut rust_reader,
-    option: *const mirror_WorldEdit13LoadOption,
+    c_option: *const mirror_WorldEdit13LoadOption,
     error_dest: *mut *mut Error,
     raw_metadata_dest: *mut *mut WE13MetaData,
 ) -> *mut Schematic {
-    match Schematic::from_world_edit_13_reader(src.as_mut_unchecked(), option.as_ref_unchecked()) {
+    let option = WorldEdit13LoadOption {};
+
+    let result = if (*c_option).is_compressed {
+        let mut decoder = GzDecoder::new(src.as_mut_unchecked());
+        Schematic::from_world_edit_13_reader(&mut decoder, &option)
+    } else {
+        Schematic::from_world_edit_13_reader(src.as_mut_unchecked(), &option)
+    };
+
+    match result {
         Ok((schem, md)) => {
             *error_dest = null_mut();
             *raw_metadata_dest = Box::into_raw(Box::from(md));
@@ -367,11 +401,31 @@ pub unsafe extern "C" fn mc_schem_schematic_load_world_edit13_from_reader(
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_schematic_load_world_edit12_from_reader(
     src: *mut rust_reader,
-    option: *const mirror_WorldEdit12LoadOption,
+    c_option: *const mirror_WorldEdit12LoadOption,
     error_dest: *mut *mut Error,
     raw_metadata_dest: *mut *mut WE12MetaData,
 ) -> *mut Schematic {
-    match Schematic::from_world_edit_12_reader(src.as_mut_unchecked(), option.as_ref_unchecked()) {
+    // `DataVersion` is a safe enum, so a data version unknown to this crate
+    // can not be stored in `WorldEdit12LoadOption`. Report it instead of
+    // forging an invalid enum value.
+    let c_data_version = (*c_option).data_version;
+    let Some(data_version) = DataVersion::iter().find(|v| *v as i32 == c_data_version) else {
+        *error_dest = Box::into_raw(Box::from(Error::UnsupportedVersion {
+            data_version_i32: c_data_version,
+        }));
+        *raw_metadata_dest = null_mut();
+        return null_mut();
+    };
+    let option = WorldEdit12LoadOption { data_version };
+
+    let result = if (*c_option).is_compressed {
+        let mut decoder = GzDecoder::new(src.as_mut_unchecked());
+        Schematic::from_world_edit_12_reader(&mut decoder, &option)
+    } else {
+        Schematic::from_world_edit_12_reader(src.as_mut_unchecked(), &option)
+    };
+
+    match result {
         Ok((schem, md, _)) => {
             *error_dest = null_mut();
             *raw_metadata_dest = Box::into_raw(Box::from(md));
@@ -390,11 +444,15 @@ pub unsafe extern "C" fn mc_schem_schematic_load_world_edit12_from_reader(
 pub unsafe extern "C" fn mc_schem_schematic_save_litematica_to_writer(
     schem: *const Schematic,
     dest: *mut rust_writer,
-    option: *const mirror_LitematicaSaveOption,
+    c_option: *const mirror_LitematicaSaveOption,
 ) -> *mut Error {
+    let option = LitematicaSaveOption {
+        compress_level: Compression::new((*c_option).compress_level),
+        rename_duplicated_regions: (*c_option).rename_duplicated_regions,
+    };
     match schem
         .as_ref_unchecked()
-        .save_litematica_writer(dest.as_mut_unchecked(), option.as_ref_unchecked())
+        .save_litematica_writer(dest.as_mut_unchecked(), &option)
     {
         Ok(_) => null_mut(),
         Err(err) => Box::into_raw(Box::from(err)),
@@ -405,11 +463,15 @@ pub unsafe extern "C" fn mc_schem_schematic_save_litematica_to_writer(
 pub unsafe extern "C" fn mc_schem_schematic_save_vanilla_structure_to_writer(
     schem: *const Schematic,
     dest: *mut rust_writer,
-    option: *const mirror_VanillaStructureSaveOption,
+    c_option: *const mirror_VanillaStructureSaveOption,
 ) -> *mut Error {
+    let option = VanillaStructureSaveOption {
+        compress_level: Compression::new((*c_option).compress_level),
+        keep_air: (*c_option).keep_air,
+    };
     match schem
         .as_ref_unchecked()
-        .save_vanilla_structure_writer(dest.as_mut_unchecked(), option.as_ref_unchecked())
+        .save_vanilla_structure_writer(dest.as_mut_unchecked(), &option)
     {
         Ok(_) => null_mut(),
         Err(err) => Box::into_raw(Box::from(err)),
@@ -420,11 +482,15 @@ pub unsafe extern "C" fn mc_schem_schematic_save_vanilla_structure_to_writer(
 pub unsafe extern "C" fn mc_schem_schematic_save_world_edit13_to_writer(
     schem: *const Schematic,
     dest: *mut rust_writer,
-    option: *const mirror_WorldEdit13SaveOption,
+    c_option: *const mirror_WorldEdit13SaveOption,
 ) -> *mut Error {
+    let option = WorldEdit13SaveOption {
+        compress_level: Compression::new((*c_option).compress_level),
+        background_block: (*c_option).background_block,
+    };
     match schem
         .as_ref_unchecked()
-        .save_world_edit_13_writer(dest.as_mut_unchecked(), option.as_ref_unchecked())
+        .save_world_edit_13_writer(dest.as_mut_unchecked(), &option)
     {
         Ok(_) => null_mut(),
         Err(err) => Box::into_raw(Box::from(err)),

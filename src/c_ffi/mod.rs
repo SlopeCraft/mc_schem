@@ -36,7 +36,7 @@ use std::collections::HashMap;
 use std::ffi::{c_char, c_void, CStr};
 use std::ptr::null_mut;
 use Box;
-use static_assertions::{const_assert, const_assert_eq};
+use static_assertions::const_assert;
 
 #[repr(C, align(8))]
 #[allow(non_camel_case_types)]

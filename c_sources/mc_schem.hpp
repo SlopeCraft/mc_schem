@@ -265,7 +265,7 @@ struct alignas(8) vanilla_structure_save_option {
   /// structure_void. Vanilla structure is a sparse format that stores
   /// non-void blocks explicitly by position and block index
   bool keep_air{true};
-  [[maybe_unused]] uint8_t reserved[58]{};
+  [[maybe_unused]] uint8_t reserved[59]{};
 };
 static_assert(sizeof(vanilla_structure_save_option) == 64);
 

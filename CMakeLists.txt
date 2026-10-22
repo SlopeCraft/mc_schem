@@ -46,11 +46,13 @@ endif ()
 
 if (NOT ${PROJECT_SOURCE_DIR} STREQUAL ${CMAKE_SOURCE_DIR})
     add_library(mc_schem::mc_schem ALIAS mc_schem)
-
-    cmake_language(DEFER mc_schem_export_shared_lib_location)
+    # Corrosion setup target properties with DEFER(something like run at exiting scope). So we also have to use DEFER,
+    # this will be executed after Corrosion's defer, so can get properties
+    cmake_language(DEFER CALL mc_schem_export_shared_lib_location)
     macro(mc_schem_export_shared_lib_location)
-        get_test_property(loc mc_schem-shared IMPORTED_LOCATION)
+        get_target_property(loc mc_schem-shared IMPORTED_LOCATION)
         message(STATUS "mc_schem_SHARED_LIB_LOCATION = ${loc}")
+        # This variable is useful for deploying
         set(mc_schem_SHARED_LIB_LOCATION ${loc} PARENT_SCOPE)
     endmacro()
 endif ()

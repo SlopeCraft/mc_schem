@@ -441,12 +441,13 @@ pub unsafe extern "C" fn mc_schem_region_shrink_palette(region: *mut Region) -> 
     }
     null_mut()
 }
-// mushroom_statistic mc_schem_region_update_mushroom_state(region*, bool canonicalize_block_id);
+// void mc_schem_region_update_mushroom_state(region*, const mushroom_state_update_option* options, mushroom_statistic* dest);
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_region_update_mushroom_state(
     region: *mut Region,
     c_option: *const mirror_MushroomStateUpdateOption,
-) -> mirror_MushroomStatistic {
+    dest: *mut mirror_MushroomStatistic,
+) {
     let option = MushroomStateUpdateOption {
         canonicalize_block_id: (*c_option).canonicalize_block_id,
     };
@@ -455,7 +456,7 @@ pub unsafe extern "C" fn mc_schem_region_update_mushroom_state(
         .as_mut_unchecked()
         .update_mushroom_state(&option);
 
-    mirror_MushroomStatistic {
+    *dest = mirror_MushroomStatistic {
         mushroom_total_num: result.mushroom_total_num,
         mushroom_corrected_num: result.mushroom_corrected_num,
         palette_growth: result.palette_growth,

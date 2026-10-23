@@ -97,11 +97,12 @@ struct alignas(8) rust_string_receiver {
                               void* custom_data){nullptr};
   void* custom_data{nullptr};
 
-  explicit rust_string_receiver(std::string& dest)
-      : func_receive_string{callback_receive_string}, custom_data{&dest} {}
-
  private:
   [[maybe_unused]] uint8_t reserved[48]{};
+
+ public:
+  explicit rust_string_receiver(std::string& dest)
+      : func_receive_string{callback_receive_string}, custom_data{&dest} {}
 };
 static_assert(sizeof(rust_string_receiver) == 64);
 
@@ -120,6 +121,10 @@ struct rust_reader {
                       void* custom_data){nullptr};
   void* custom_data{nullptr};
 
+ private:
+  [[maybe_unused]] uint8_t reserved[48]{};
+
+ public:
   explicit rust_reader(std::istream& is) : custom_data{&is} {
     func_read = [](uint8_t* dest, size_t dest_capacity, bool* ok,
                    char* error_message_dest, size_t error_message_capacity,
@@ -154,9 +159,6 @@ struct rust_reader {
       }
     };
   }
-
- private:
-  [[maybe_unused]] uint8_t reserved[48]{};
 };
 static_assert(sizeof(rust_reader) == 64);
 
@@ -169,6 +171,10 @@ struct rust_writer {
                      size_t error_message_capacity){nullptr};
   void* custom_data{nullptr};
 
+ private:
+  [[maybe_unused]] uint8_t reserved[40]{};
+
+ public:
   explicit rust_writer(std::ostream& os) : custom_data{&os} {
     func_write = [](const uint8_t* buf, size_t buf_bytes, bool* ok,
                     char* error_message_dest, size_t error_message_capacity,
@@ -235,9 +241,6 @@ struct rust_writer {
       return true;
     };
   }
-
- private:
-  [[maybe_unused]] uint8_t reserved[40]{};
 };
 static_assert(sizeof(rust_writer) == 64);
 
@@ -529,8 +532,9 @@ bool mc_schem_region_set_block_by_block(region*, int32_t x, int32_t y,
 // Complex operations for region
 ////////////////////////////////////////////////////////////////////////
 [[nodiscard]] error* mc_schem_region_shrink_palette(region*);
-[[nodiscard]] mushroom_statistic mc_schem_region_update_mushroom_state(
-    region*, const mushroom_state_update_option* options);
+void mc_schem_region_update_mushroom_state(
+    region*, const mushroom_state_update_option* options,
+    mushroom_statistic* dest);
 void mc_schem_region_fill_with(region*, const block* blk);
 void mc_schem_region_convert_to_sparse(region*);
 void mc_schem_region_convert_to_dense(region*);
@@ -1500,7 +1504,9 @@ class region {
   /// like Minecraft does.
   mushroom_statistic update_mushroom_state(
       const mushroom_state_update_option& option) & {
-    return mc_schem_region_update_mushroom_state(this, &option);
+    mushroom_statistic ret{};
+    mc_schem_region_update_mushroom_state(this, &option, &ret);
+    return ret;
   }
 
   /// Set every block of this region to `blk`

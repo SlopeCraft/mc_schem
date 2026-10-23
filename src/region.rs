@@ -734,14 +734,14 @@ impl Region {
             r_pos[2] + self.offset[2],
         ]
     }
-    /// Remove non-existing blocks from palette. Returns error if there is any block index that is
-    /// equal or greater than length of palette
-    pub fn shrink_palette(&mut self) -> Result<(), Error> {
+
+    /// Returns a statistic of blocks by palette
+    pub fn stat_blocks(&self) -> Result<Vec<u64>, Error> {
         let mut block_counter: Vec<u64> = Vec::new();
         block_counter.resize(self.palette.len(), 0);
 
-        let mut ret: Result<(), Error> = Ok(());
-        self.array_yzx.visit_dense(&mut |_, pos, blk_idx| {
+        let mut ret: Result<Vec<u64>, Error> = Ok(vec![]);
+        let mut visitor = |_, pos: &[usize; 3], blk_idx| {
             if let Err(_) = &ret {
                 return;
             }
@@ -752,12 +752,30 @@ impl Region {
                     block_index: blk_idx,
                     max_index: self.palette.len() as u16 - 1,
                 });
+                return;
             }
             block_counter[blk_idx as usize] += 1;
-        });
+        };
+
+        if self.array_yzx.is_dense() {
+            self.array_yzx.visit_dense(&mut visitor);
+        } else { //sparse
+            self.array_yzx.visit_non_zero(&mut visitor);
+        }
         if ret.is_err() {
             return ret;
         }
+
+        if let Array3DVariant::Sparse(sparse) = &self.array_yzx {
+            let num_implicit_zero = self.volume() - (sparse.num_non_zero() as u64);
+            block_counter[0] += num_implicit_zero;
+        }
+        Ok(block_counter)
+    }
+    /// Remove non-existing blocks from palette. Returns error if there is any block index that is
+    /// equal or greater than length of palette
+    pub fn shrink_palette(&mut self) -> Result<(), Error> {
+        let block_counter = self.stat_blocks()?;
 
         let mut id_map: Vec<u16> = Vec::new();
         id_map.resize(self.palette.len(), 65535);

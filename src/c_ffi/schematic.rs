@@ -14,7 +14,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-
+use std::cmp::min;
 use crate::block::Block;
 use crate::c_ffi::{
     mirror_LitematicaLoadOption, mirror_LitematicaSaveOption, mirror_VanillaStructureLoadOption,
@@ -447,7 +447,7 @@ pub unsafe extern "C" fn mc_schem_schematic_save_litematica_to_writer(
     c_option: *const mirror_LitematicaSaveOption,
 ) -> *mut Error {
     let option = LitematicaSaveOption {
-        compress_level: Compression::new((*c_option).compress_level),
+        compress_level: Compression::new(min((*c_option).compress_level, 9)),
         rename_duplicated_regions: (*c_option).rename_duplicated_regions,
     };
     match schem
@@ -466,7 +466,7 @@ pub unsafe extern "C" fn mc_schem_schematic_save_vanilla_structure_to_writer(
     c_option: *const mirror_VanillaStructureSaveOption,
 ) -> *mut Error {
     let option = VanillaStructureSaveOption {
-        compress_level: Compression::new((*c_option).compress_level),
+        compress_level: Compression::new(min((*c_option).compress_level, 9)),
         keep_air: (*c_option).keep_air,
     };
     match schem
@@ -485,7 +485,7 @@ pub unsafe extern "C" fn mc_schem_schematic_save_world_edit13_to_writer(
     c_option: *const mirror_WorldEdit13SaveOption,
 ) -> *mut Error {
     let option = WorldEdit13SaveOption {
-        compress_level: Compression::new((*c_option).compress_level),
+        compress_level: Compression::new(min((*c_option).compress_level, 9)),
         background_block: (*c_option).background_block,
     };
     match schem

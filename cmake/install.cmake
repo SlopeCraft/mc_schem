@@ -44,7 +44,8 @@ install(EXPORT mc_schem-targets
 include(CMakePackageConfigHelpers)
 write_basic_package_version_file(mc_schem-config-version.cmake
     VERSION ${PROJECT_VERSION}
-    COMPATIBILITY AnyNewerVersion)
+    COMPATIBILITY SameMajorVersion
+)
 
 configure_package_config_file(${PROJECT_SOURCE_DIR}/cmake/mc_schem-config.cmake.in
     ${PROJECT_BINARY_DIR}/mc_schem-config.cmake

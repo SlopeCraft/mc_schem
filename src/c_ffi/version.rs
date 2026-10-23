@@ -1,6 +1,6 @@
 #[no_mangle]
 pub extern "C" fn mc_schem_version() -> u32 {
-    0x01_03_00_00
+    0x01_03_01_00
 }
 
 #[no_mangle]

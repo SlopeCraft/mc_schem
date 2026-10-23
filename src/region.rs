@@ -507,7 +507,7 @@ impl WorldSlice for Region {
         }
         Self::pos_yzx_to_xyz(&[shape[0] as i32, shape[1] as i32, shape[2] as i32])
     }
-    ///Returns the count of blocks in region. Air will be counted if `include_air` is true, structure
+    /// Returns the count of blocks in region. Air will be counted if `include_air` is true, structure
     /// void is never counted.
     fn total_blocks(&self, include_air: bool) -> u64 {
         let air_idx_opt = self.block_index_of_air();
@@ -517,17 +517,18 @@ impl WorldSlice for Region {
         let mut counter = 0;
 
         for (blk_id, count) in blocks_counter.iter().enumerate() {
+            if let Some(sv_idx) = sv_idx_opt {
+                if blk_id == (sv_idx as usize) {
+                    continue
+                    // counter += 1;
+                }
+            }
             if let Some(air_idx) = air_idx_opt {
                 if blk_id == (air_idx as usize) && include_air {
-                    counter += 1;
+                    counter += count;
                 }
             }
 
-            if let Some(sv_idx) = sv_idx_opt {
-                if blk_id == (sv_idx as usize) {
-                    counter += 1;
-                }
-            }
         }
 
         counter

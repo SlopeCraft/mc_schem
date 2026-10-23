@@ -1535,8 +1535,8 @@ class region {
     mc_schem_region_visit_blocks(this, explicit_only, func, &visitor);
   }
 
-  /// Count of blocks in this region. Blocks are counted by palette entry: air
-  /// only counts when `include_air` is true, every other entry always counts
+  /// Returns the count of blocks in region. Air will be counted if
+  /// `include_air` is true, structure void is never counted.
   [[nodiscard]] uint64_t total_blocks(bool include_air) const& {
     return mc_schem_region_total_blocks(this, include_air);
   }

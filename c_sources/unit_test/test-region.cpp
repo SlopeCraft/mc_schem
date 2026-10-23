@@ -496,7 +496,7 @@ int main(int argc, char** argv) {
     copy->convert_to_sparse();
     MC_SCHEM_CHECK(copy->is_sparse());
 
-    uint64_t air_cells = 0, solid_cells = 0, structure_void_cells = 0;
+    uint64_t air_cells = 0, solid_cells = 0;
     for (int32_t x = 0; x < shape[0]; ++x) {
       for (int32_t y = 0; y < shape[1]; ++y) {
         for (int32_t z = 0; z < shape[2]; ++z) {
@@ -513,7 +513,7 @@ int main(int argc, char** argv) {
           if (blk->is_air()) {
             ++air_cells;
           } else if (blk->is_structure_void()) {
-            ++structure_void_cells;
+            // neither air nor a solid block, and never counted below
           } else {
             ++solid_cells;
           }
@@ -521,10 +521,10 @@ int main(int argc, char** argv) {
       }
     }
 
-    // total_blocks against an independent count over the same region
+    // total_blocks against an independent count over the same region. Structure
+    // void is never counted, air only on request
     MC_SCHEM_CHECK(cr.total_blocks(false) == solid_cells);
-    MC_SCHEM_CHECK(cr.total_blocks(true) ==
-                   solid_cells + air_cells + structure_void_cells);
+    MC_SCHEM_CHECK(cr.total_blocks(true) == solid_cells + air_cells);
 
     // Every palette entry has to be findable again, and asking to append one
     // that is already there must not grow the palette

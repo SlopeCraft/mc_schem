@@ -510,25 +510,20 @@ impl WorldSlice for Region {
     /// Returns the count of blocks in region. Air will be counted if `include_air` is true, structure
     /// void is never counted.
     fn total_blocks(&self, include_air: bool) -> u64 {
-        let air_idx_opt = self.block_index_of_air();
-        let sv_idx_opt = self.block_index_of_structure_void();
-
-        let (blocks_counter, _) = self.stat_blocks();
+        let (blocks_counter, _out_of_palette) = self.stat_blocks();
         let mut counter = 0;
 
+        // Every palette entry contributes on its own, so a palette that holds the
+        // same block twice is counted correctly as well
         for (blk_id, count) in blocks_counter.iter().enumerate() {
-            if let Some(sv_idx) = sv_idx_opt {
-                if blk_id == (sv_idx as usize) {
-                    continue
-                    // counter += 1;
-                }
+            let blk = &self.palette[blk_id];
+            if blk.is_structure_void() {
+                continue;
             }
-            if let Some(air_idx) = air_idx_opt {
-                if blk_id == (air_idx as usize) && include_air {
-                    counter += count;
-                }
+            if blk.is_air() && !include_air {
+                continue;
             }
-
+            counter += count;
         }
 
         counter

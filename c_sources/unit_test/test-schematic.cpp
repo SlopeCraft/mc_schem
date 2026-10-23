@@ -51,8 +51,15 @@ void check_aggregates(const schematic& schem) {
   }
   MC_SCHEM_CHECK(schem.volume() == expected_volume);
 
+  // `total_blocks` never counts structure void, so an exact comparison against
+  // the cell count is only possible for a region that does not carry it at all.
+  // A palette level lookup is enough for that and costs nothing.
+  auto structure_void = block::from_common(common_block::structure_void);
+  MC_SCHEM_CHECK(structure_void);
+
   uint64_t cells_of_all_regions = 0;
   uint64_t solid_blocks = 0;
+  uint64_t blocks_with_air = 0;
   for (size_t i = 0; i < schem.regions_count(); ++i) {
     const region* reg = schem.get_region(i);
     MC_SCHEM_CHECK(reg not_eq nullptr);
@@ -60,15 +67,22 @@ void check_aggregates(const schematic& schem) {
     for (size_t dim = 0; dim < 3; ++dim) {
       MC_SCHEM_CHECK(rshape[dim] >= 1);
     }
-    cells_of_all_regions +=
+    const uint64_t cells_of_region =
         static_cast<uint64_t>(rshape[0]) * rshape[1] * rshape[2];
+    cells_of_all_regions += cells_of_region;
+
     solid_blocks += reg->total_blocks(false);
+    blocks_with_air += reg->total_blocks(true);
+    if (not reg->find_in_palette(*structure_void).has_value()) {
+      MC_SCHEM_CHECK(reg->total_blocks(true) == cells_of_region);
+    }
   }
 
   // total_blocks walks every cell of every region, so the count includes the
   // cells of overlapping regions twice
-  MC_SCHEM_CHECK(schem.total_blocks(true) == cells_of_all_regions);
+  MC_SCHEM_CHECK(schem.total_blocks(true) == blocks_with_air);
   MC_SCHEM_CHECK(schem.total_blocks(false) == solid_blocks);
+  MC_SCHEM_CHECK(schem.total_blocks(true) <= cells_of_all_regions);
 }
 
 /// For every cell of every region, the "first hit" lookups of the schematic

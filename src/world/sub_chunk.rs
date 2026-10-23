@@ -76,8 +76,7 @@ impl WorldSlice for SubChunk {
                 }
             }
             if let Some(air_index) = air_index {
-                if include_air && air_index == idx {
-                    counter += 1;
+                if (air_index == idx) && !include_air {
                     continue;
                 }
             }

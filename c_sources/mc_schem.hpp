@@ -328,14 +328,24 @@ static_assert(sizeof(world_edit12_load_option) == 64);
 // Version and ABI anchors
 extern "C" {
 
-/// Returns 0x<major>'<minor>'<tweak>'<patch>. 1.3.0 -> 0x01'03'00'00
+/// Returns 0x<major>'<minor>'<patch>'<tweak>. 1.3.0 -> 0x01'03'00'00
 [[nodiscard]] uint32_t mc_schem_version();
-// version anchor for 1.3.0
-uint32_t mc_schem_v1_3_0_anchor();
+// version anchor for 1.3.0.
+uint32_t mc_schem_version_anchor_v1_3_0() noexcept;
 }
 namespace internal {
-inline const uint32_t anchor_v1_3_0 [[maybe_unused]] = mc_schem_v1_3_0_anchor();
-}
+/// Version anchor carriers. This const global variable forces downstream
+/// projects to call version anchor functions, so that dynamic link failure
+/// happens when expected dll version is lower than exact version. We know
+/// anchor functions is pure (no side effects), but compiler and linker don't.
+/// So LTO won't remove call to anchor functions.
+///
+/// Every ABI change should make a new anchor (and preserve
+/// all previous anchors). If breaking changes (different major version), remove
+/// previous anchors.
+inline const uint32_t anchor_v1_3_0 [[maybe_unused]] =
+    mc_schem_version_anchor_v1_3_0();
+}  // namespace internal
 
 extern "C" {
 // destroy
@@ -719,6 +729,20 @@ void mc_schem_schematic_merge_regions(schematic*,
 /// Save schematic to file, auto identify format by filename extension
 [[nodiscard]] error* mc_schem_schematic_save_to_file(const schematic*,
                                                      const char* filename);
+}
+
+[[nodiscard]] inline uint32_t version_number() { return mc_schem_version(); }
+
+[[nodiscard]] inline std::string version_string() {
+  const uint32_t v = version_number();
+  const uint32_t major = (v bitand 0xFF'00'00'00) >> 24;
+  const uint32_t minor = (v bitand 0x00'FF'00'00) >> 16;
+  const uint32_t patch = (v bitand 0x00'00'FF'00) >> 8;
+  const uint32_t tweak = (v bitand 0x00'00'00'FF) >> 0;
+  if (tweak > 0) {
+    return std::format("{}.{}.{}.{}", major, minor, patch, tweak);
+  }
+  return std::format("{}.{}.{}", major, minor, patch);
 }
 
 class deleter {

@@ -4,6 +4,6 @@ pub extern "C" fn mc_schem_version() -> u32 {
 }
 
 #[no_mangle]
-pub extern "C" fn mc_schem_v1_3_0_anchor() -> u32 {
+pub extern "C" fn mc_schem_version_anchor_v1_3_0() -> u32 {
     mc_schem_version()
 }

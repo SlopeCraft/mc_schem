@@ -19,6 +19,7 @@ use crate::block::Block;
 use crate::error::Error;
 use ndarray::Array3;
 use std::collections::{BTreeMap, HashMap};
+use crate::error::Error::BlockIndexOutOfRange;
 
 /// Sky light and block light
 #[derive(Debug, Copy, Clone)]
@@ -509,30 +510,26 @@ impl WorldSlice for Region {
     ///Returns the count of blocks in region. Air will be counted if `include_air` is true, structure
     /// void is never counted.
     fn total_blocks(&self, include_air: bool) -> u64 {
-        let mut counter = 0;
         let air_idx_opt = self.block_index_of_air();
         let sv_idx_opt = self.block_index_of_structure_void();
 
-        self.array_yzx
-            .visit_dense(&mut |_idx_1d: usize, _pos: &[usize; 3], blk_id: u16| {
-                if let Some(air_idx) = air_idx_opt {
-                    if blk_id == air_idx {
-                        if include_air {
-                            counter += 1;
-                        }
-                        return;
-                    }
-                }
+        let (blocks_counter, _) = self.stat_blocks();
+        let mut counter = 0;
 
-                if let Some(sv_idx) = sv_idx_opt {
-                    if blk_id == sv_idx {
-                        counter += 1;
-                        return;
-                    }
+        for (blk_id, count) in blocks_counter.iter().enumerate() {
+            if let Some(air_idx) = air_idx_opt {
+                if blk_id == (air_idx as usize) && include_air {
+                    counter += 1;
                 }
+            }
 
-                counter += 1;
-            });
+            if let Some(sv_idx) = sv_idx_opt {
+                if blk_id == (sv_idx as usize) {
+                    counter += 1;
+                }
+            }
+        }
+
         counter
     }
 
@@ -585,6 +582,26 @@ impl WorldSlice for Region {
             return &pts;
         }
         &[]
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct BlockIndexOutOfPaletteDetails {
+    /// Position of first out of palette
+    pub first_positon: [i32; 3],
+    /// Value of first out of palette
+    pub first_block_index: u16,
+    /// Total number that is out of palette
+    pub count: u64,
+}
+
+impl Default for BlockIndexOutOfPaletteDetails {
+    fn default() -> Self {
+        BlockIndexOutOfPaletteDetails {
+            first_positon: [0; 3],
+            first_block_index: 0,
+            count: 0,
+        }
     }
 }
 
@@ -736,22 +753,22 @@ impl Region {
     }
 
     /// Returns a statistic of blocks by palette
-    pub fn stat_blocks(&self) -> Result<Vec<u64>, Error> {
+    pub fn stat_blocks(&self) -> (Vec<u64>, Option<BlockIndexOutOfPaletteDetails>) {
         let mut block_counter: Vec<u64> = Vec::new();
         block_counter.resize(self.palette.len(), 0);
 
-        let mut ret: Result<Vec<u64>, Error> = Ok(vec![]);
+        let mut error =
+            BlockIndexOutOfPaletteDetails::default();
+
         let mut visitor = |_, pos: &[usize; 3], blk_idx| {
-            if let Err(_) = &ret {
-                return;
-            }
+
             if blk_idx as usize >= self.palette.len() {
                 let [y, z, x] = *pos;
-                ret = Err(Error::BlockIndexOutOfRangeWriting {
-                    r_pos: [x as i32, y as i32, z as i32],
-                    block_index: blk_idx,
-                    max_index: self.palette.len() as u16 - 1,
-                });
+                if error.count <= 0 {
+                    error.first_positon = [x as i32, y as i32, z as i32];
+                    error.first_block_index = blk_idx;
+                }
+                error.count += 1;
                 return;
             }
             block_counter[blk_idx as usize] += 1;
@@ -762,20 +779,33 @@ impl Region {
         } else { //sparse
             self.array_yzx.visit_non_zero(&mut visitor);
         }
-        if ret.is_err() {
-            return ret;
-        }
 
         if let Array3DVariant::Sparse(sparse) = &self.array_yzx {
             let num_implicit_zero = self.volume() - (sparse.num_non_zero() as u64);
             block_counter[0] += num_implicit_zero;
         }
-        Ok(block_counter)
+
+        let mut ret_err = None;
+        if error.count > 0 {
+            ret_err = Some(error);
+        }
+
+        (block_counter, ret_err)
     }
     /// Remove non-existing blocks from palette. Returns error if there is any block index that is
     /// equal or greater than length of palette
     pub fn shrink_palette(&mut self) -> Result<(), Error> {
-        let block_counter = self.stat_blocks()?;
+        let (block_counter, error_option) = self.stat_blocks();
+
+        if let Some(err) = error_option {
+            return Err(
+                BlockIndexOutOfRange {
+                    tag_path: "".to_string(),
+                    index: err.first_block_index as i32,
+                    range: [0, self.palette.len() as i32],
+                }
+            );
+        }
 
         let mut id_map: Vec<u16> = Vec::new();
         id_map.resize(self.palette.len(), 65535);

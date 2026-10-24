@@ -245,20 +245,24 @@ impl Sparse3DArray {
     }
     /// Visit all blocks including blank
     pub fn visit_dense<F: FnMut(usize, &[usize; 3], u16)>(&self, func: &mut F) {
-        let mut previous_idx_1d = 0usize;
+        let max = self.index_1d_max();
+
+        let mut idx_1d = 0usize;
         for (idx_1d_nz, value) in &self.elements {
-            for idx_1d in previous_idx_1d..*idx_1d_nz {
+            debug_assert!(*idx_1d_nz < max, "sparse index {} out of range {}", idx_1d_nz, max);
+            while idx_1d < *idx_1d_nz {
                 let idx_3d = Self::coordinate_1d_to_3d(idx_1d, &self.shape);
                 func(idx_1d, &idx_3d, 0);
+                idx_1d += 1;
             }
             let idx_3d = Self::coordinate_1d_to_3d(*idx_1d_nz, &self.shape);
             func(*idx_1d_nz, &idx_3d, *value);
-            previous_idx_1d = *idx_1d_nz;
+            idx_1d = *idx_1d_nz + 1;
         }
-
-        for idx_1d in previous_idx_1d..self.index_1d_max() {
+        while idx_1d < max {
             let idx_3d = Self::coordinate_1d_to_3d(idx_1d, &self.shape);
             func(idx_1d, &idx_3d, 0);
+            idx_1d += 1;
         }
     }
 

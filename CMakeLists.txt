@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(mc_schem VERSION 1.3.1 LANGUAGES C CXX)
+project(mc_schem VERSION 1.3.2 LANGUAGES C CXX)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 

@@ -830,7 +830,7 @@ impl Default for LitematicaSaveOption {
     }
 }
 
-/// Options to load litematica
+/// Options to load WorldEdit 1.13+ (*.schem)
 #[derive(Debug)]
 pub struct WorldEdit13LoadOption {}
 
@@ -841,7 +841,7 @@ impl WorldEdit13LoadOption {
     }
 }
 
-/// Options to save world edit 1.13+
+/// Options to save WorldEdit 1.13+ (*.schem)
 #[derive(Debug)]
 pub struct WorldEdit13SaveOption {
     /// Level of gzip compression, 0<= level <=9.
@@ -862,7 +862,7 @@ impl Default for WorldEdit13SaveOption {
     }
 }
 
-/// Options to load litematica
+/// Options to load  WorldEdit 1.12- (*.schematic)
 #[derive(Debug)]
 pub struct WorldEdit12LoadOption {
     /// Data version of this schematic. Data version is not stored in `.schematic`, so we should assign it.

@@ -29,7 +29,7 @@
 //! 2. `mc_schem` (cdylib)
 //!
 //!    C ffi for mc_schem
-//! 3. mc_schem C++ wrapper
+//! 3. `mc_schem` C++ wrapper
 //!
 //!    A header-only c++ wrapper based on C ffi of mc_schem
 //! 4. `schemtool` (executable)

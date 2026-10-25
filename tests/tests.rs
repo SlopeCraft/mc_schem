@@ -98,6 +98,7 @@ fn block_id_parse() {
 fn block_bits_required() {
     for palette_size in 0..258 {
         let bits = schem::litematica::block_required_bits(palette_size);
+        assert!(bits > 0);
         println!("{} blocks requires {} bit(s)", palette_size, bits);
     }
 }

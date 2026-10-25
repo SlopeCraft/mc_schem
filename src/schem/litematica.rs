@@ -241,12 +241,13 @@ fn parse_metadata(root: &HashMap<String, Value>) -> Result<LitematicaMetaData, E
 }
 
 pub fn block_required_bits(palette_size: usize) -> usize {
-    let palette_size = max(palette_size, 1);
+    let palette_size = max(palette_size, 2);
     let mut bits = 0;
     while (1 << bits) < palette_size {
         bits += 1;
     }
-    return bits;
+    debug_assert!(bits > 0);
+    bits
 }
 
 impl Region {

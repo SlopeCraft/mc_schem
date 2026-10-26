@@ -1,0 +1,54 @@
+name: Linux build
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-26.04
+    strategy:
+      matrix:
+        build_type: [ Release, Debug ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt update
+          sudo apt install clang-22 gcc-16 g++-16
+
+      - name: Rust build and test
+        if: matrix.built_type == 'Release'
+        run: |
+          cargo build --all --release
+          cargo test --release
+
+      - name: configure
+        run: |
+          cmake -S . -B build -G Ninja \
+          -DCMAKE_CXX_COMPILER=clang++-22 \
+          -DCMAKE_C_COMPILER=clang-22 \
+          -DCMAKE_BUILD_TYPE=${{ matrix.built_type }} \
+          -DCMAKE_INSTALL_PREFIX=install
+
+      - name: Build & install
+        run: |
+          cmake --build build --parallel
+          cmake --install build
+
+      - name: FFI unit test
+        run: |
+          cd build
+          ctest --parallel
+
+      - name: Find package test
+        run: |
+          cd tests/find_package
+          cmake -S . -B build -G Ninja -DCMAKE_PREFIX_PATH=/home/runner/work/mc_schem/mc_schem/install

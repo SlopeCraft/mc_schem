@@ -14,24 +14,29 @@ if (NOT TARGET mc_schem::schemtool)
 endif ()
 
 if (WIN32)
+    # Set dll and dll import lib
     set_target_properties(mc_schem::mc_schem-shared PROPERTIES
-        IMPORTED_LOCATION "${PACKAGE_PREFIX_DIR}/@MC_SCHEM_RUNTIME_REL@"
-        IMPORTED_IMPLIB "${PACKAGE_PREFIX_DIR}/@MC_SCHEM_LINK_REL@"
+        IMPORTED_LOCATION "${PACKAGE_PREFIX_DIR}/@mc_schem_runtime_relative_location@"
+        IMPORTED_IMPLIB "${PACKAGE_PREFIX_DIR}/@mc_schem_import_lib_relative_location@"
     )
     set_target_properties(mc_schem::schemtool PROPERTIES
-        IMPORTED_LOCATION "${PACKAGE_PREFIX_DIR}/@MC_SCHEM_schemtool_RUNTIME_REL@"
+        IMPORTED_LOCATION "${PACKAGE_PREFIX_DIR}/@schemtool_relative_location@"
     )
 else ()
+    # Set shared lib location
     set_target_properties(mc_schem::mc_schem-shared PROPERTIES
-        IMPORTED_LOCATION "${PACKAGE_PREFIX_DIR}/@MC_SCHEM_RUNTIME_REL@"
+        IMPORTED_LOCATION "${PACKAGE_PREFIX_DIR}/@mc_schem_runtime_relative_location@"
         IMPORTED_NO_SONAME TRUE
     )
     set_target_properties(mc_schem::schemtool PROPERTIES
-        IMPORTED_LOCATION "${PACKAGE_PREFIX_DIR}/@MC_SCHEM_schemtool_RUNTIME_REL@"
+        IMPORTED_LOCATION "${PACKAGE_PREFIX_DIR}/@schemtool_relative_location@"
     )
 endif ()
 
+# Tells outside the location of shared lib and executable
 get_target_property(mc_schem_SHARED_LIB_LOCATION mc_schem::mc_schem-shared IMPORTED_LOCATION)
+get_target_property(mc_schem_schemtool_LOCATION mc_schem::schemtool IMPORTED_LOCATION)
 set(mc_schem_SHARED_LIB_LOCATION ${mc_schem_SHARED_LIB_LOCATION})
+set(mc_schem_schemtool_LOCATION ${mc_schem_schemtool_LOCATION})
 
 check_required_components(mc_schem)

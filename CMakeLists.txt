@@ -34,3 +34,6 @@ if (${MC_SCHEM_INSTALL})
     include(cmake/install.cmake)
 endif ()
 
+if (${PROJECT_SOURCE_DIR} STREQUAL ${CMAKE_SOURCE_DIR})
+    include(CPack)
+endif ()

@@ -11,3 +11,7 @@ foreach (target_name ${required_targets})
     get_target_property(loc ${target_name} LOCATION)
     message(STATUS "${target_name} is at ${loc}")
 endforeach ()
+
+message(STATUS "Checking variables...")
+message("mc_schem_SHARED_LIB_LOCATION = ${mc_schem_SHARED_LIB_LOCATION}")
+message("mc_schem_schemtool_LOCATION = ${mc_schem_schemtool_LOCATION}")

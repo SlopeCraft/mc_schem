@@ -9,6 +9,10 @@ option(MC_SCHEM_ENABLE_TESTS "Build the C++ wrapper unit tests" ON)
 set(MC_SCHEM_RUST_BUILD_FLAGS "" CACHE STRING "Extra flags to build rust part. Passed to cargo.")
 option(MC_SCHEM_HAS_mdspan "Enable mdspan for schem. This is an option because some platforms are not very new" ON)
 
+if (${MC_SCHEM_ENABLE_TESTS})
+    enable_testing()
+endif ()
+
 include(GNUInstallDirs)
 
 include(cmake/corrosion.cmake)

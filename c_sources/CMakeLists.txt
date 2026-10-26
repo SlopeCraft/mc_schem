@@ -24,6 +24,5 @@ if (${MC_SCHEM_HAS_mdspan})
 endif ()
 
 if (${MC_SCHEM_ENABLE_TESTS})
-    enable_testing()
     add_subdirectory(unit_test)
 endif ()

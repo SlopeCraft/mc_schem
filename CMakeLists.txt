@@ -14,47 +14,20 @@ include(GNUInstallDirs)
 include(cmake/corrosion.cmake)
 find_package(Corrosion REQUIRED)
 
-corrosion_import_crate(
-    MANIFEST_PATH ${PROJECT_SOURCE_DIR}/Cargo.toml
-    CRATE_TYPES cdylib bin
-    CRATES mc_schem schemtool
-    FLAGS ${MC_SCHEM_RUST_BUILD_FLAGS}
-)
-target_sources(mc_schem INTERFACE
-    FILE_SET HEADERS
-    BASE_DIRS c_sources
-    FILES
-    c_sources/mc_schem.hpp
-)
-target_include_directories(mc_schem INTERFACE
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/c_sources>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-)
-target_link_directories(mc_schem INTERFACE
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_LIBDIR}>
-)
-target_compile_features(mc_schem INTERFACE cxx_std_23)
-if (${MC_SCHEM_HAS_mdspan})
-    target_compile_definitions(mc_schem INTERFACE MC_SCHEM_HAS_mdspan=1)
-endif ()
+add_subdirectory(c_sources)
 
-
-if (${MC_SCHEM_ENABLE_TESTS})
-    enable_testing()
-    add_subdirectory(c_sources/unit_test)
-endif ()
-
+get_target_property(loc mc_schem-shared IMPORTED_LOCATION)
+get_target_property(loc_schemtool schemtool IMPORTED_LOCATION)
 if (NOT ${PROJECT_SOURCE_DIR} STREQUAL ${CMAKE_SOURCE_DIR})
     add_library(mc_schem::mc_schem ALIAS mc_schem)
-    # Corrosion setup target properties with DEFER(something like run at exiting scope). So we also have to use DEFER,
-    # this will be executed after Corrosion's defer, so can get properties
-    cmake_language(DEFER CALL mc_schem_export_shared_lib_location)
-    macro(mc_schem_export_shared_lib_location)
-        get_target_property(loc mc_schem-shared IMPORTED_LOCATION)
-        message(STATUS "mc_schem_SHARED_LIB_LOCATION = ${loc}")
-        # This variable is useful for deploying
-        set(mc_schem_SHARED_LIB_LOCATION ${loc} PARENT_SCOPE)
-    endmacro()
+    add_library(mc_schem::mc_schem-shared ALIAS mc_schem)
+    add_executable(mc_schem::schemtool ALIAS schemtool)
+
+    message(STATUS "mc_schem_SHARED_LIB_LOCATION = ${loc}")
+    message(STATUS "mc_schem_schemtool_LOCATION = ${loc_schemtool}")
+    # This variable is useful for deploying
+    set(mc_schem_SHARED_LIB_LOCATION ${loc} PARENT_SCOPE)
+    set(mc_schem_schemtool_LOCATION ${loc_schemtool} PARENT_SCOPE)
 endif ()
 
 if (${MC_SCHEM_INSTALL})

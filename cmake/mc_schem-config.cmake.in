@@ -1,24 +1,37 @@
-@PACKAGE_INIT@
+#@PACKAGE_INIT@
 
+# Import installed targets
 if (NOT TARGET mc_schem::mc_schem)
     include(${CMAKE_CURRENT_LIST_DIR}/mc_schem-targets.cmake)
 endif ()
-
+# Create targets if missing
 if (NOT TARGET mc_schem::mc_schem-shared)
     add_library(mc_schem::mc_schem-shared SHARED IMPORTED GLOBAL)
 endif ()
+
+if (NOT TARGET mc_schem::schemtool)
+    add_executable(mc_schem::schemtool IMPORTED GLOBAL)
+endif ()
+
 if (WIN32)
     set_target_properties(mc_schem::mc_schem-shared PROPERTIES
         IMPORTED_LOCATION "${PACKAGE_PREFIX_DIR}/@MC_SCHEM_RUNTIME_REL@"
         IMPORTED_IMPLIB "${PACKAGE_PREFIX_DIR}/@MC_SCHEM_LINK_REL@"
     )
+    set_target_properties(mc_schem::schemtool PROPERTIES
+        IMPORTED_LOCATION "${PACKAGE_PREFIX_DIR}/@MC_SCHEM_schemtool_RUNTIME_REL@"
+    )
 else ()
     set_target_properties(mc_schem::mc_schem-shared PROPERTIES
         IMPORTED_LOCATION "${PACKAGE_PREFIX_DIR}/@MC_SCHEM_RUNTIME_REL@"
-        IMPORTED_NO_SONAME TRUE)
+        IMPORTED_NO_SONAME TRUE
+    )
+    set_target_properties(mc_schem::schemtool PROPERTIES
+        IMPORTED_LOCATION "${PACKAGE_PREFIX_DIR}/@MC_SCHEM_schemtool_RUNTIME_REL@"
+    )
 endif ()
 
 get_target_property(mc_schem_SHARED_LIB_LOCATION mc_schem::mc_schem-shared IMPORTED_LOCATION)
-set(mc_schem_SHARED_LIB_LOCATION ${mc_schem_SHARED_LIB_LOCATION} PARENT_SCOPE)
+set(mc_schem_SHARED_LIB_LOCATION ${mc_schem_SHARED_LIB_LOCATION})
 
 check_required_components(mc_schem)

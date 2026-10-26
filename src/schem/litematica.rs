@@ -1,19 +1,21 @@
 /*
- mc_schem is a rust library to generate, load, manipulate and save minecraft
- schematic files. Copyright (C) 2026 ToKiNoBug
+mc_schem is a rust library to generate, load, manipulate and save minecraft
+schematic files. Copyright (C) 2026 ToKiNoBug
 
- This program is free software: you can redistribute it and/or modify it under
- the terms of the GNU General Public License as published by the Free Software
- Foundation, either version 3 of the License, or (at your option) any later
- version.
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
 
- This program is distributed in the hope that it will be useful, but WITHOUT ANY
- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
- PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
- You should have received a copy of the GNU General Public License
- along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+//! Load and save between schematic and litematica
 
 use crate::error::Error;
 use crate::region::{PendingTick, PendingTickInfo, WorldSlice};
@@ -187,7 +189,7 @@ fn parse_metadata(root: &HashMap<String, Value>) -> Result<LitematicaMetaData, E
         "".to_string(),
         "/Metadata/Description".to_string()
     )
-        .clone();
+    .clone();
     //result.total_volume = *unwrap_opt_tag!(md.get("TotalVolume"),Int,0,"/Metadata/TotalVolume".to_string()) as i64;
     result.author = unwrap_opt_tag!(
         md.get("Author"),
@@ -195,14 +197,14 @@ fn parse_metadata(root: &HashMap<String, Value>) -> Result<LitematicaMetaData, E
         "".to_string(),
         "/Metadata/Author".to_string()
     )
-        .clone();
+    .clone();
     result.name = unwrap_opt_tag!(
         md.get("Name"),
         String,
         "".to_string(),
         "/Metadata/Name".to_string()
     )
-        .clone();
+    .clone();
 
     result.total_volume = *unwrap_opt_tag!(
         md.get("TotalVolume"),
@@ -742,7 +744,7 @@ fn parse_pending_tick(
                 "".to_string(),
                 format!("{}/Block", tag_path)
             )
-                .clone(),
+            .clone(),
         };
     } else {
         pending_tick.info = PendingTickInfo::Fluid {
@@ -752,7 +754,7 @@ fn parse_pending_tick(
                 "".to_string(),
                 format!("{}/Fluid", tag_path)
             )
-                .clone(),
+            .clone(),
         };
     }
 

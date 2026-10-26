@@ -1,19 +1,19 @@
 /*
- mc_schem is a rust library to generate, load, manipulate and save minecraft
- schematic files. Copyright (C) 2026 ToKiNoBug
+mc_schem is a rust library to generate, load, manipulate and save minecraft
+schematic files. Copyright (C) 2026 ToKiNoBug
 
- This program is free software: you can redistribute it and/or modify it under
- the terms of the GNU General Public License as published by the Free Software
- Foundation, either version 3 of the License, or (at your option) any later
- version.
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
 
- This program is distributed in the hope that it will be useful, but WITHOUT ANY
- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
- PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
- You should have received a copy of the GNU General Public License
- along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
 
 //! A rust library to generate, load, manipulate and save minecraft schematic files.
 //! ## Supported formats:
@@ -41,28 +41,27 @@ use strum::Display;
 
 pub use fastnbt; // re-export since its types appear in the public API
 
-/// Implement minecraft block and string id parsing
 pub mod block;
-/// Errors in loading, saving and manipulating
+
 pub mod error;
 /// Number id parsing
 pub mod old_block;
-/// Implement region, entity, block entity and pending ticks
 pub mod region;
-/// Implement metadata, schematics and loading/saving
+
 pub mod schem;
 
 pub mod world;
 
-mod biome;
-#[cfg(not(target_arch = "wasm32"))] // c_ffi has compile errors on wasm32 so it is dissabled for now
+pub mod biome;
+
+#[cfg(not(target_arch = "wasm32"))] // c_ffi has compile errors on wasm32 so it is disabled for now
 mod c_ffi;
-mod item;
+pub mod entity;
+pub mod item;
 #[allow(dead_code)]
 mod player;
 #[allow(dead_code)]
 mod raid;
-mod entity;
 
 /// `Block` is a type of block with namespace and properties(aka attributes) in MC.
 pub type Block = block::Block;
@@ -92,11 +91,11 @@ pub type LitematicaSaveOption = schem::LitematicaSaveOption;
 pub type VanillaStructureLoadOption = schem::VanillaStructureLoadOption;
 /// Options to save vanilla structure
 pub type VanillaStructureSaveOption = schem::VanillaStructureSaveOption;
-/// Options to load litematica
+/// Options to load world edit 1.13+
 pub type WorldEdit13LoadOption = schem::WorldEdit13LoadOption;
 /// Options to save world edit 1.13+
 pub type WorldEdit13SaveOption = schem::WorldEdit13SaveOption;
-/// Options to load litematica
+/// Options to load world edit 1.12-
 pub type WorldEdit12LoadOption = schem::WorldEdit12LoadOption;
 /// Minecraft data versions.
 pub type DataVersion = schem::DataVersion;

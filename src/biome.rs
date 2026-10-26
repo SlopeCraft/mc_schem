@@ -1,26 +1,33 @@
 /*
- mc_schem is a rust library to generate, load, manipulate and save minecraft
- schematic files. Copyright (C) 2026 ToKiNoBug
+mc_schem is a rust library to generate, load, manipulate and save minecraft
+schematic files. Copyright (C) 2026 ToKiNoBug
 
- This program is free software: you can redistribute it and/or modify it under
- the terms of the GNU General Public License as published by the Free Software
- Foundation, either version 3 of the License, or (at your option) any later
- version.
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
 
- This program is distributed in the hope that it will be useful, but WITHOUT ANY
- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
- PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
- You should have received a copy of the GNU General Public License
- along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+//! Biomes in Minecraft.
+//!
+//! This module provides enumerate of Minecraft biomes. Note that There's not an official mapping
+//! from string to number, at least in wiki. We don't change existing number id (unless breaking
+//! changes). New biomes will be appended.
 
 use strum::{Display, EnumIter, IntoEnumIterator};
+use strum_macros::EnumString;
 
-/// Biome in Minecraft
+/// Biome in Minecraft.
 #[repr(u8)]
 #[allow(non_camel_case_types)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, EnumIter, Display)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, EnumIter, Display, EnumString)]
 pub enum Biome {
     the_void = 0,
     plains = 1,
@@ -86,6 +93,9 @@ pub enum Biome {
     end_midlands = 61,
     small_end_islands = 62,
     end_barrens = 63,
+    sulfur_caves = 64,
+    dappled_forest = 65,
+    ice_caves = 66,
 }
 
 impl Biome {

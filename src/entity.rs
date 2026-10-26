@@ -15,11 +15,11 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! This module provides a thin wrapper around NBT of minecraft entity. Entity is a huge content
-//! with too many parent and child classes. This crate don't try to parse every kind of entity,
-//! but just a subset of compulsory tags. `id` and `position` are compulsory for this crate, and
-//! all other unknown tags are stored in `tags`.
-
+//! A thin wrapper around NBT of minecraft entity.
+//!
+//! Entity is a huge content with too many parent and child classes. This crate don't try to
+//! parse every kind of entity, but just a subset of compulsory tags. `id` and `position` are
+//! compulsory for this crate, and all other unknown tags are stored in `tags`.
 
 use crate::region::Entity;
 use crate::schem::{common, id_of_nbt_tag};

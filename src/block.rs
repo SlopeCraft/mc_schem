@@ -15,11 +15,12 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! This module implements parsing and serialization of minecraft blocks. Block id string like
-//! `minecraft:mushroom_block[up=true]` is parsed into namespace, id and attributes. Blocks support
-//! compare(Eq), clone(Clone) and hash(Hash). You can also parse a block from number id (1.12-,
-//! before flattening) to string id before flattening. However, backward conversion(string to number)
-//! is not supported; flattening and deflattening are valuable but hard, may be added in the future.
+//! Parsing and serialization of minecraft blocks.
+//!
+//! Block id string like `minecraft:mushroom_block[up=true]` is parsed into namespace, id and attributes. locks support compare(Eq), clone(Clone) and hash(Hash). You can also parse a block from number
+//! id (1.12-, before flattening) to string id before flattening. However, backward conversion
+//! (string to number) is not supported; flattening and deflattening are valuable but hard, may
+//! be added in the future.
 
 use fastnbt::Value;
 use std::collections::{BTreeMap, HashMap};
@@ -397,7 +398,7 @@ impl Block {
     ///Set property of a block
     pub fn set_property<V: ?Sized>(&mut self, key: &str, value: &V)
     where
-            for<'a> &'a V: Display,
+        for<'a> &'a V: Display,
     {
         self.attributes.insert(key.to_string(), value.to_string());
     }

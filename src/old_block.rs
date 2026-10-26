@@ -1,19 +1,24 @@
 /*
- mc_schem is a rust library to generate, load, manipulate and save minecraft
- schematic files. Copyright (C) 2026 ToKiNoBug
+mc_schem is a rust library to generate, load, manipulate and save minecraft
+schematic files. Copyright (C) 2026 ToKiNoBug
 
- This program is free software: you can redistribute it and/or modify it under
- the terms of the GNU General Public License as published by the Free Software
- Foundation, either version 3 of the License, or (at your option) any later
- version.
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
 
- This program is distributed in the hope that it will be useful, but WITHOUT ANY
- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
- PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
- You should have received a copy of the GNU General Public License
- along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+//! Parse 1.12- number id (of blocks) to 1.12- string id.
+//!
+//! Note that this module doesn't handle with flattening. The huge difference between 1.12- and
+//! 1.13+ is kept. This module has strict check on number id and damage value.
 
 use crate::block::Block;
 use crate::region::BlockEntity;
@@ -1272,7 +1277,7 @@ impl Block {
         if [
             53, 67, 108, 109, 114, 128, 134, 135, 136, 156, 163, 164, 180, 203,
         ]
-            .contains(&id)
+        .contains(&id)
         {
             //stairs
             let facing = index_to_stairs_facing(damage & 0b11);

@@ -1,26 +1,28 @@
 /*
- mc_schem is a rust library to generate, load, manipulate and save minecraft
- schematic files. Copyright (C) 2026 ToKiNoBug
+mc_schem is a rust library to generate, load, manipulate and save minecraft
+schematic files. Copyright (C) 2026 ToKiNoBug
 
- This program is free software: you can redistribute it and/or modify it under
- the terms of the GNU General Public License as published by the Free Software
- Foundation, either version 3 of the License, or (at your option) any later
- version.
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
 
- This program is distributed in the hope that it will be useful, but WITHOUT ANY
- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
- PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
- You should have received a copy of the GNU General Public License
- along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+//! Enumerates data version of minecraft
 
 use std::cmp::Ordering;
 use strum::Display;
 use strum_macros::EnumIter;
 
 /// Minecraft data versions.
-/// Data version was introduced in snapshot 15w32a. Data version before 15w32a has no meaning without
+/// Data version was introduced in snapshot 15w32a. Data version before 15w32a has no meaning out of
 /// this crate, we assign i32 to these versions simply to satisfy the requirement of rust enumeration
 #[allow(non_camel_case_types)]
 #[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Copy, Clone, Display, EnumIter)]

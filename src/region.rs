@@ -16,24 +16,27 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 //! Region is a part of MineCraft world including blocks, entities, tile entities(block entities)
-//! and pending ticks(for fluid). A schematic consists of one or multiple regions. Blocks in region
-//! is stored as 3D array of index(`u16`) with a palette(array of `Block`). By default, region is
-//! dense, but for very large regions they can be also sparse.
+//! and pending ticks(for fluid).
 //!
-//! Block indices are stored as `u16`. Up to 2026.10 this is enough. By 26.2, vanilla minecraft has
-//! at most 32366 blockstates. In consideration of copper mania in mojang, probably we have to switch
-//! to `u32` in several years and that have to be a breaking change.
+//! A schematic consists of one or multiple regions. Blocks in region is stored as 3D array of
+//! index(`u16`) with a palette(array of `Block`). By default, region is dense, but for very
+//! large regions they can be also sparse.
 //!
-//! For index array, dense region uses `Array3<u16>`. While sparse array internally uses `BTree` to
-//! store non-zero elements. Sparse array requires most blocks in region have index 0 (first block
-//! in palette), so they are stored implicitly to save memory.
+//! Block indices are stored as `u16`. Up to 2026.10 this is enough. By 26.2, vanilla minecraft
+//! has at most 32366 blockstates. In consideration of copper mania in mojang, probably we have
+//! to switch to `u32` in several years and that have to be a breaking change.
+//!
+//! For index array, dense region uses `Array3<u16>`. While sparse array internally uses `BTree`
+//! to store non-zero elements. Sparse array requires most blocks in region have index 0 (first
+//! block in palette), so they are stored implicitly to save memory.
 //!
 //! Region supports plenty of basic operations to read/write blocks, entities, tile entities and
 //! pending ticks. Also, conversion between dense and sparse. For high level operations,
-//! `shrink_palette` removes non-referenced blocks from palette and updates index array; `visit_dense`
-//! and `visit_sparse` support visiting entire region. `stat_blocks` and `total_blocks` give block
-//! statistic of region. `update_mushroom_states` will update block states of connecting mushroom
-//! blocks. All above operations are supported by both dense and sparse mode.
+//! `shrink_palette` removes non-referenced blocks from palette and updates index array;
+//! `visit_dense` and `visit_sparse` support visiting entire region. `stat_blocks` and
+//! `total_blocks` give block statistic of region. `update_mushroom_states` will update block
+//! states of connecting mushroom blocks. All above operations are supported by both dense and
+//! sparse mode.
 //!
 //! For best practice, try your best to avoid duplication in palette. Try your best to keep palette
 //! unique, although sometimes there's no bug around them.

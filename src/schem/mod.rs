@@ -1,19 +1,24 @@
 /*
- mc_schem is a rust library to generate, load, manipulate and save minecraft
- schematic files. Copyright (C) 2026 ToKiNoBug
+mc_schem is a rust library to generate, load, manipulate and save minecraft
+schematic files. Copyright (C) 2026 ToKiNoBug
 
- This program is free software: you can redistribute it and/or modify it under
- the terms of the GNU General Public License as published by the Free Software
- Foundation, either version 3 of the License, or (at your option) any later
- version.
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
 
- This program is distributed in the hope that it will be useful, but WITHOUT ANY
- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
- PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
- You should have received a copy of the GNU General Public License
- along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+//! Schematic for minecraft mods.
+//!
+//! Supports Litematica(`*.litematica`), World Edit(`*.schem` and `*.schematic`), vanilla
+//! structure(`*.nbt`). BTW, blueprint in create mod is also vanilla structure.
 
 pub mod litematica;
 pub mod world_edit12;
@@ -21,9 +26,9 @@ pub mod world_edit13;
 
 pub mod common;
 pub mod mc_version;
+pub mod mushroom;
 pub mod schem_slice;
 pub mod vanilla_structure;
-pub mod mushroom;
 
 use crate::block::{Block, CommonBlock};
 use crate::error::Error;

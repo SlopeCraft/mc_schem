@@ -14,6 +14,9 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
+
+//! Update block states of mushrooms like minecraft
+
 use crate::region::{Array3DVariant, Region};
 use crate::Block;
 use std::collections::{BTreeMap, HashMap};
@@ -143,7 +146,7 @@ fn make_block_from_mushroom_info(kind: MushroomType, state: MushroomState) -> Bl
         MushroomType::Red => MUSHROOM_ID_RED,
         MushroomType::Stem => MUSHROOM_ID_STEM,
     }
-        .to_string();
+    .to_string();
     blk.attributes = state.as_attributes();
 
     blk

@@ -66,17 +66,17 @@ fn block_id_parse() {
         }
     }
 
-    let nopass_ids=[
-            "minecraft::air",
-            "minecraft:stone]",
-            "minecraft:birch_log[",
-            "jjj[axis=y]hay_block",
-            "mod_name:[color=white]stained_glass",
-            "stained_glass[mod_name:color=white]",
-            "minecraft:stone_slab[half=top,,variant=brick]",
-            "minecraft:red_mushroom_block[east=true,west=true,north=true,south=true,up=true,down=true,]",
-            "mushroom_stem[east=true,west=true,north=true,south=true,up=true,down=true###]"
-        ];
+    let nopass_ids = [
+        "minecraft::air",
+        "minecraft:stone]",
+        "minecraft:birch_log[",
+        "jjj[axis=y]hay_block",
+        "mod_name:[color=white]stained_glass",
+        "stained_glass[mod_name:color=white]",
+        "minecraft:stone_slab[half=top,,variant=brick]",
+        "minecraft:red_mushroom_block[east=true,west=true,north=true,south=true,up=true,down=true,]",
+        "mushroom_stem[east=true,west=true,north=true,south=true,up=true,down=true###]"
+    ];
     for id in nopass_ids {
         let blk_res = Block::from_id(id);
         match blk_res {
@@ -565,8 +565,8 @@ fn parse_full_blocks_mc12() {
         "./test_files/litematica/full-blocks-1.12.2.litematic",
         &LitematicaLoadOption::default(),
     )
-    .unwrap()
-    .0;
+        .unwrap()
+        .0;
     let lite_region = &litematic.regions[0];
     for dim in 0..3 {
         assert_eq!(
@@ -665,8 +665,8 @@ fn make_mc12_numeric_lut() {
         "./test_files/litematica/full-blocks-1.12.2.litematic",
         &LitematicaLoadOption::default(),
     )
-    .unwrap()
-    .0;
+        .unwrap()
+        .0;
 
     for dim in 0..3 {
         let nia_shape_xyz = Region::pos_yzx_to_xyz(&[
@@ -711,8 +711,8 @@ fn load_save_vanilla_structure() {
         "./test_files/vanilla_structure/test01.nbt",
         &VanillaStructureLoadOption::default(),
     )
-    .unwrap()
-    .0;
+        .unwrap()
+        .0;
 
     create_dir_all("./target/test/load_save_vanilla_structure").unwrap();
 
@@ -727,7 +727,7 @@ fn load_save_vanilla_structure() {
         "./target/test/load_save_vanilla_structure/out01.nbt",
         &VanillaStructureLoadOption::default(),
     )
-    .expect("Failed to load saved vanilla structure");
+        .expect("Failed to load saved vanilla structure");
 }
 
 #[test]
@@ -809,7 +809,7 @@ fn load_save_world_edit12() {
         "./test_files/schematic/full-blocks-1.12.2.schematic",
         &WorldEdit12LoadOption::default(),
     )
-    .unwrap();
+        .unwrap();
 }
 
 #[test]
@@ -919,8 +919,8 @@ fn correct_test_litematica() {
         "./test_files/litematica/correct_test.litematic",
         &LitematicaLoadOption::default(),
     )
-    .unwrap()
-    .0;
+        .unwrap()
+        .0;
 
     for x in 0..schem.shape()[0] {
         for y in 0..schem.shape()[1] {
@@ -944,7 +944,7 @@ fn correct_test_litematica() {
 #[allow(unused_assignments)]
 fn correct_test_mc13_plus() {
     let test_versions = [
-        "1.14.4", "1.18.2", "1.19.4", "1.20.6", "1.21.11", "26.1.2", "26.2",
+        "1.14.4", "1.18.2", "1.19.4", "1.20.6", "1.21.11", "26.1.2", "26.2", "26.3"
     ];
     let mut err_counter = 0;
     for ver in test_versions {
@@ -1062,8 +1062,8 @@ fn test_merge_regions() {
         "./test_files/litematica/multi-region01.litematic",
         &LitematicaLoadOption::default(),
     )
-    .unwrap()
-    .0;
+        .unwrap()
+        .0;
     schem.merge_regions(&CommonBlock::Air.to_block());
 
     create_dir_all("./target/test/test_merge_regions").unwrap();
@@ -1100,7 +1100,7 @@ fn test_region_sparse() {
         "./test_files/litematica/full-blocks-26.2.litematic",
         &LitematicaLoadOption::default(),
     )
-    .unwrap();
+        .unwrap();
 
     assert_eq!(schem.regions.len(), 1);
     let region_dense = &schem.regions[0];

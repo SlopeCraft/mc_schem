@@ -1,6 +1,7 @@
 ---
 Language: Cpp
 BasedOnStyle: Google
+SortIncludes: Never
 #AccessModifierOffset: -1
 #AlignAfterOpenBracket: Align
 #AlignArrayOfStructures: None

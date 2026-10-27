@@ -33,12 +33,11 @@ jobs:
       - name: Large rust test
         if: matrix.build_type == 'Release'
         run: |
-          cd ~/Downloads
+          cd ./test_files/world
           wget https://github.com/SlopeCraft/mc_schem/releases/download/v1.3.0/01_large-world-1.20.2.7z 
           echo "078ee2a2b58ae42dbed7b97ad1db9a9601ae65458e9aee2e527e0a23d327cbad 01_large-world-1.20.2.7z" > checksums.sha256
           sha256sum -c checksums.sha256
           cd ${{ github.workspace }}
-          mv ~/Downloads/01_large-world-1.20.2.7z ./test_files/world
           cargo test --release -- --ignored
 
       - name: configure

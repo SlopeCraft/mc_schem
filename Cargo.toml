@@ -13,7 +13,7 @@ build = "build.rs"
 #license-file = "LICENSE"
 keywords = ["Minecraft"]
 categories = ["game-development"]
-include = ["/src", "/tests", "/docs", "/c_sources", "/cmake", "/CMakeLists.txt", "/build.rs", "/res"]
+include = ["/src", "/tests", "/docs", "/examples", "/c_sources", "/cmake", "/CMakeLists.txt", "/build.rs", "/res"]
 
 # Example of customizing the library in Cargo.toml.
 [lib]

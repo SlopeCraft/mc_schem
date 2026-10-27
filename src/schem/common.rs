@@ -23,7 +23,7 @@ use crate::region::{BlockEntity, Entity};
 use crate::{schem::id_of_nbt_tag, unwrap_opt_tag, unwrap_tag};
 use fastnbt::Value;
 use std::collections::HashMap;
-use std::fmt::Display;
+use std::fmt::{format, Display};
 use std::ops::{Add, Range};
 use web_time;
 use web_time::SystemTime;
@@ -104,6 +104,22 @@ pub fn parse_size_list(
     }
 
     return Ok(result);
+}
+
+pub fn parse_position_list(pos: &[Value], tag_path: &str) -> Result<[f64; 3], Error> {
+    if pos.len() != 3 {
+        return Err(Error::InvalidValue {
+            tag_path: tag_path.to_string(),
+            error: format!("Expected list contains 3 doubles, but found {}", pos.len()),
+        });
+    }
+    let mut result = [0., 0., 0.];
+    for dim in 0..3 {
+        let cur_tag_path = format!("{tag_path}[{}]", dim);
+        result[dim] = unwrap_tag!(pos[dim], Double, 0.0, cur_tag_path);
+    }
+
+    Ok(result)
 }
 
 pub fn ceil_up_to(a: isize, b: isize) -> isize {

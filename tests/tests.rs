@@ -1,19 +1,19 @@
 /*
- mc_schem is a rust library to generate, load, manipulate and save minecraft
- schematic files. Copyright (C) 2026 ToKiNoBug
+mc_schem is a rust library to generate, load, manipulate and save minecraft
+schematic files. Copyright (C) 2026 ToKiNoBug
 
- This program is free software: you can redistribute it and/or modify it under
- the terms of the GNU General Public License as published by the Free Software
- Foundation, either version 3 of the License, or (at your option) any later
- version.
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
 
- This program is distributed in the hope that it will be useful, but WITHOUT ANY
- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
- PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
- You should have received a copy of the GNU General Public License
- along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
 
 use fastnbt::Value;
 use flate2::read::GzDecoder;
@@ -779,7 +779,7 @@ fn load_save_world_edit13() {
     let out_dir = "./target/test/load_save_world_edit13";
     create_dir_all(out_dir).unwrap();
 
-    for id in 1..3 {
+    for id in 1..5 {
         let src_filename = format!("{}/test{:02}.schem", src_dir, id);
         let dst_filename = format!("{}/out{:02}.schem", out_dir, id);
 
@@ -1184,7 +1184,7 @@ fn test_update_mushroom_state_2() {
         "./test_files/litematica/full-blocks-1.21.11.litematic",
         &LitematicaLoadOption::default(),
     )
-        .unwrap();
+    .unwrap();
     let region = &mut schem.regions[0];
     let mut option = MushroomStateUpdateOption::default();
     option.canonicalize_block_id = true;

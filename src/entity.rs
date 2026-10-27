@@ -22,6 +22,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! compulsory for this crate, and all other unknown tags are stored in `tags`.
 
 use crate::region::Entity;
+use crate::schem::common::parse_position_list;
 use crate::schem::{common, id_of_nbt_tag};
 use crate::{unwrap_opt_tag, unwrap_tag, Error};
 use fastnbt::Value;
@@ -56,23 +57,11 @@ impl Entity {
         // parse Pos and blockPos
         {
             let tag_pos_path = format!("{}/Pos", tag_path);
-            let pos = unwrap_opt_tag!(nbt.remove("Pos"), List, vec![], tag_pos_path);
-            if pos.len() != 3 {
-                return Err(Error::InvalidValue {
-                    tag_path: tag_pos_path,
-                    error: format!(
-                        "Pos field for an entity should contain 3 doubles, but found {}",
-                        pos.len()
-                    ),
-                });
-            }
-            let mut pos_d = [0.0, 0.0, 0.0];
-            for dim in 0..3 {
-                let cur_tag_path = format!("{}/Pos[{}]", tag_path, dim);
-                pos_d[dim] = unwrap_tag!(pos[dim], Double, 0.0, cur_tag_path);
-                entity.block_pos[dim] = pos_d[dim] as i32;
-            }
+            let pos_nbt_list = unwrap_opt_tag!(nbt.remove("Pos"), List, vec![], tag_pos_path);
+            let pos_d = parse_position_list(&pos_nbt_list, &tag_pos_path)?;
+
             entity.position = pos_d;
+            entity.block_pos = [pos_d[0] as i32, pos_d[1] as i32, pos_d[2] as i32];
         }
         // parse id
 

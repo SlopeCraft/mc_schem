@@ -20,12 +20,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::block::Block;
 use crate::error::Error;
 use crate::region::{Array3DVariant, BlockEntity, Region, WorldSlice};
+use crate::schem::common::parse_position_list;
 use crate::schem::id_of_nbt_tag;
 use crate::schem::{
     common, MetaDataIR, Schematic, WE13MetaData, WE13MetaDataV3Extra, WorldEdit13LoadOption,
     WorldEdit13SaveOption,
 };
-use crate::{unwrap_opt_tag, unwrap_tag};
+use crate::{unwrap_opt_tag, unwrap_tag, Entity};
 use fastnbt::{SerOpts, Value};
 use flate2::read::GzDecoder;
 use flate2::GzBuilder;
@@ -192,7 +193,7 @@ fn parse_metadata(
                 );
             }
         }
-        let shape = Region::parse_size_v2(&nbt, "/", _option)?;
+        let shape = Region::parse_size_v2_v3(&nbt, "/", _option)?;
         we13.width = shape[0] as i16;
         we13.height = shape[1] as i16;
         we13.length = shape[2] as i16;
@@ -235,7 +236,7 @@ fn parse_metadata(
         } else {
             we13.v3_extra = None;
         }
-        let shape = Region::parse_size_v2(&nbt, "/Schematic", _option)?;
+        let shape = Region::parse_size_v2_v3(&nbt, "/Schematic", _option)?;
         we13.width = shape[0] as i16;
         we13.height = shape[1] as i16;
         we13.length = shape[2] as i16;
@@ -305,7 +306,7 @@ impl Region {
         return parse_palette(palette_comp, tag_path);
     }
 
-    fn parse_size_v2(
+    fn parse_size_v2_v3(
         nbt: &HashMap<String, Value>,
         tag_path: &str,
         _option: &WorldEdit13LoadOption,
@@ -326,7 +327,7 @@ impl Region {
         return Ok(sz);
     }
 
-    fn parse_3d_array_v2(
+    fn parse_3d_array_v2_v3(
         block_data: &[i8],
         tag_path: &str,
         _option: &WorldEdit13LoadOption,
@@ -394,8 +395,8 @@ impl Region {
         debug_assert!(idx == block_data.len());
         return Ok(array);
     }
-
-    fn parse_block_entities_v2(
+    // Shared by v2 and v3
+    fn parse_block_entities_v2_v3(
         block_entities: &mut [Value],
         tag_path: &str,
         _option: &WorldEdit13LoadOption,
@@ -420,6 +421,48 @@ impl Region {
         return Ok(result);
     }
 
+    fn parse_entities_v3(
+        entities: &mut [Value],
+        tag_path: &str,
+        _option: &WorldEdit13LoadOption,
+    ) -> Result<Vec<Entity>, Error> {
+        let mut result = Vec::with_capacity(entities.len());
+
+        for (idx, nbt) in entities.iter_mut().enumerate() {
+            let cur_tag_path = format!("{tag_path}[{}]", idx);
+            let nbt = unwrap_tag!(nbt, Compound, HashMap::new(), cur_tag_path);
+            let id = unwrap_opt_tag!(
+                nbt.remove("Id"),
+                String,
+                "".to_string(),
+                format!("{cur_tag_path}/Id")
+            );
+            let pos_path = format!("{cur_tag_path}/Pos");
+            let pos_nbt = unwrap_opt_tag!(nbt.remove("Pos"), List, vec![], &pos_path);
+            let pos = parse_position_list(&pos_nbt, &pos_path)?;
+
+            let mut tags = unwrap_opt_tag!(
+                nbt.remove("Data"),
+                Compound,
+                HashMap::new(),
+                format!("{cur_tag_path}/Data")
+            );
+            // this is often stored again, with position in world. But raw position in world is
+            // meaningless for schematics, so remove
+            tags.remove("Pos");
+
+            let entity = Entity {
+                tags,
+                position: pos,
+                block_pos: [pos[0] as i32, pos[1] as i32, pos[2] as i32],
+                id,
+            };
+            result.push(entity);
+        }
+
+        Ok(result)
+    }
+
     /// Load region from nbt, for `.schem` v2
     pub fn from_world_edit_13_v2(
         mut root: HashMap<String, Value>,
@@ -433,7 +476,7 @@ impl Region {
         // offset
         region.offset = [0, 0, 0];
 
-        let size: [i32; 3] = Self::parse_size_v2(&root, tag_path, option)?;
+        let size: [i32; 3] = Self::parse_size_v2_v3(&root, tag_path, option)?;
 
         // parse 3d array
         {
@@ -444,7 +487,7 @@ impl Region {
                 fastnbt::ByteArray::new(vec![]),
                 block_data_tag_path
             );
-            region.array_yzx = Array3DVariant::Dense(Self::parse_3d_array_v2(
+            region.array_yzx = Array3DVariant::Dense(Self::parse_3d_array_v2_v3(
                 block_data.as_ref(),
                 &block_data_tag_path,
                 option,
@@ -459,8 +502,10 @@ impl Region {
             let block_entities =
                 unwrap_opt_tag!(root.get_mut("BlockEntities"), List, vec![], be_tag_path);
             region.block_entities =
-                Self::parse_block_entities_v2(block_entities, &be_tag_path, option, size)?;
+                Self::parse_block_entities_v2_v3(block_entities, &be_tag_path, option, size)?;
         }
+        //TODO: Parse entities
+
         Ok(region)
     }
 
@@ -472,7 +517,7 @@ impl Region {
         let tag_schem_path = "/Schematic";
         let mut region = Region::new();
         //size
-        let size = Self::parse_size_v2(&tag_schem, tag_schem_path, option)?;
+        let size = Self::parse_size_v2_v3(&tag_schem, tag_schem_path, option)?;
 
         let tag_blocks_path = "/Schematic/Blocks";
         let tag_blocks = unwrap_opt_tag!(
@@ -501,7 +546,7 @@ impl Region {
                 fastnbt::ByteArray::new(vec![]),
                 tag_data_path
             );
-            region.array_yzx = Array3DVariant::Dense(Self::parse_3d_array_v2(
+            region.array_yzx = Array3DVariant::Dense(Self::parse_3d_array_v2_v3(
                 &tag_data,
                 tag_data_path,
                 option,
@@ -519,10 +564,22 @@ impl Region {
                 tag_be_path
             );
             region.block_entities =
-                Self::parse_block_entities_v2(tag_be, tag_be_path, option, size)?;
+                Self::parse_block_entities_v2_v3(tag_be, tag_be_path, option, size)?;
+        }
+        // entities
+        if tag_schem.contains_key("Entities") {
+            let tag_path_entities = "/Schematic/Entities";
+            let mut entities_nbt_list = unwrap_opt_tag!(
+                tag_schem.get_mut("Entities"),
+                List,
+                vec![],
+                tag_path_entities
+            );
+            region.entities =
+                Self::parse_entities_v3(&mut entities_nbt_list, tag_path_entities, option)?
         }
 
-        return Ok(region);
+        Ok(region)
     }
 }
 
@@ -816,6 +873,38 @@ impl Schematic {
         return Ok(be_list);
     }
 
+    fn save_entities_v3(&self) -> Vec<Value> {
+        let mut ret = Vec::new();
+        {
+            let mut entity_count = 0usize;
+            for reg in &self.regions {
+                entity_count += reg.entities.len();
+            }
+            ret.reserve(entity_count);
+        }
+
+        for reg in &self.regions {
+            for entity in &reg.entities {
+                let mut nbt = HashMap::new();
+
+                let mut data = entity.to_nbt();
+                debug_assert!(data.contains_key("id"));
+                data.remove("id");
+                nbt.insert("Id".to_string(), Value::String(entity.id.clone()));
+
+                debug_assert!(data.contains_key("Pos"));
+                let pos = data.remove("Pos").unwrap();
+                nbt.insert("Pos".to_string(), pos);
+
+                nbt.insert("Data".to_string(), Value::Compound(data));
+
+                ret.push(Value::Compound(nbt));
+            }
+        }
+
+        ret
+    }
+
     /// Save `.schem` v2 to nbt
     pub fn to_nbt_world_edit_13_v2(
         &self,
@@ -855,6 +944,7 @@ impl Schematic {
             let be_list = self.save_block_entities_v2(shape)?;
             root.insert("BlockEntities".to_string(), Value::List(be_list));
         }
+        // TODO: write entities
 
         return Ok(root);
     }
@@ -899,10 +989,18 @@ impl Schematic {
             tag_blocks.insert("BlockEntities".to_string(), Value::List(be_list));
         }
         tag_schem.insert("Blocks".to_string(), Value::Compound(tag_blocks));
+
+        {
+            let entity_list = self.save_entities_v3();
+            if !entity_list.is_empty() {
+                tag_schem.insert("Entities".to_string(), Value::List(entity_list));
+            }
+        }
+
         let mut root = HashMap::new();
         root.insert("Schematic".to_string(), Value::Compound(tag_schem));
 
-        return Ok(root);
+        Ok(root)
     }
 
     /// Save `.schem` to nbt

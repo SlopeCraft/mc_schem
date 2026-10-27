@@ -68,7 +68,8 @@ mc_schem::unique_block make_block(const std::string& full_id) {
 ///   mc_schem_region_set_block_by_block, mc_schem_region_shrink_palette,
 ///   mc_schem_region_fill_with, mc_schem_region_convert_to_sparse,
 ///   mc_schem_region_convert_to_dense, mc_schem_region_total_blocks,
-///   mc_schem_region_visit_blocks, mc_schem_region_update_mushroom_state
+///   mc_schem_region_visit_blocks, mc_schem_region_update_mushroom_state,
+///   mc_schem_region_stat_blocks
 /// The dense view section is only compiled with MC_SCHEM_HAS_mdspan, and covers
 ///   mc_schem_region_get_data, mc_schem_region_get_data_mut
 int main(int argc, char** argv) {
@@ -204,6 +205,29 @@ int main(int argc, char** argv) {
     const mushroom_statistic again = r->update_mushroom_state({});
     MC_SCHEM_CHECK(again.mushroom_total_num == 2);
     MC_SCHEM_CHECK(again.mushroom_corrected_num == 0);
+  }
+
+  // mc_schem_region_stat_blocks: one counter per palette entry, and the dense
+  // and sparse storages of the same content have to agree
+  {
+    auto r = region::create(2, 2, 2);
+    MC_SCHEM_CHECK(r);
+    auto stone = make_block("minecraft:stone");
+    r->set_block({0, 0, 0}, *stone);
+    r->set_block({1, 0, 0}, *stone);
+    r->set_block({0, 1, 0}, *stone);
+
+    const auto [counts, invalid] = r->stat_blocks();
+    MC_SCHEM_CHECK(counts.size() == r->palette_size());
+    MC_SCHEM_CHECK(counts[0] == 5);  // air
+    MC_SCHEM_CHECK(counts[1] == 3);  // stone
+    MC_SCHEM_CHECK(counts[0] + counts[1] == 8);
+    MC_SCHEM_CHECK(not invalid.has_value());
+
+    r->convert_to_sparse();
+    const auto [sparse_counts, sparse_invalid] = r->stat_blocks();
+    MC_SCHEM_CHECK(sparse_counts == counts);
+    MC_SCHEM_CHECK(not sparse_invalid.has_value());
   }
 
 #ifdef MC_SCHEM_HAS_mdspan

@@ -26,28 +26,28 @@ jobs:
 
       - name: Rust build and test
         run: |
-          if [ '${{ matrix.built_type }}' = 'Release' ]; then build_flag='--release'; else build_flag=''; fi
+          if [ "${{ matrix.build_type }}" = 'Release' ]; then build_flag='--release'; fi
           cargo build --all $build_flag
-          cargo test -j=default $build_flag
+          cargo test --package=mc_schem -j=default $build_flag
 
       - name: Large rust test
-        if: matrix.built_type == 'Release'
+        if: matrix.build_type == 'Release'
         run: |
           cd ~/Downloads
           wget https://github.com/SlopeCraft/mc_schem/releases/download/v1.3.0/01_large-world-1.20.2.7z 
           echo "078ee2a2b58ae42dbed7b97ad1db9a9601ae65458e9aee2e527e0a23d327cbad 01_large-world-1.20.2.7z" > checksums.sha256
           sha256sum -c checksums.sha256
-          cd /home/runner/work/mc_schem/mc_schem
+          cd ${{ github.workspace }}
           mv ~/Downloads/01_large-world-1.20.2.7z ./test_files/world
-          cargo test -- --ignored
+          cargo test --release -- --ignored
 
       - name: configure
         run: |
           cmake -S . -B build -G Ninja \
-          -DCMAKE_CXX_COMPILER=clang++-22 \
-          -DCMAKE_C_COMPILER=clang-22 \
-          -DCMAKE_BUILD_TYPE=${{ matrix.built_type }} \
-          -DCMAKE_INSTALL_PREFIX=install
+            -DCMAKE_CXX_COMPILER=clang++-22 \
+            -DCMAKE_C_COMPILER=clang-22 \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/install
 
       - name: Build & install
         run: |
@@ -62,4 +62,6 @@ jobs:
       - name: Find package test
         run: |
           cd tests/find_package
-          cmake -S . -B build -G Ninja -DCMAKE_PREFIX_PATH=/home/runner/work/mc_schem/mc_schem/install
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DCMAKE_PREFIX_PATH=${{ github.workspace }}/install

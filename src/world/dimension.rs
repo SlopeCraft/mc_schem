@@ -384,6 +384,7 @@ fn test_load_dimension() {
 }
 
 #[test]
+#[ignore = "Need downloading a larger binary archive"]
 fn test_large_overworld() {
     let begin = web_time::SystemTime::now();
     let files =

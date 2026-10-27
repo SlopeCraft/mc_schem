@@ -565,8 +565,8 @@ fn parse_full_blocks_mc12() {
         "./test_files/litematica/full-blocks-1.12.2.litematic",
         &LitematicaLoadOption::default(),
     )
-        .unwrap()
-        .0;
+    .unwrap()
+    .0;
     let lite_region = &litematic.regions[0];
     for dim in 0..3 {
         assert_eq!(
@@ -665,8 +665,8 @@ fn make_mc12_numeric_lut() {
         "./test_files/litematica/full-blocks-1.12.2.litematic",
         &LitematicaLoadOption::default(),
     )
-        .unwrap()
-        .0;
+    .unwrap()
+    .0;
 
     for dim in 0..3 {
         let nia_shape_xyz = Region::pos_yzx_to_xyz(&[
@@ -711,8 +711,8 @@ fn load_save_vanilla_structure() {
         "./test_files/vanilla_structure/test01.nbt",
         &VanillaStructureLoadOption::default(),
     )
-        .unwrap()
-        .0;
+    .unwrap()
+    .0;
 
     create_dir_all("./target/test/load_save_vanilla_structure").unwrap();
 
@@ -727,7 +727,7 @@ fn load_save_vanilla_structure() {
         "./target/test/load_save_vanilla_structure/out01.nbt",
         &VanillaStructureLoadOption::default(),
     )
-        .expect("Failed to load saved vanilla structure");
+    .expect("Failed to load saved vanilla structure");
 }
 
 #[test]
@@ -809,7 +809,7 @@ fn load_save_world_edit12() {
         "./test_files/schematic/full-blocks-1.12.2.schematic",
         &WorldEdit12LoadOption::default(),
     )
-        .unwrap();
+    .unwrap();
 }
 
 #[test]
@@ -919,8 +919,8 @@ fn correct_test_litematica() {
         "./test_files/litematica/correct_test.litematic",
         &LitematicaLoadOption::default(),
     )
-        .unwrap()
-        .0;
+    .unwrap()
+    .0;
 
     for x in 0..schem.shape()[0] {
         for y in 0..schem.shape()[1] {
@@ -944,7 +944,7 @@ fn correct_test_litematica() {
 #[allow(unused_assignments)]
 fn correct_test_mc13_plus() {
     let test_versions = [
-        "1.14.4", "1.18.2", "1.19.4", "1.20.6", "1.21.11", "26.1.2", "26.2", "26.3"
+        "1.14.4", "1.18.2", "1.19.4", "1.20.6", "1.21.11", "26.1.2", "26.2", "26.3",
     ];
     let mut err_counter = 0;
     for ver in test_versions {
@@ -1062,8 +1062,8 @@ fn test_merge_regions() {
         "./test_files/litematica/multi-region01.litematic",
         &LitematicaLoadOption::default(),
     )
-        .unwrap()
-        .0;
+    .unwrap()
+    .0;
     schem.merge_regions(&CommonBlock::Air.to_block());
 
     create_dir_all("./target/test/test_merge_regions").unwrap();
@@ -1100,7 +1100,7 @@ fn test_region_sparse() {
         "./test_files/litematica/full-blocks-26.2.litematic",
         &LitematicaLoadOption::default(),
     )
-        .unwrap();
+    .unwrap();
 
     assert_eq!(schem.regions.len(), 1);
     let region_dense = &schem.regions[0];
@@ -1194,59 +1194,3 @@ fn test_update_mushroom_state_2() {
     assert_eq!(stat.palette_growth, 0);
     assert_eq!(stat.mushroom_corrected_num, 0);
 }
-// #[test]
-// fn check_mca() {
-//     let filename = "F:\\Users\\Joseph\\Documents\\Games\\Minecraft\\PCL2\\.minecraft\\versions\\1.20.2-Fabric 0.15.6\\saves\\New World\\region\\r.0.0.mca";
-//
-//     let file_len = std::fs::metadata(filename).unwrap().len();
-//     let mut src = File::open(filename).unwrap();
-//
-//     let mut segments: Vec<[u8; 4096]> = vec![];
-//     segments.reserve((file_len / 4096) as usize);
-//
-//     loop {
-//         let mut seg = [0u8; 4096];
-//         let len = src.read(&mut seg).unwrap();
-//         if len == 0 {
-//             break;
-//         }
-//         if len != 4096 {
-//             panic!("Incomplete segment, expected 4096 bytes, but only {len} bytes");
-//         }
-//         segments.push(seg);
-//     }
-//
-//     fn parse_segment(segments: &[[u8; 4096]]) -> Result<HashMap<String, Value>, fastnbt::error::Error> {
-//         let mut bytes: &[u8];
-//         unsafe {
-//             bytes = &*slice_from_raw_parts(segments.as_ptr() as *const u8, segments.len() * 4096);
-//         }
-//
-//         let data_bytes;
-//         {
-//             let mut len_be: [u8; 4] = [0; 4];
-//             let temp = bytes.read(&mut len_be).unwrap();
-//             debug_assert!(temp == 4);
-//             data_bytes = u32::from_be_bytes(len_be);
-//         }
-//         let compress_byte: u8;
-//         {
-//             let mut b: [u8; 1] = [0];
-//             let temp = bytes.read(&mut b).unwrap();
-//             debug_assert!(temp == 1);
-//             compress_byte = b[0];
-//             assert!(compress_byte >= 1);
-//             assert!(compress_byte <= 3);
-//         }
-//         {
-//             assert_eq!(compress_byte, 2);//zlib
-//             let decoder = ZlibDecoder::new(bytes);
-//             fastnbt::from_reader(decoder)
-//         }
-//     }
-//
-//     let nbt = parse_segment(&segments[2..3]).unwrap();
-//     for (key, _) in &nbt {
-//         println!("\t{key}");
-//     }
-// }

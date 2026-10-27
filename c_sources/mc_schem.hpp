@@ -1603,6 +1603,12 @@ class region {
     uint16_t first_block_index;
     uint64_t count;
   };
+  /// Statistic blocks in region. Returns block count for every kind of block
+  /// in palette. If found any invalid block (index out of range), returns
+  /// their count and first block info. Invalid blocks are not included in
+  /// block count. Logically there shouldn't be invalid blocks, but for
+  /// robustness we don't require region to be good, we just return error
+  /// info like in rust.
   [[nodiscard]] std::pair<std::vector<uint64_t>,
                           std::optional<invalid_block_info>>
   stat_blocks() const& {

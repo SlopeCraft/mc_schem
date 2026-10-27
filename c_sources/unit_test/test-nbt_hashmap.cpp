@@ -19,6 +19,7 @@
 #include <mc_schem.hpp>
 #include <spanstream>
 #include <sstream>
+#include <string_view>
 #include <vector>
 
 #include "utils.hpp"
@@ -67,6 +68,29 @@ int main(int, char**) {
     empty->swap(*loaded);
     MC_SCHEM_CHECK(empty->size() == loaded_size);
     MC_SCHEM_CHECK(loaded->size() == 0);
+  }
+
+  // mc_schem_create_nbt_hashmap_from_snbt: one string that parses, one that does
+  // not. The input is taken as a string_view, so it needs no terminator.
+  {
+    // fastsnbt does not accept whitespace after the separator, so the string is
+    // written without any
+    auto parsed = nbt_hashmap::create_from_snbt(R"({foo:1,bar:"baz"})");
+    MC_SCHEM_CHECK(parsed.has_value());
+    MC_SCHEM_CHECK((*parsed)->size() == 2);
+
+    // A truncated compound is reported through the error, not through a handle
+    auto broken = nbt_hashmap::create_from_snbt("{foo:1");
+    MC_SCHEM_CHECK(not broken.has_value());
+    MC_SCHEM_CHECK(not broken.error().empty());
+
+    // Bytes that are not valid UTF-8 are rejected before the parser even runs
+    const char not_utf8_bytes[] = {static_cast<char>(0xff),
+                                   static_cast<char>(0xfe)};
+    auto not_utf8 = nbt_hashmap::create_from_snbt(
+        std::string_view{not_utf8_bytes, sizeof(not_utf8_bytes)});
+    MC_SCHEM_CHECK(not not_utf8.has_value());
+    MC_SCHEM_CHECK(not not_utf8.error().empty());
   }
 
   return 0;

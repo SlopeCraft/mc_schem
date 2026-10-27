@@ -104,6 +104,7 @@ struct alignas(8) rust_string_receiver {
   explicit rust_string_receiver(std::string& dest)
       : func_receive_string{callback_receive_string}, custom_data{&dest} {}
 };
+
 static_assert(sizeof(rust_string_receiver) == 64);
 
 namespace internal {
@@ -160,6 +161,7 @@ struct rust_reader {
     };
   }
 };
+
 static_assert(sizeof(rust_reader) == 64);
 
 /// Encapsulate std::ofstream or std::vector into std::io::Write for rust
@@ -399,6 +401,12 @@ void mc_schem_swap_schematic(schematic* a, schematic* b) noexcept;
 /// Create nbt hashmap from uncompressed binary (from istream)
 [[nodiscard]] nbt_hashmap* mc_schem_create_nbt_hashmap_from_binary_stream(
     rust_reader* src, const rust_string_receiver* error_message_receiver);
+/// Create nbt from sNBT string. Different from other APIs, here str don't have
+/// to be end with \0. This aims to support std::string_view and avoid deep
+/// copy, because snbt strings may be long
+[[nodiscard]] nbt_hashmap* mc_schem_create_nbt_hashmap_from_snbt(
+    const char* snbt_in_utf8, size_t len_in_bytes,
+    const rust_string_receiver* error_message_receiver);
 /// Size of this hashmap
 [[nodiscard]] size_t mc_schem_nbt_hashmap_get_size(const nbt_hashmap*);
 /// Dump nbt hashmap to ostream
@@ -836,7 +844,7 @@ class nbt_hashmap {
   /// Parse an uncompressed binary nbt document from a stream. Returns the top
   /// level tags, or the parser message if reading or parsing fails
   [[nodiscard]] static std::expected<unique_nbt_hashmap, std::string>
-  create_from_binary_stream(std::istream& is) {
+  create_from_binary(std::istream& is) {
     std::string error_msg;
     rust_string_receiver receiver{error_msg};
 
@@ -849,8 +857,33 @@ class nbt_hashmap {
     return unique_nbt_hashmap{ptr};
   }
 
+  /// Parse an uncompressed binary nbt document from a stream. Returns the top
+  /// level tags, or the parser message if reading or parsing fails
+  [[deprecated(
+      "Use create_from_binary(std::istream) "
+      "instead")]] [[nodiscard]] static std::expected<unique_nbt_hashmap,
+                                                      std::string>
+  create_from_binary_stream(std::istream& is) {
+    return create_from_binary(is);
+  }
+
   void swap(nbt_hashmap& another) & noexcept {
     mc_schem_swap_nbt_hashmap(this, &another);
+  }
+
+  /// Parse string nbt. Returns the top level tags, or the parser message if
+  /// reading or parsing fails. To avoid deep copy, snbt don't have to end with
+  /// \0
+  [[nodiscard]] static std::expected<unique_nbt_hashmap, std::string>
+  create_from_snbt(std::string_view snbt_utf8) {
+    std::string error_msg;
+    rust_string_receiver receiver{error_msg};
+    auto ptr = mc_schem_create_nbt_hashmap_from_snbt(
+        snbt_utf8.data(), snbt_utf8.size(), &receiver);
+    if (ptr == nullptr) {
+      return std::unexpected(std::move(error_msg));
+    }
+    return unique_nbt_hashmap{ptr};
   }
 
   /// Count of top level tags in this hashmap
@@ -930,8 +963,9 @@ class block {
   [[nodiscard]] static unique_block create(common_block cb) {
     return unique_block{mc_schem_create_block_from_common(cb)};
   }
-  [[deprecated("Use block::create(common_block) instead")]]
-  [[nodiscard]] static unique_block
+  [[deprecated(
+      "Use block::create(common_block) "
+      "instead")]] [[nodiscard]] static unique_block
   from_common(common_block cb) {
     return create(cb);
   }
@@ -1994,16 +2028,19 @@ class schematic {
   [[nodiscard]] const metadata_ir* metadata() const& {
     return mc_schem_schematic_get_metadata(this);
   }
+
   /// Mutable metadata of this schematic
   [[nodiscard]] metadata_ir* metadata() & {
     return mc_schem_schematic_get_metadata_mut(this);
   }
+
   /// Deep copy `new_metadata` into this schematic and return the metadata that
   /// was stored before
   unique_metadata_ir set_metadata(const metadata_ir& new_metadata) & {
     auto previous_value = mc_schem_schematic_set_metadata(this, &new_metadata);
     return unique_metadata_ir{previous_value};
   }
+
   /// Move `new_metadata` into this schematic and return the metadata that was
   /// stored before
   unique_metadata_ir set_metadata(unique_metadata_ir new_metadata) & {
@@ -2221,6 +2258,7 @@ class schematic {
     assert(err not_eq nullptr);
     return std::unexpected(unique_error{err});
   }
+
   /// Load a WorldEdit 1.12 (*.schematic) schematic from `is`. The stream is
   /// raw nbt unless `opt.is_compressed` is false. Returns the schematic
   /// together with its raw WorldEdit metadata

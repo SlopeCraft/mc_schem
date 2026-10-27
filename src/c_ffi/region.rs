@@ -17,14 +17,15 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::block::Block;
 use crate::c_ffi::{
-    mirror_MushroomStateUpdateOption, mirror_MushroomStatistic, rust_string_receiver,
+    mirror_InvalidBlockInfo, mirror_MushroomStateUpdateOption, mirror_MushroomStatistic,
+    rust_string_receiver,
 };
 use crate::error::Error;
 use crate::region::{Array3DVariant, BlockEntity, HasPalette, WorldSlice};
+use crate::schem::mushroom::MushroomStateUpdateOption;
 use crate::{Entity, PendingTick, Region};
 use std::ffi::{c_char, c_void, CStr};
-use std::ptr::{null, null_mut, slice_from_raw_parts};
-use crate::schem::mushroom::MushroomStateUpdateOption;
+use std::ptr::{null, null_mut, slice_from_raw_parts, slice_from_raw_parts_mut};
 
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_create_region(
@@ -452,9 +453,7 @@ pub unsafe extern "C" fn mc_schem_region_update_mushroom_state(
         canonicalize_block_id: (*c_option).canonicalize_block_id,
     };
 
-    let result = region
-        .as_mut_unchecked()
-        .update_mushroom_state(&option);
+    let result = region.as_mut_unchecked().update_mushroom_state(&option);
 
     *dest = mirror_MushroomStatistic {
         mushroom_total_num: result.mushroom_total_num,
@@ -479,6 +478,29 @@ pub unsafe extern "C" fn mc_schem_region_convert_to_sparse(region: *mut Region) 
 pub unsafe extern "C" fn mc_schem_region_convert_to_dense(region: *mut Region) {
     (*region).convert_to_dense();
 }
+/// Returns true if no invalid blocks. dest_counter should be size of
+/// palette_size
+// [[nodiscard]] bool mc_schem_region_stat_blocks(const region*, uint64_t* dest_counter,block_index_out_of_palette_details* invalid_blocks_info);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_stat_blocks(
+    region: *const Region,
+    dest_counter_ptr: *mut u64,
+    dest_invalid_block_info: *mut mirror_InvalidBlockInfo,
+) -> bool {
+    let (counter, invalid_info) = region.as_ref_unchecked().stat_blocks();
+    debug_assert!(counter.len() == region.as_ref_unchecked().palette.len());
+    let dest_counter = &mut *slice_from_raw_parts_mut(dest_counter_ptr, counter.len());
+    dest_counter.copy_from_slice(&counter);
+
+    if let Some(info) = &invalid_info {
+        (*dest_invalid_block_info).first_block_index = info.first_block_index;
+        (*dest_invalid_block_info).first_position = info.first_positon;
+        (*dest_invalid_block_info).count = info.count;
+    }
+
+    invalid_info.is_some()
+}
+
 // uint64_t mc_schem_region_total_blocks(const region*, bool include_air)
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_region_total_blocks(

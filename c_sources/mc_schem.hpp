@@ -330,6 +330,18 @@ struct alignas(8) world_edit12_load_option {
 };
 static_assert(sizeof(world_edit12_load_option) == 64);
 
+/// Mirror struct to pass information from rust side
+struct alignas(8) mirror_invalid_block_info {
+  /// Total count of invalid blocks
+  uint64_t count{0};
+  /// Position of first invalid block
+  int32_t first_block_position[3]{0, 0, 0};
+  /// Index of first invalid block
+  uint16_t first_block_index{0};
+
+  [[maybe_unused]] uint8_t reserved[42]{};
+};
+static_assert(sizeof(mirror_invalid_block_info) == 64);
 // Version and ABI anchors
 extern "C" {
 
@@ -546,6 +558,12 @@ void mc_schem_region_update_mushroom_state(
 void mc_schem_region_fill_with(region*, const block* blk);
 void mc_schem_region_convert_to_sparse(region*);
 void mc_schem_region_convert_to_dense(region*);
+/// Returns true if no invalid blocks. dest_counter should be size of
+/// palette_size
+[[nodiscard]] bool mc_schem_region_stat_blocks(
+    const region*, uint64_t* dest_counter,
+    mirror_invalid_block_info* invalid_blocks_info);
+
 uint64_t mc_schem_region_total_blocks(const region*, bool include_air);
 /// Visit all blocks in region. If explicit-only, skip background blocks for
 /// sparse region. Pending ticks is ignored on-purpose, because currently no
@@ -1567,6 +1585,35 @@ class region {
       vis(pos, blkid, *blkp, be);
     };
     mc_schem_region_visit_blocks(this, explicit_only, func, &visitor);
+  }
+
+  struct invalid_block_info {
+    std::array<int32_t, 3> first_block_position;
+    uint16_t first_block_index;
+    uint64_t count;
+  };
+  [[nodiscard]] std::pair<std::vector<uint64_t>,
+                          std::optional<invalid_block_info>>
+  stat_blocks() const& {
+    std::vector<uint64_t> counter;
+    counter.resize(this->palette_size(), 0);
+    mirror_invalid_block_info mirror_info{};
+    const bool has_invalid =
+        mc_schem_region_stat_blocks(this, counter.data(), &mirror_info);
+
+    std::optional<invalid_block_info> info{std::nullopt};
+    if (has_invalid) {
+      // logically this should be positive. But not very necessary in release
+      assert(mirror_info.count > 0);
+      info = invalid_block_info{
+          .first_block_position = {mirror_info.first_block_position[0],
+                                   mirror_info.first_block_position[1],
+                                   mirror_info.first_block_position[2]},
+          .first_block_index = mirror_info.first_block_index,
+          .count = mirror_info.count,
+      };
+    }
+    return std::make_pair(std::move(counter), info);
   }
 
   /// Returns the count of blocks in region. Air will be counted if

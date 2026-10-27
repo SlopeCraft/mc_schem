@@ -1,19 +1,19 @@
 /*
- mc_schem is a rust library to generate, load, manipulate and save minecraft
- schematic files. Copyright (C) 2026 ToKiNoBug
+mc_schem is a rust library to generate, load, manipulate and save minecraft
+schematic files. Copyright (C) 2026 ToKiNoBug
 
- This program is free software: you can redistribute it and/or modify it under
- the terms of the GNU General Public License as published by the Free Software
- Foundation, either version 3 of the License, or (at your option) any later
- version.
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
 
- This program is distributed in the hope that it will be useful, but WITHOUT ANY
- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
- PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
- You should have received a copy of the GNU General Public License
- along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
 
 mod block;
 mod block_entity;
@@ -33,11 +33,11 @@ use crate::schem::{
 };
 use crate::{CommonBlock, Entity, Region};
 use fastnbt::Value;
+use static_assertions::const_assert;
 use std::collections::HashMap;
 use std::ffi::{c_char, c_void, CStr};
 use std::ptr::null_mut;
 use Box;
-use static_assertions::const_assert;
 
 #[repr(C, align(8))]
 #[allow(non_camel_case_types)]
@@ -48,7 +48,7 @@ pub struct rust_string_receiver {
 
     _reserved: [u8; 48],
 }
-const_assert!(size_of::<rust_string_receiver>()==64);
+const_assert!(size_of::<rust_string_receiver>() == 64);
 
 impl rust_string_receiver {
     pub unsafe fn receive(&self, string: &str) {
@@ -65,7 +65,7 @@ pub struct rust_reader {
 
     _reserved: [u8; 48],
 }
-const_assert!(size_of::<rust_reader>()==64);
+const_assert!(size_of::<rust_reader>() == 64);
 
 impl std::io::Read for rust_reader {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
@@ -103,7 +103,7 @@ pub struct rust_writer {
 
     _reserved: [u8; 40],
 }
-const_assert!(size_of::<rust_writer>()==64);
+const_assert!(size_of::<rust_writer>() == 64);
 
 impl std::io::Write for rust_writer {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
@@ -149,7 +149,6 @@ impl std::io::Write for rust_writer {
     }
 }
 
-
 //mirror types
 #[repr(C, align(8))]
 #[allow(non_camel_case_types)]
@@ -160,7 +159,7 @@ struct mirror_VanillaStructureLoadOption {
 
     _reserved: [u8; 61],
 }
-const_assert!(size_of::<mirror_VanillaStructureLoadOption>()==64);
+const_assert!(size_of::<mirror_VanillaStructureLoadOption>() == 64);
 
 #[repr(C, align(8))]
 #[allow(non_camel_case_types)]
@@ -171,8 +170,7 @@ struct mirror_VanillaStructureSaveOption {
 
     _reserved: [u8; 59],
 }
-const_assert!(size_of::<mirror_VanillaStructureSaveOption>()==64);
-
+const_assert!(size_of::<mirror_VanillaStructureSaveOption>() == 64);
 
 #[repr(C, align(8))]
 #[allow(non_camel_case_types)]
@@ -181,8 +179,7 @@ struct mirror_LitematicaLoadOption {
     pub is_compressed: bool,
     _reserved: [u8; 63],
 }
-const_assert!(size_of::<mirror_LitematicaLoadOption>()==64);
-
+const_assert!(size_of::<mirror_LitematicaLoadOption>() == 64);
 
 #[repr(C, align(8))]
 #[allow(non_camel_case_types)]
@@ -192,7 +189,7 @@ struct mirror_LitematicaSaveOption {
     pub rename_duplicated_regions: bool,
     _reserved: [u8; 59],
 }
-const_assert!(size_of::<mirror_LitematicaSaveOption>()==64);
+const_assert!(size_of::<mirror_LitematicaSaveOption>() == 64);
 
 #[repr(C, align(8))]
 #[allow(non_camel_case_types)]
@@ -201,7 +198,7 @@ struct mirror_WorldEdit13LoadOption {
     pub is_compressed: bool,
     _reserved: [u8; 63],
 }
-const_assert!(size_of::<mirror_WorldEdit13LoadOption>()==64);
+const_assert!(size_of::<mirror_WorldEdit13LoadOption>() == 64);
 #[repr(C, align(8))]
 #[allow(non_camel_case_types)]
 #[derive(Copy, Clone)]
@@ -210,7 +207,7 @@ struct mirror_WorldEdit13SaveOption {
     pub background_block: CommonBlock,
     _reserved: [u8; 58],
 }
-const_assert!(size_of::<mirror_WorldEdit13SaveOption>()==64);
+const_assert!(size_of::<mirror_WorldEdit13SaveOption>() == 64);
 #[repr(C, align(8))]
 #[allow(non_camel_case_types)]
 #[derive(Copy, Clone)]
@@ -219,8 +216,7 @@ struct mirror_WorldEdit12LoadOption {
     pub is_compressed: bool,
     _reserved: [u8; 59],
 }
-const_assert!(size_of::<mirror_WorldEdit12LoadOption>()==64);
-
+const_assert!(size_of::<mirror_WorldEdit12LoadOption>() == 64);
 
 #[repr(C, align(8))]
 #[allow(non_camel_case_types)]
@@ -232,7 +228,7 @@ struct mirror_MushroomStatistic {
     pub palette_growth: u16,
     _reserved: [u8; 46],
 }
-const_assert!(size_of::<mirror_MushroomStatistic>()==64);
+const_assert!(size_of::<mirror_MushroomStatistic>() == 64);
 
 #[repr(C, align(8))]
 #[allow(non_camel_case_types)]
@@ -241,7 +237,18 @@ struct mirror_MushroomStateUpdateOption {
     pub canonicalize_block_id: bool,
     _reserved: [u8; 63],
 }
-const_assert!(size_of::<mirror_MushroomStateUpdateOption>()==64);
+const_assert!(size_of::<mirror_MushroomStateUpdateOption>() == 64);
+
+#[repr(C, align(8))]
+#[allow(non_camel_case_types)]
+struct mirror_InvalidBlockInfo {
+    pub count: u64,
+    pub first_position: [i32; 3],
+    pub first_block_index: u16,
+    _reserved: [u8; 42],
+}
+const_assert!(size_of::<mirror_InvalidBlockInfo>() == 64);
+
 /*
 
 #[repr(C, align(8))]

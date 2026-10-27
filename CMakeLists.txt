@@ -5,6 +5,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(MC_SCHEM_INSTALL "Install binaries" ON)
 option(MC_SCHEM_ENABLE_TESTS "Build the C++ wrapper unit tests" ON)
+option(MC_SCHEM_ENABLE_EXAMPLES "Build C++ examples" ON)
 #set(MC_SCHEM_RUST_TARGET "default" CACHE STRING "Target to build rust codes. Should be consistent with C compiler. Valid values: default;guess; or any other triplet")
 set(MC_SCHEM_RUST_BUILD_FLAGS "" CACHE STRING "Extra flags to build rust part. Passed to cargo.")
 option(MC_SCHEM_HAS_mdspan "Enable mdspan for schem. This is an option because some platforms are not very new" ON)
@@ -32,6 +33,10 @@ if (NOT ${PROJECT_SOURCE_DIR} STREQUAL ${CMAKE_SOURCE_DIR})
     # This variable is useful for deploying
     set(mc_schem_SHARED_LIB_LOCATION ${loc} PARENT_SCOPE)
     set(mc_schem_schemtool_LOCATION ${loc_schemtool} PARENT_SCOPE)
+endif ()
+
+if (${MC_SCHEM_ENABLE_EXAMPLES})
+    add_subdirectory(examples)
 endif ()
 
 if (${MC_SCHEM_INSTALL})

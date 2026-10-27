@@ -247,7 +247,7 @@ struct rust_writer {
 static_assert(sizeof(rust_writer) == 64);
 
 /// Statistic result for updating mushroom state
-struct alignas(8) mushroom_statistic {
+struct alignas(8) mirror_mushroom_statistic {
   uint64_t mushroom_total_num{0};
   uint64_t mushroom_corrected_num{0};
   /// More blocks appended to palette
@@ -255,7 +255,7 @@ struct alignas(8) mushroom_statistic {
 
   [[maybe_unused]] uint8_t reserved[46]{};
 };
-static_assert(sizeof(mushroom_statistic) == 64);
+static_assert(sizeof(mirror_mushroom_statistic) == 64);
 
 struct alignas(8) mushroom_state_update_option {
   /// Canonicalize mushroom block id. Palette may contain non-canonical mushroom
@@ -554,7 +554,7 @@ bool mc_schem_region_set_block_by_block(region*, int32_t x, int32_t y,
 [[nodiscard]] error* mc_schem_region_shrink_palette(region*);
 void mc_schem_region_update_mushroom_state(
     region*, const mushroom_state_update_option* options,
-    mushroom_statistic* dest);
+    mirror_mushroom_statistic* dest);
 void mc_schem_region_fill_with(region*, const block* blk);
 void mc_schem_region_convert_to_sparse(region*);
 void mc_schem_region_convert_to_dense(region*);
@@ -1549,6 +1549,12 @@ class region {
     return {};
   }
 
+  struct mushroom_statistic {
+    uint64_t mushroom_total_num{0};
+    uint64_t mushroom_corrected_num{0};
+    /// More blocks appended to palette
+    uint16_t palette_growth{0};
+  };
   /// Update block-state of mushroom blocks (full block, not small mushroom). In
   /// real game, contacting mushroom blocks have stoma texture on contacting
   /// face. This should be done by updating block state. This function updates
@@ -1556,8 +1562,13 @@ class region {
   /// like Minecraft does.
   mushroom_statistic update_mushroom_state(
       const mushroom_state_update_option& option) & {
-    mushroom_statistic ret{};
-    mc_schem_region_update_mushroom_state(this, &option, &ret);
+    mirror_mushroom_statistic mirror{};
+    mc_schem_region_update_mushroom_state(this, &option, &mirror);
+    mushroom_statistic ret{
+        .mushroom_total_num = mirror.mushroom_total_num,
+        .mushroom_corrected_num = mirror.mushroom_corrected_num,
+        .palette_growth = mirror.palette_growth,
+    };
     return ret;
   }
 

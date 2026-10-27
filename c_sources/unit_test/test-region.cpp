@@ -196,13 +196,13 @@ int main(int argc, char** argv) {
     // Two mushroom blocks touch each other, so the faces between them have to
     // become stoma (false): both blocks are corrected and the palette grows by
     // the states that did not exist before
-    const mushroom_statistic stat = r->update_mushroom_state({});
+    const auto stat = r->update_mushroom_state({});
     MC_SCHEM_CHECK(stat.mushroom_total_num == 2);
     MC_SCHEM_CHECK(stat.mushroom_corrected_num == 2);
     MC_SCHEM_CHECK(stat.palette_growth >= 1);
 
     // A second pass finds nothing left to correct
-    const mushroom_statistic again = r->update_mushroom_state({});
+    const auto again = r->update_mushroom_state({});
     MC_SCHEM_CHECK(again.mushroom_total_num == 2);
     MC_SCHEM_CHECK(again.mushroom_corrected_num == 0);
   }

@@ -779,7 +779,7 @@ fn load_save_world_edit13() {
     let out_dir = "./target/test/load_save_world_edit13";
     create_dir_all(out_dir).unwrap();
 
-    for id in 1..5 {
+    for id in 1..6 {
         let src_filename = format!("{}/test{:02}.schem", src_dir, id);
         let dst_filename = format!("{}/out{:02}.schem", out_dir, id);
 

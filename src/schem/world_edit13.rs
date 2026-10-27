@@ -421,6 +421,40 @@ impl Region {
         return Ok(result);
     }
 
+    fn parse_entities_v2(
+        entities: &mut [Value],
+        tag_path: &str,
+        _option: &WorldEdit13LoadOption,
+    ) -> Result<Vec<Entity>, Error> {
+        let mut result = Vec::with_capacity(entities.len());
+
+        for (idx, nbt_in_list) in entities.iter_mut().enumerate() {
+            let mut nbt = Value::Compound(HashMap::new());
+            std::mem::swap(nbt_in_list, &mut nbt);
+            let cur_tag_path = format!("{tag_path}[{}]", idx);
+            let mut nbt = unwrap_tag!(nbt, Compound, HashMap::new(), cur_tag_path);
+            let id = unwrap_opt_tag!(
+                nbt.remove("Id"),
+                String,
+                "".to_string(),
+                format!("{cur_tag_path}/Id")
+            );
+            let pos_path = format!("{cur_tag_path}/Pos");
+            let pos_nbt = unwrap_opt_tag!(nbt.remove("Pos"), List, vec![], &pos_path);
+            let pos = parse_position_list(&pos_nbt, &pos_path)?;
+
+            let entity = Entity {
+                id,
+                position: pos,
+                block_pos: [pos[0] as i32, pos[1] as i32, pos[2] as i32],
+                tags: nbt,
+            };
+            result.push(entity);
+        }
+
+        Ok(result)
+    }
+
     fn parse_entities_v3(
         entities: &mut [Value],
         tag_path: &str,
@@ -504,7 +538,13 @@ impl Region {
             region.block_entities =
                 Self::parse_block_entities_v2_v3(block_entities, &be_tag_path, option, size)?;
         }
-        //TODO: Parse entities
+
+        if root.contains_key("Entities") {
+            let entities_path = format!("{tag_path}/Entities");
+            let tag_entities =
+                unwrap_opt_tag!(root.get_mut("Entities"), List, vec![], entities_path);
+            region.entities = Self::parse_entities_v2(tag_entities, &entities_path, option)?;
+        }
 
         Ok(region)
     }
@@ -873,6 +913,28 @@ impl Schematic {
         return Ok(be_list);
     }
 
+    fn save_entities_v2(&self) -> Vec<Value> {
+        let mut ret = Vec::new();
+        {
+            let mut entity_count = 0usize;
+            for reg in &self.regions {
+                entity_count += reg.entities.len();
+            }
+            ret.reserve(entity_count);
+        }
+        for reg in &self.regions {
+            for entity in &reg.entities {
+                let mut nbt = entity.to_nbt();
+                debug_assert!(nbt.contains_key("id"));
+                let tag_id = nbt.remove("id").unwrap();
+                nbt.insert("Id".to_string(), tag_id);
+                ret.push(Value::Compound(nbt));
+            }
+        }
+
+        ret
+    }
+
     fn save_entities_v3(&self) -> Vec<Value> {
         let mut ret = Vec::new();
         {
@@ -944,7 +1006,11 @@ impl Schematic {
             let be_list = self.save_block_entities_v2(shape)?;
             root.insert("BlockEntities".to_string(), Value::List(be_list));
         }
-        // TODO: write entities
+        // entities
+        {
+            let entities_list = self.save_entities_v2();
+            root.insert("Entities".to_string(), Value::List(entities_list));
+        }
 
         return Ok(root);
     }

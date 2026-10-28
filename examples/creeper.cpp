@@ -30,8 +30,8 @@ int main(int argc, char** argv) {
       std::vector<unique_block> palette;
       // Its strongly suggested to put air at index 0
       palette.emplace_back(block::create(common_block::air));
-      palette.emplace_back(*block::create("minecraft:cauldron"));
-      palette.emplace_back(*block::create("minecraft:glass"));
+      palette.emplace_back(unwrap(block::create("minecraft:cauldron")));
+      palette.emplace_back(unwrap(block::create("minecraft:glass")));
 
       std::vector<const block*> palette_view;
       palette_view.reserve(palette.size());
@@ -39,15 +39,16 @@ int main(int argc, char** argv) {
         palette_view.emplace_back(blk.get());
       }
       // Region will deep copy the palette
-      auto region_exp = region::create_with_palette({1, 3, 1}, palette_view);
-      return std::move(*region_exp);
+      auto region_exp =
+          unwrap(region::create_with_palette({1, 3, 1}, palette_view));
+      return std::move(region_exp);
     }();
     // Suggested usage. Setup an palette and simply fill with index
     region->set_block({0, 0, 0}, 1);  // cauldron
     region->set_block({0, 1, 0}, 2);  // glass
     // This also works, but slow. Don't use in loop
     {
-      auto carpet_blk = *block::create("minecraft:white_carpet");
+      auto carpet_blk = unwrap(block::create("minecraft:white_carpet"));
       region->set_block({0, 2, 0}, *carpet_blk);  // carpet
     }
 
@@ -56,10 +57,10 @@ int main(int argc, char** argv) {
       // Up to 2026.10, fastSNBT doesn't support true and spaces. sNBT have
       // to be tight
       // Rotation is also compulsory. Otherwise litematica crashes when pasting.
-      auto tags = nbt_hashmap::create_from_snbt(
-          R"({id:"minecraft:creeper",Pos:[0.5d,0.25d,0.5d],Rotation:[0.0f,0.0f],ignited:1b,powered:1b})");
+      auto tags = unwrap(nbt_hashmap::create_from_snbt(
+          R"({id:"minecraft:creeper",Pos:[0.5d,0.25d,0.5d],Rotation:[0.0f,0.0f],ignited:1b,powered:1b})"));
 
-      auto entity_exp = entity::create(std::move(*tags));
+      auto entity_exp = entity::create(std::move(tags));
       return std::move(*entity_exp);
     }();
     // Add our little cute
@@ -71,7 +72,7 @@ int main(int argc, char** argv) {
     auto schem = schematic::create();
     {
       // Java 26.3. Set up metadata
-      auto md = *metadata_ir::create(5023);
+      auto md = unwrap(metadata_ir::create(5023));
       md->set_name("虫宝撕两半儿机");
       md->set_author("TokiNoBug");
       md->set_description("全物品必备");
@@ -83,17 +84,17 @@ int main(int argc, char** argv) {
     {
       std::ofstream lite{"creeper-cpp.litematic", std::ios::binary};
       litematica_save_option option{};
-      *(schem->save_litematica(lite, option));
+      unwrap(schem->save_litematica(lite, option));
     }
     {
       std::ofstream vs{"creeper-cpp.nbt", std::ios::binary};
       vanilla_structure_save_option option{};
-      *(schem->save_vanilla_structure(vs, option));
+      unwrap(schem->save_vanilla_structure(vs, option));
     }
     {
       std::ofstream we{"creeper-cpp.schem", std::ios::binary};
       world_edit13_save_option option{};
-      *(schem->save_world_edit13(we, option));
+      unwrap(schem->save_world_edit13(we, option));
     }
 
   } catch (const std::exception& e) {

@@ -814,6 +814,7 @@ using unique_block_entity = std::unique_ptr<block_entity, deleter>;
 using unique_pending_tick = std::unique_ptr<pending_tick, deleter>;
 using unique_schematic = std::unique_ptr<schematic, deleter>;
 using unique_error = std::unique_ptr<error, deleter>;
+using shared_error = std::shared_ptr<error>;
 using unique_region = std::unique_ptr<region, deleter>;
 using unique_metadata_ir = std::unique_ptr<metadata_ir, deleter>;
 using unique_nbt_hashmap = std::unique_ptr<nbt_hashmap, deleter>;
@@ -826,6 +827,55 @@ using unique_world_edit13_metadata =
 using unique_vanilla_structure_metadata =
     std::unique_ptr<vanilla_structure_metadata, deleter>;
 
+namespace internal {
+template <class E>
+  requires std::is_move_constructible_v<E> and
+           (std::is_same_v<E, shared_error> or std::is_same_v<E, std::string> or
+            std::is_same_v<E, block_id_parse_error>)
+[[noreturn]] void auto_throw(E e) {
+  if constexpr (std::is_same_v<E, shared_error>) {
+    throw std::runtime_error{e->message()};
+  }
+  if constexpr (std::is_same_v<E, std::string>) {
+    throw std::runtime_error{e};
+  }
+  if constexpr (std::is_same_v<E, block_id_parse_error>) {
+    throw std::runtime_error{
+        std::format("Failed to parse block id with "
+                    "error code {}",
+                    static_cast<int>(e))};
+  }
+  std::unreachable();
+}
+}  // namespace internal
+
+/// Unwrap an expected (by right value) and returns value content. If not ok,
+/// throw an exception with full error info. This is suggested usage to
+/// handle excepted return types. Simply call `std::expected::value()` will
+/// discard error info.
+template <class T, class E>
+  requires std::is_move_constructible_v<T> or std::is_void_v<T>
+T unwrap(std::expected<T, E> exp) {
+  if (not exp.has_value()) [[unlikely]] {
+    ::mc_schem::internal::auto_throw(std::move(exp.error()));
+  }
+
+  if constexpr (not std::is_void_v<T>) {
+    return std::move(exp.value());
+  } else {
+    return;
+  }
+}
+
+// template <class exp_void>
+//   requires std::is_same_v<exp_void,
+//                           std::expected<void, typename exp_void::error_type>>
+// void unwrap(exp_void exp) {
+//   if (not exp.has_value()) {
+//     ::mc_schem::internal::auto_throw(std::move(exp.error()));
+//   }
+// }
+
 /// Hashmap of nbt tags
 /// Note: sizeof is fake. Never construct from C/C++, only construct,
 /// allocate, destroy and deallocate in Rust. Always use `this` as handle.
@@ -837,6 +887,8 @@ class nbt_hashmap {
   nbt_hashmap(nbt_hashmap&&) = delete;
   nbt_hashmap& operator=(const nbt_hashmap&) = delete;
   nbt_hashmap& operator=(nbt_hashmap&&) = delete;
+  // void operator delete(void*) = delete;
+  // void operator delete[](void*) = delete;
 
   /// Create an empty nbt hashmap.
   [[nodiscard]] static unique_nbt_hashmap create() {
@@ -1147,7 +1199,7 @@ class region {
   /// Create a dense region of the given `shape` (xyz) whose palette is a deep
   /// copy of `palette`. Every block of the region is set to `palette[0]`, so
   /// the palette must not be empty. Returns an error if it is
-  [[nodiscard]] static std::expected<unique_region, unique_error>
+  [[nodiscard]] static std::expected<unique_region, shared_error>
   create_with_palette(std::span<const int32_t, 3> shape,
                       const std::span<const block* const> palette) {
     const auto x = shape[0];
@@ -1162,10 +1214,10 @@ class region {
       return unique_region{result};
     }
     assert(err);
-    return std::unexpected{unique_error{err}};
+    return std::unexpected{std::shared_ptr{unique_error{err}}};
   }
   /// Convenience overload taking the shape as std::array
-  [[nodiscard]] static std::expected<unique_region, unique_error>
+  [[nodiscard]] static std::expected<unique_region, shared_error>
   create_with_palette(const std::array<int32_t, 3>& shape,
                       const std::span<const block* const> palette) {
     return create_with_palette(std::span{shape}, palette);
@@ -1541,7 +1593,7 @@ class region {
   /// Drop palette entries that no block refers to and renumber the remaining
   /// ones. Returns an error if a block refers to an index that is not in the
   /// palette
-  std::expected<void, unique_error> shrink_palette() & {
+  std::expected<void, shared_error> shrink_palette() & {
     auto err = unique_error{mc_schem_region_shrink_palette(this)};
     if (err) {
       return std::unexpected{std::move(err)};
@@ -1685,7 +1737,7 @@ class entity {
 
   /// Create an entity from the nbt tags `src`, which are deep copied. Returns
   /// an error if `src` has no usable `Pos` field
-  [[nodiscard]] static std::expected<unique_entity, unique_error> create(
+  [[nodiscard]] static std::expected<unique_entity, shared_error> create(
       const nbt_hashmap& src) {
     error* err{nullptr};
     auto ptr = mc_schem_create_entity(&src, &err);
@@ -1694,12 +1746,12 @@ class entity {
       return unique_entity{ptr};
     }
     assert(ptr == nullptr);
-    return std::unexpected{unique_error{err}};
+    return std::unexpected{std::shared_ptr{unique_error{err}}};
   }
 
   /// Create an entity from the nbt tags `nbt` it takes over. Returns an error
   /// if `nbt` has no usable `Pos` field
-  [[nodiscard]] static std::expected<unique_entity, unique_error> create(
+  [[nodiscard]] static std::expected<unique_entity, shared_error> create(
       unique_nbt_hashmap nbt) {
     error* err{nullptr};
     auto ptr = mc_schem_create_entity_move(nbt.release(), &err);
@@ -1708,7 +1760,7 @@ class entity {
       return unique_entity{ptr};
     }
     assert(ptr == nullptr);
-    return std::unexpected{unique_error{err}};
+    return std::unexpected{std::shared_ptr{unique_error{err}}};
   }
 
   [[nodiscard]] auto clone() const& {
@@ -1820,7 +1872,7 @@ class metadata_ir {
 
   /// Create default metadata for the given minecraft data version. The version
   /// is currently not validated
-  [[nodiscard]] static std::expected<unique_metadata_ir, unique_error> create(
+  [[nodiscard]] static std::expected<unique_metadata_ir, shared_error> create(
       int32_t data_version) {
     error* dest_err = nullptr;
     if (auto result = mc_schem_create_metadata_ir(data_version, &dest_err)) {
@@ -1828,7 +1880,7 @@ class metadata_ir {
       return unique_metadata_ir{result};
     }
     assert(dest_err);
-    return std::unexpected{unique_error{dest_err}};
+    return std::unexpected{std::shared_ptr{unique_error{dest_err}}};
   }
 
   [[nodiscard]] auto clone() const& {
@@ -2264,7 +2316,7 @@ class schematic {
   /// unless `opt.is_compressed` is false. Returns the schematic together with
   /// its raw litematica metadata
   [[nodiscard]] static std::expected<
-      std::tuple<unique_schematic, unique_litematica_metadata>, unique_error>
+      std::tuple<unique_schematic, unique_litematica_metadata>, shared_error>
   load_litematica(std::istream& is, const litematica_load_option& opt) {
     error* err = nullptr;
     litematica_metadata* raw_md{nullptr};
@@ -2278,14 +2330,14 @@ class schematic {
                              unique_litematica_metadata{raw_md});
     }
     assert(err not_eq nullptr);
-    return std::unexpected(unique_error{err});
+    return std::unexpected(std::shared_ptr{unique_error{err}});
   }
   /// Load a vanilla structure (*.nbt) schematic from `is`. The stream is
   /// raw nbt unless `opt.is_compressed` is false. Returns the schematic
   /// together with its raw vanilla structure metadata
   [[nodiscard]] static std::expected<
       std::tuple<unique_schematic, unique_vanilla_structure_metadata>,
-      unique_error>
+      shared_error>
   load_vanilla_structure(std::istream& is,
                          const vanilla_structure_load_option& opt) {
     error* err = nullptr;
@@ -2300,13 +2352,13 @@ class schematic {
                              unique_vanilla_structure_metadata{raw_md});
     }
     assert(err not_eq nullptr);
-    return std::unexpected(unique_error{err});
+    return std::unexpected(std::shared_ptr{unique_error{err}});
   }
   /// Load a WorldEdit 1.13+ (*.schem) schematic from `is`. The stream is
   /// raw nbt unless `opt.is_compressed` is false. Returns the schematic
   /// together with its raw WorldEdit metadata
   [[nodiscard]] static std::expected<
-      std::tuple<unique_schematic, unique_world_edit13_metadata>, unique_error>
+      std::tuple<unique_schematic, unique_world_edit13_metadata>, shared_error>
   load_world_edit13(std::istream& is, const world_edit13_load_option& opt) {
     error* err = nullptr;
     world_edit13_metadata* raw_md{nullptr};
@@ -2320,14 +2372,14 @@ class schematic {
                              unique_world_edit13_metadata{raw_md});
     }
     assert(err not_eq nullptr);
-    return std::unexpected(unique_error{err});
+    return std::unexpected(std::shared_ptr{unique_error{err}});
   }
 
   /// Load a WorldEdit 1.12 (*.schematic) schematic from `is`. The stream is
   /// raw nbt unless `opt.is_compressed` is false. Returns the schematic
   /// together with its raw WorldEdit metadata
   [[nodiscard]] static std::expected<
-      std::tuple<unique_schematic, unique_world_edit12_metadata>, unique_error>
+      std::tuple<unique_schematic, unique_world_edit12_metadata>, shared_error>
   load_world_edit12(std::istream& is, const world_edit12_load_option& opt) {
     error* err = nullptr;
     world_edit12_metadata* raw_md{nullptr};
@@ -2341,12 +2393,12 @@ class schematic {
                              unique_world_edit12_metadata{raw_md});
     }
     assert(err not_eq nullptr);
-    return std::unexpected(unique_error{err});
+    return std::unexpected(std::shared_ptr{unique_error{err}});
   }
   /// Load a schematic from a file, identifying the format by the filename
   /// extension. Decompression is handled internally and the raw per-format
   /// metadata is not exposed
-  [[nodiscard]] static std::expected<unique_schematic, unique_error>
+  [[nodiscard]] static std::expected<unique_schematic, shared_error>
   load_from_file(const char* filename) {
     error* err = nullptr;
     auto schem = mc_schem_schematic_load_from_file(filename, &err);
@@ -2355,33 +2407,33 @@ class schematic {
       return unique_schematic{schem};
     }
     assert(err not_eq nullptr);
-    return std::unexpected(unique_error{err});
+    return std::unexpected(std::shared_ptr{unique_error{err}});
   }
   /// Save as litematica (*.litematic). The bytes written to `os` are gzip
   /// compressed
-  std::expected<void, unique_error> save_litematica(
+  std::expected<void, shared_error> save_litematica(
       std::ostream& os, const litematica_save_option& opt) const& {
     rust_writer osw{os};
     auto err = mc_schem_schematic_save_litematica_to_writer(this, &osw, &opt);
     if (not err) {
       return {};
     }
-    return std::unexpected(unique_error{err});
+    return std::unexpected(std::shared_ptr{unique_error{err}});
   }
   /// Save as WorldEdit 1.13+ (*.schem). The bytes written to `os` are gzip
   /// compressed
-  std::expected<void, unique_error> save_world_edit13(
+  std::expected<void, shared_error> save_world_edit13(
       std::ostream& os, const world_edit13_save_option& opt) const& {
     rust_writer osw{os};
     auto err = mc_schem_schematic_save_world_edit13_to_writer(this, &osw, &opt);
     if (not err) {
       return {};
     }
-    return std::unexpected(unique_error{err});
+    return std::unexpected(std::shared_ptr{unique_error{err}});
   }
   /// Save to vanilla structure (*.nbt). The bytes written to `os` are gzip
   /// compressed
-  std::expected<void, unique_error> save_vanilla_structure(
+  std::expected<void, shared_error> save_vanilla_structure(
       std::ostream& os, const vanilla_structure_save_option& opt) const& {
     rust_writer osw{os};
     auto err =
@@ -2389,11 +2441,11 @@ class schematic {
     if (not err) {
       return {};
     }
-    return std::unexpected(unique_error{err});
+    return std::unexpected(std::shared_ptr{unique_error{err}});
   }
   /// Save this schematic to a file, identifying the format by the filename
   /// extension. Compression is handled inside
-  std::expected<void, unique_error> save_to_file(const char* filename) const& {
+  std::expected<void, shared_error> save_to_file(const char* filename) const& {
     auto error = mc_schem_schematic_save_to_file(this, filename);
     if (not error) {
       return {};

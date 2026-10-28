@@ -558,7 +558,7 @@ void mc_schem_region_update_mushroom_state(
 void mc_schem_region_fill_with(region*, const block* blk);
 void mc_schem_region_convert_to_sparse(region*);
 void mc_schem_region_convert_to_dense(region*);
-/// Returns true if no invalid blocks. dest_counter should be size of
+/// Returns true if contains invalid blocks. dest_counter should be size of
 /// palette_size
 [[nodiscard]] bool mc_schem_region_stat_blocks(
     const region*, uint64_t* dest_counter,

@@ -845,7 +845,7 @@ template <class E>
                     "error code {}",
                     static_cast<int>(e))};
   }
-  std::unreachable();
+  // std::unreachable();
 }
 }  // namespace internal
 

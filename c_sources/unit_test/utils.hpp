@@ -53,10 +53,9 @@ inline mc_schem::unique_schematic load_schematic_or_abort(
                  result.error()->message());
   }
   MC_SCHEM_CHECK(result.has_value());
-  // The error type of the expectation holds a unique_ptr, and the standard
-  // requires value() & to throw bad_expected_access(as_const(error())), which
-  // needs a copy. operator* moves the schematic out instead.
-  return *std::move(result);
+  // unwrap moves the schematic out and would throw with the error message if the
+  // expectation had none, which the check above already ruled out
+  return mc_schem::unwrap(std::move(result));
 }
 
 /// The first region of a fixture, as a mutable reference. Fixtures are reached

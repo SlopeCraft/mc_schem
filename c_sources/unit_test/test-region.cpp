@@ -121,7 +121,7 @@ int main(int argc, char** argv) {
     const std::array<const block*, 2> palette{stone.get(), dirt.get()};
     auto result = region::create_with_palette({1, 1, 2}, palette);
     MC_SCHEM_CHECK(result.has_value());
-    auto& r = *result;  // value() & cannot compile with a unique_ptr error
+    auto& r = result.value();
 
     MC_SCHEM_CHECK((r->size_xyz() == pos_t{1, 1, 2}));
     MC_SCHEM_CHECK(r->palette_size() == 2);
@@ -262,7 +262,7 @@ int main(int argc, char** argv) {
         for (int32_t x = 0; x < shape_x; ++x) {
           const auto idx = cr.block_index_at({x, y, z});
           MC_SCHEM_CHECK(idx.has_value());
-          MC_SCHEM_CHECK(((*const_view)[y, z, x] == idx.value()));
+          MC_SCHEM_CHECK((const_view.value()[y, z, x] == idx.value()));
         }
       }
     }
@@ -275,10 +275,10 @@ int main(int argc, char** argv) {
     const uint16_t dirt_index = cr.block_index_at({1, 0, 0}).value();
     MC_SCHEM_CHECK(stone_index not_eq dirt_index);
 
-    (*mut_view)[0, 0, 0] = dirt_index;
+    mut_view.value()[0, 0, 0] = dirt_index;
     MC_SCHEM_CHECK(cr.block_index_at({0, 0, 0}).value() == dirt_index);
-    MC_SCHEM_CHECK(((*const_view)[0, 0, 0] == dirt_index));
-    (*mut_view)[0, 0, 0] = stone_index;
+    MC_SCHEM_CHECK((const_view.value()[0, 0, 0] == dirt_index));
+    mut_view.value()[0, 0, 0] = stone_index;
 
     // A sparse region has no dense view to hand out
     r->convert_to_sparse();

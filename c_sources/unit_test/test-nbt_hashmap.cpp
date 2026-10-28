@@ -77,7 +77,7 @@ int main(int, char**) {
     // written without any
     auto parsed = nbt_hashmap::create_from_snbt(R"({foo:1,bar:"baz"})");
     MC_SCHEM_CHECK(parsed.has_value());
-    MC_SCHEM_CHECK((*parsed)->size() == 2);
+    MC_SCHEM_CHECK(parsed.value()->size() == 2);
 
     // A truncated compound is reported through the error, not through a handle
     auto broken = nbt_hashmap::create_from_snbt("{foo:1");

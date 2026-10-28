@@ -118,7 +118,7 @@ int main(int argc, char** argv) {
   for (const int32_t data_version : {0, 1, 1343, 3578}) {
     auto created = metadata_ir::create(data_version);
     MC_SCHEM_CHECK(created.has_value());
-    MC_SCHEM_CHECK((*created)->mc_data_version() == data_version);
+    MC_SCHEM_CHECK(created.value()->mc_data_version() == data_version);
   }
 
   // The other fields of a created meta data are the defaults of the Rust side
@@ -126,7 +126,7 @@ int main(int argc, char** argv) {
   {
     auto created = metadata_ir::create(3578);
     MC_SCHEM_CHECK(created.has_value());
-    const metadata_ir& md = **created;
+    const metadata_ir& md = *created.value();
 
     // Both timestamps are set to the current time in milliseconds
     MC_SCHEM_CHECK(md.time_created() > 0);
@@ -180,8 +180,8 @@ int main(int argc, char** argv) {
     auto second = metadata_ir::create(222);
     MC_SCHEM_CHECK(second.has_value());
 
-    const unique_metadata_ir& first_handle = *first;
-    const unique_metadata_ir& second_handle = *second;
+    const unique_metadata_ir& first_handle = first.value();
+    const unique_metadata_ir& second_handle = second.value();
     MC_SCHEM_CHECK(first_handle->mc_data_version() == 111);
     MC_SCHEM_CHECK(second_handle->mc_data_version() == 222);
 
@@ -196,7 +196,7 @@ int main(int argc, char** argv) {
   {
     auto handle = metadata_ir::create(3578);
     MC_SCHEM_CHECK(handle.has_value());
-    metadata_ir& md = **handle;
+    metadata_ir& md = *handle.value();
 
     md.set_mc_data_version(3578);
     md.set_time_created(1707202812934);

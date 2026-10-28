@@ -260,7 +260,7 @@ unique_schematic load_or_abort(const std::string& path) {
                  result.error()->message());
   }
   MC_SCHEM_CHECK(result.has_value());
-  return *std::move(result);
+  return unwrap(std::move(result));
 }
 
 /// Every fixture is gzipped, and the reader based loaders decompress by
@@ -285,7 +285,7 @@ void check_reader_compression(const std::string& path, option_type option,
                    result.error()->message());
     }
     MC_SCHEM_CHECK(result.has_value());
-    const auto& loaded = *result;
+    const auto& loaded = result.value();
     MC_SCHEM_CHECK(std::get<0>(loaded) not_eq nullptr);
     MC_SCHEM_CHECK(std::get<0>(loaded)->regions_count() >= 1);
     MC_SCHEM_CHECK(std::get<1>(loaded) not_eq nullptr);
@@ -306,23 +306,23 @@ void check_reader_compression(const std::string& path, option_type option,
 /// exercised on a document that loader really accepts
 void check_reader_compression(const std::string& path) {
   if (path.ends_with(".litematic")) {
-    check_reader_compression(
-        path, litematica_load_option{},
-        [](std::istream& stream, const auto& option) {
-          return schematic::load_litematica(stream, option);
-        });
+    check_reader_compression(path, litematica_load_option{},
+                             [](std::istream& stream, const auto& option) {
+                               return schematic::load_litematica(stream,
+                                                                 option);
+                             });
   } else if (path.ends_with(".schem")) {
-    check_reader_compression(
-        path, world_edit13_load_option{},
-        [](std::istream& stream, const auto& option) {
-          return schematic::load_world_edit13(stream, option);
-        });
+    check_reader_compression(path, world_edit13_load_option{},
+                             [](std::istream& stream, const auto& option) {
+                               return schematic::load_world_edit13(stream,
+                                                                   option);
+                             });
   } else if (path.ends_with(".schematic")) {
-    check_reader_compression(
-        path, world_edit12_load_option{},
-        [](std::istream& stream, const auto& option) {
-          return schematic::load_world_edit12(stream, option);
-        });
+    check_reader_compression(path, world_edit12_load_option{},
+                             [](std::istream& stream, const auto& option) {
+                               return schematic::load_world_edit12(stream,
+                                                                   option);
+                             });
 
     // The data version of this format is chosen by the caller, and only the
     // versions known to the library can be expressed. A value outside that set
@@ -335,11 +335,11 @@ void check_reader_compression(const std::string& path) {
     MC_SCHEM_CHECK(not result.has_value());
     MC_SCHEM_CHECK(not result.error()->message().empty());
   } else if (path.ends_with(".nbt")) {
-    check_reader_compression(
-        path, vanilla_structure_load_option{},
-        [](std::istream& stream, const auto& option) {
-          return schematic::load_vanilla_structure(stream, option);
-        });
+    check_reader_compression(path, vanilla_structure_load_option{},
+                             [](std::istream& stream, const auto& option) {
+                               return schematic::load_vanilla_structure(stream,
+                                                                        option);
+                             });
   } else {
     MC_SCHEM_CHECK(false);
   }
@@ -500,16 +500,16 @@ int main(int argc, char** argv) {
     MC_SCHEM_CHECK(other_meta.has_value());
 
     const int32_t original_version = schem->metadata()->mc_data_version();
-    auto previous = schem->set_metadata(**other_meta);
+    auto previous = schem->set_metadata(*other_meta.value());
     MC_SCHEM_CHECK(previous not_eq nullptr);
     MC_SCHEM_CHECK(previous->mc_data_version() == original_version);
     MC_SCHEM_CHECK(schem->metadata()->mc_data_version() == 222);
     // the schematic holds a copy, not the meta data that was handed in
-    MC_SCHEM_CHECK(schem->metadata() not_eq other_meta->get());
+    MC_SCHEM_CHECK(schem->metadata() not_eq other_meta.value().get());
     // and the mutable accessor hands out the very same object
     MC_SCHEM_CHECK(schem->metadata() == std::as_const(*schem).metadata());
 
-    MC_SCHEM_CHECK(schem->set_metadata(**fresh_meta) not_eq nullptr);
+    MC_SCHEM_CHECK(schem->set_metadata(*fresh_meta.value()) not_eq nullptr);
     MC_SCHEM_CHECK(schem->metadata()->mc_data_version() == 111);
 
     schem->clear_all_regions();

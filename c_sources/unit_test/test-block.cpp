@@ -17,6 +17,7 @@
 
 #include <mc_schem.hpp>
 #include <string>
+#include <print>
 
 #include "utils.hpp"
 
@@ -251,20 +252,26 @@ int main(int, char**) {
     const auto prepared = blk->reset("minecraft:stone");
     MC_SCHEM_CHECK(prepared.has_value());
 
-    const auto too_many_colons = blk->reset("minecraft:stone:extra");
+    const char* id = "minecraft:stone:extra";
+    const auto too_many_colons = blk->reset(id);
     MC_SCHEM_CHECK(not too_many_colons.has_value());
     MC_SCHEM_CHECK(too_many_colons.error() ==
                    block_id_parse_error::TooManyColons);
+    std::println("\"{}\" => {}", id, too_many_colons.error());
 
-    const auto missing_equal = blk->reset("minecraft:stone[facing]");
+    id = "minecraft:stone[facing]";
+    const auto missing_equal = blk->reset(id);
     MC_SCHEM_CHECK(not missing_equal.has_value());
     MC_SCHEM_CHECK(missing_equal.error() ==
                    block_id_parse_error::MissingEqualInAttributes);
+    std::println("\"{}\" => {}", id, missing_equal.error());
 
-    const auto invalid_char = blk->reset("Minecraft:stone");
+    id = "Minecraft:stone";
+    const auto invalid_char = blk->reset(id);
     MC_SCHEM_CHECK(not invalid_char.has_value());
     MC_SCHEM_CHECK(invalid_char.error() ==
                    block_id_parse_error::InvalidCharacter);
+    std::println("\"{}\" => {}", id, invalid_char.error());
 
     // None of the failed resets may change the block
     MC_SCHEM_CHECK(blk->namespace_() == "minecraft");
@@ -272,8 +279,9 @@ int main(int, char**) {
     MC_SCHEM_CHECK(blk->full_id() == "minecraft:stone");
   }
 
-  // mc_schem_block_is_equal: namespace, id and the attribute map decide. The map
-  // is key-sorted, so the order the attributes were inserted in does not matter
+  // mc_schem_block_is_equal: namespace, id and the attribute map decide. The
+  // map is key-sorted, so the order the attributes were inserted in does not
+  // matter
   {
     auto first = block::create();
     first->set_id("oak_stairs");

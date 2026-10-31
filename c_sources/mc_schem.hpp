@@ -2452,4 +2452,66 @@ class schematic {
 
 }  // namespace mc_schem
 
+template <typename char_type>
+class std::formatter<mc_schem::block_id_parse_error, char_type> {
+ public:
+  formatter() = default;
+
+  using block_id_parse_error = mc_schem::block_id_parse_error;
+
+  template <class context_type>
+  static constexpr auto parse(context_type& context) {
+    return context.begin();
+  }
+
+  template <class context_type>
+  static auto format(const block_id_parse_error& err, context_type& context) {
+    const char* str = "<Invalid enum>";
+
+    switch (err) {
+      case block_id_parse_error::TooManyColons:
+        str = "Too many colons";
+        break;
+      case block_id_parse_error::TooManyLeftBrackets:
+        str = "Too many left brackets";
+        break;
+      case block_id_parse_error::TooManyRightBrackets:
+        str = "Too many right brackets";
+        break;
+      case block_id_parse_error::MissingBlockId:
+        str = "Missing block id";
+        break;
+      case block_id_parse_error::BracketsNotInPairs:
+        str = "Brackets not in pairs";
+        break;
+      case block_id_parse_error::BracketInWrongPosition:
+        str = "Bracket in wrong position";
+        break;
+      case block_id_parse_error::ColonsInWrongPosition:
+        str = "Colons in wrong position";
+        break;
+      case block_id_parse_error::MissingEqualInAttributes:
+        str = "Missing equal in attributes";
+        break;
+      case block_id_parse_error::TooManyEqualsInAttributes:
+        str = "Too many equals in attributes";
+        break;
+      case block_id_parse_error::MissingAttributeName:
+        str = "Missing attribute name";
+        break;
+      case block_id_parse_error::MissingAttributeValue:
+        str = "Missing attribute value";
+        break;
+      case block_id_parse_error::ExtraStringAfterRightBracket:
+        str = "Extra string after right bracket";
+        break;
+      case block_id_parse_error::InvalidCharacter:
+        str = "Invalid character";
+        break;
+    }
+
+    return std::format_to(context.out(), "{}", str);
+  }
+};
+
 #endif  // MC_SCHEM_MC_SCHEM_HPP

@@ -19,8 +19,13 @@ target_link_directories(mc_schem INTERFACE
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_LIBDIR}>
 )
 target_compile_features(mc_schem INTERFACE cxx_std_23)
+
 if (${MC_SCHEM_HAS_mdspan})
     target_compile_definitions(mc_schem INTERFACE MC_SCHEM_HAS_mdspan=1)
+endif ()
+
+if (${MSVC})
+    target_compile_options(mc_schem INTERFACE $<BUILD_INTERFACE:/EHsc>)
 endif ()
 
 if (${MC_SCHEM_ENABLE_TESTS})

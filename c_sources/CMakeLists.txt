@@ -21,11 +21,11 @@ target_link_directories(mc_schem INTERFACE
 target_compile_features(mc_schem INTERFACE cxx_std_23)
 
 if (${MC_SCHEM_HAS_mdspan})
-    target_compile_definitions(mc_schem INTERFACE MC_SCHEM_HAS_mdspan=1)
+    target_compile_definitions(mc_schem INTERFACE $<BUILD_INTERFACE:MC_SCHEM_HAS_mdspan=1>)
 endif ()
 
 if (${MC_SCHEM_HAS_boost})
-    target_compile_definitions(mc_schem INTERFACE MC_SCHEM_HAS_boost=1)
+    target_compile_definitions(mc_schem INTERFACE $<BUILD_INTERFACE:MC_SCHEM_HAS_boost=1>)
     target_include_directories(mc_schem INTERFACE $<BUILD_INTERFACE:${Boost_INCLUDE_DIRS}>)
 endif ()
 

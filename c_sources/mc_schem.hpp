@@ -37,8 +37,6 @@
 #include <type_traits>
 #include <vector>
 
-#include "mc_schem.hpp"
-
 #ifdef MC_SCHEM_HAS_mdspan
 #include <mdspan>
 #endif

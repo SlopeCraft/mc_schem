@@ -24,6 +24,11 @@ if (${MC_SCHEM_HAS_mdspan})
     target_compile_definitions(mc_schem INTERFACE MC_SCHEM_HAS_mdspan=1)
 endif ()
 
+if (${MC_SCHEM_HAS_boost})
+    target_compile_definitions(mc_schem INTERFACE MC_SCHEM_HAS_boost=1)
+    target_include_directories(mc_schem INTERFACE $<BUILD_INTERFACE:${Boost_INCLUDE_DIRS}>)
+endif ()
+
 if (${MSVC})
     target_compile_options(mc_schem INTERFACE $<BUILD_INTERFACE:/EHsc>)
 endif ()

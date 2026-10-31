@@ -9,6 +9,7 @@ option(MC_SCHEM_ENABLE_EXAMPLES "Build C++ examples" ON)
 #set(MC_SCHEM_RUST_TARGET "default" CACHE STRING "Target to build rust codes. Should be consistent with C compiler. Valid values: default;guess; or any other triplet")
 set(MC_SCHEM_RUST_BUILD_FLAGS "" CACHE STRING "Extra flags to build rust part. Passed to cargo.")
 option(MC_SCHEM_HAS_mdspan "Enable mdspan for schem. This is an option because some platforms are not very new" ON)
+option(MC_SCHEM_HAS_boost "Enable boost for schem. Mostly for multiarray" ON)
 
 if (${MC_SCHEM_ENABLE_TESTS})
     enable_testing()
@@ -16,8 +17,12 @@ endif ()
 
 include(GNUInstallDirs)
 
-include(cmake/corrosion.cmake)
+include(cmake/3rdParty/corrosion.cmake)
 find_package(Corrosion REQUIRED)
+
+if (${MC_SCHEM_HAS_boost})
+    include(cmake/3rdParty/boost.cmake)
+endif ()
 
 add_subdirectory(c_sources)
 

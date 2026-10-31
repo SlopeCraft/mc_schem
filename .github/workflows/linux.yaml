@@ -22,7 +22,7 @@ jobs:
       - name: Install toolchain
         run: |
           sudo apt update
-          sudo apt install clang-22 gcc-16 g++-16
+          sudo apt install clang-22 gcc-16 g++-16 libboost-dev
 
       - name: Rust build and test
         run: |
@@ -46,7 +46,8 @@ jobs:
             -DCMAKE_CXX_COMPILER=clang++-22 \
             -DCMAKE_C_COMPILER=clang-22 \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-            -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/install
+            -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/install \
+            -DMC_SCHEM_HAS_boost=ON
 
       - name: Build & install
         run: |

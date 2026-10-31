@@ -222,9 +222,7 @@ struct rust_writer {
       auto& dest = *static_cast<std::vector<uint8_t>*>(handle);
       try {
         dest.reserve(dest.size() + buf_bytes);
-        for (size_t i = 0; i < buf_bytes; i++) {
-          dest.emplace_back(buf[i]);
-        }
+        dest.insert(dest.end(), buf, buf + buf_bytes);
         *ok = true;
         return buf_bytes;
       } catch (const std::exception& e) {

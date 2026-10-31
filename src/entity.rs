@@ -24,7 +24,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::region::Entity;
 use crate::schem::common::parse_position_list;
 use crate::schem::{common, id_of_nbt_tag};
-use crate::{unwrap_opt_tag, unwrap_tag, Error};
+use crate::{unwrap_opt_tag, Error};
 use fastnbt::Value;
 use std::collections::HashMap;
 

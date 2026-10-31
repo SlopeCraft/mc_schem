@@ -23,7 +23,7 @@ use crate::region::{BlockEntity, Entity};
 use crate::{schem::id_of_nbt_tag, unwrap_opt_tag, unwrap_tag};
 use fastnbt::Value;
 use std::collections::HashMap;
-use std::fmt::{format, Display};
+use std::fmt::Display;
 use std::ops::{Add, Range};
 use web_time;
 use web_time::SystemTime;

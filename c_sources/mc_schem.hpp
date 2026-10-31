@@ -41,6 +41,11 @@
 #include <mdspan>
 #endif
 
+#ifdef MC_SCHEM_HAS_boost
+#include <boost/multi_array.hpp>
+#include <boost/array.hpp>
+#endif
+
 namespace mc_schem {
 
 enum class block_id_parse_error : uint8_t {
@@ -1716,6 +1721,72 @@ class region {
     }
     return std::mdspan<uint16_t, std::dextents<size_t, 3>, std::layout_right>{
         ptr, y, z, x};
+  }
+#endif
+
+#ifdef MC_SCHEM_HAS_boost
+  [[nodiscard]] std::optional<boost::const_multi_array_ref<uint16_t, 3>>
+  view_as_dense_yzx_boost() const& {
+    if (this->is_sparse()) {
+      return std::nullopt;
+    }
+    auto ptr = mc_schem_region_get_data(this);
+    const auto shape_yzx = this->size_yzx<size_t>();
+    const auto [y, z, x] = shape_yzx;
+    if (y * z * x > 0) {
+      assert(ptr);
+    }
+    // By default c storage order
+    return boost::const_multi_array_ref<uint16_t, 3>{ptr, shape_yzx};
+  }
+
+  [[nodiscard]] std::optional<boost::multi_array_ref<uint16_t, 3>>
+  view_as_dense_yzx_boost() & {
+    if (this->is_sparse()) {
+      return std::nullopt;
+    }
+    auto ptr = mc_schem_region_get_data_mut(this);
+    const auto shape_yzx = this->size_yzx<size_t>();
+    const auto [y, z, x] = shape_yzx;
+    if (y * z * x > 0) {
+      assert(ptr);
+    }
+    // By default c storage order
+    return boost::multi_array_ref<uint16_t, 3>{ptr, shape_yzx};
+  }
+
+  inline static constexpr std::array<bool, 3> boost_dense_ascending{true, true,
+                                                                    true};
+  /// Ordering list from yzx(general) to xyz
+  inline static constexpr std::array<size_t, 3> boost_dense_ordering_xyz{0, 1,
+                                                                         2};
+  [[nodiscard]] std::optional<boost::const_multi_array_ref<uint16_t, 3>>
+  view_as_dense_xyz_boost() const& {
+    if (this->is_sparse()) {
+      return std::nullopt;
+    }
+    auto ptr = mc_schem_region_get_data(this);
+    const auto [y, z, x] = this->size_yzx<size_t>();
+    if (y * z * x > 0) assert(ptr);
+    const boost::general_storage_order<3> order{
+        boost_dense_ordering_xyz.begin(), boost_dense_ascending.begin()};
+    // By default c storage order
+    return boost::const_multi_array_ref<uint16_t, 3>{ptr, std::array{x, y, z},
+                                                     order};
+  }
+  [[nodiscard]] std::optional<boost::multi_array_ref<uint16_t, 3>>
+  view_as_dense_xyz_boost() & {
+    if (this->is_sparse()) {
+      return std::nullopt;
+    }
+    auto ptr = mc_schem_region_get_data_mut(this);
+    const auto [y, z, x] = this->size_yzx<size_t>();
+    if (y * z * x > 0) assert(ptr);
+
+    const boost::general_storage_order<3> order{
+        boost_dense_ordering_xyz.begin(), boost_dense_ascending.begin()};
+    // By default c storage order
+    return boost::multi_array_ref<uint16_t, 3>{ptr, std::array{x, y, z}, order};
   }
 #endif
 };

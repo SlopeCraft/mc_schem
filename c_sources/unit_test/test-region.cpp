@@ -70,7 +70,8 @@ mc_schem::unique_block make_block(const std::string& full_id) {
 ///   mc_schem_region_convert_to_dense, mc_schem_region_total_blocks,
 ///   mc_schem_region_visit_blocks, mc_schem_region_update_mushroom_state,
 ///   mc_schem_region_stat_blocks
-/// The dense view section is only compiled with MC_SCHEM_HAS_mdspan, and covers
+/// The dense view sections are compiled with MC_SCHEM_HAS_mdspan and/or
+/// MC_SCHEM_HAS_boost, and cover
 ///   mc_schem_region_get_data, mc_schem_region_get_data_mut
 int main(int argc, char** argv) {
   using namespace mc_schem;
@@ -284,6 +285,94 @@ int main(int argc, char** argv) {
     r->convert_to_sparse();
     MC_SCHEM_CHECK(not cr.view_as_dense_yzx().has_value());
     MC_SCHEM_CHECK(not r->view_as_dense_yzx().has_value());
+  }
+#endif
+
+#ifdef MC_SCHEM_HAS_boost
+  // The boost multi array views of the same storage: the yzx flavour addresses a
+  // cell as [y][z][x], the xyz flavour as [x][y][z]. Both have to agree with
+  // block_index_at over the whole region
+  {
+    auto r = region::create(2, 3, 4);
+    MC_SCHEM_CHECK(r);
+    auto stone = make_block("minecraft:stone");
+    auto dirt = make_block("minecraft:dirt");
+    for (int32_t y = 0; y < 3; ++y) {
+      for (int32_t z = 0; z < 4; ++z) {
+        for (int32_t x = 0; x < 2; ++x) {
+          r->set_block({x, y, z}, x == 0 ? *stone : *dirt);
+        }
+      }
+    }
+
+    const region& cr = *r;
+    const auto [shape_y, shape_z, shape_x] = cr.size_yzx();
+
+    // The yzx view has the shape of the underlying storage
+    {
+      auto view = cr.view_as_dense_yzx_boost();
+      MC_SCHEM_CHECK(view.has_value());
+      const auto& v = view.value();
+      MC_SCHEM_CHECK(v.shape()[0] == static_cast<size_t>(shape_y));
+      MC_SCHEM_CHECK(v.shape()[1] == static_cast<size_t>(shape_z));
+      MC_SCHEM_CHECK(v.shape()[2] == static_cast<size_t>(shape_x));
+
+      for (int32_t y = 0; y < shape_y; ++y) {
+        for (int32_t z = 0; z < shape_z; ++z) {
+          for (int32_t x = 0; x < shape_x; ++x) {
+            const auto idx = cr.block_index_at({x, y, z});
+            MC_SCHEM_CHECK(idx.has_value());
+            MC_SCHEM_CHECK(v[y][z][x] == idx.value());
+          }
+        }
+      }
+    }
+
+    // The xyz view reports the dimensions the other way round and is addressed
+    // as [x][y][z]
+    {
+      auto view = cr.view_as_dense_xyz_boost();
+      MC_SCHEM_CHECK(view.has_value());
+      const auto& v = view.value();
+      MC_SCHEM_CHECK(v.shape()[0] == static_cast<size_t>(shape_x));
+      MC_SCHEM_CHECK(v.shape()[1] == static_cast<size_t>(shape_y));
+      MC_SCHEM_CHECK(v.shape()[2] == static_cast<size_t>(shape_z));
+
+      for (int32_t y = 0; y < shape_y; ++y) {
+        for (int32_t z = 0; z < shape_z; ++z) {
+          for (int32_t x = 0; x < shape_x; ++x) {
+            const auto idx = cr.block_index_at({x, y, z});
+            MC_SCHEM_CHECK(idx.has_value());
+            MC_SCHEM_CHECK(v[x][y][z] == idx.value());
+          }
+        }
+      }
+    }
+
+    // The mutable flavours alias the same buffer: writing through them has to
+    // show up in the region immediately
+    const uint16_t stone_index = cr.block_index_at({0, 0, 0}).value();
+    const uint16_t dirt_index = cr.block_index_at({1, 0, 0}).value();
+    MC_SCHEM_CHECK(stone_index not_eq dirt_index);
+
+    auto mut_yzx = r->view_as_dense_yzx_boost();
+    MC_SCHEM_CHECK(mut_yzx.has_value());
+    mut_yzx.value()[0][0][0] = dirt_index;  // y=0, z=0, x=0
+    MC_SCHEM_CHECK(cr.block_index_at({0, 0, 0}).value() == dirt_index);
+    mut_yzx.value()[0][0][0] = stone_index;
+
+    auto mut_xyz = r->view_as_dense_xyz_boost();
+    MC_SCHEM_CHECK(mut_xyz.has_value());
+    mut_xyz.value()[1][0][0] = stone_index;  // x=1, y=0, z=0
+    MC_SCHEM_CHECK(cr.block_index_at({1, 0, 0}).value() == stone_index);
+    mut_xyz.value()[1][0][0] = dirt_index;
+
+    // A sparse region has no dense view, in any of the four flavours
+    r->convert_to_sparse();
+    MC_SCHEM_CHECK(not cr.view_as_dense_yzx_boost().has_value());
+    MC_SCHEM_CHECK(not cr.view_as_dense_xyz_boost().has_value());
+    MC_SCHEM_CHECK(not r->view_as_dense_yzx_boost().has_value());
+    MC_SCHEM_CHECK(not r->view_as_dense_xyz_boost().has_value());
   }
 #endif
 

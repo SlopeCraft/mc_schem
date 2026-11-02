@@ -36,7 +36,7 @@ struct hasher {
 };
 
 int main(int argc, char** argv) {
-  if (argc <= 3) {
+  if (argc < 3) {
     std::println(std::cerr,
                  "Must provide 2 unsigned integer parameters: "
                  "N_first and N_second");

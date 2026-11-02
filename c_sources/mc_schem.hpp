@@ -550,6 +550,15 @@ bool mc_schem_region_set_block_by_index(region*, int32_t x, int32_t y,
 // returns ok
 bool mc_schem_region_set_block_by_block(region*, int32_t x, int32_t y,
                                         int32_t z, const block* blk);
+
+// `pos_xyz` must be list of coordinates like [x0,y0,z0,x1,y1,z1,...]
+// block_idx should have `num_entries` elements, pos_xyz should have
+// `3*num_entries` elements. pos_xyz mustn't contains duplicates, block_idx
+// must be less than palette_size. If found error, returns unique_error and
+// do nothing. region is still valid even this operation failed.
+error* mc_schem_region_set_block_by_index_batch(region*, const int32_t* pos_xyz,
+                                                const uint16_t* block_idx,
+                                                size_t num_entries);
 // Complex operations for region
 ////////////////////////////////////////////////////////////////////////
 [[nodiscard]] error* mc_schem_region_shrink_palette(region*);
@@ -1589,6 +1598,53 @@ class region {
   }
   void set_block(const std::array<int32_t, 3>& pos, const block& blk) & {
     set_block(std::span{pos}, blk);
+  }
+
+  /// Insert many blocks in once. This is ~4.5 times faster than set_block loop.
+  /// `positions_xyz` must be a list like [x0,y0,z0,x1,y1,z1,...].
+  /// `positions_xyz` must have 3x elements than `block_indices`
+  /// If found duplicates in positions, or out of range block indices, will
+  /// do nothing and throw exceptions
+  void set_block_batch(std::span<const int32_t> positions_xyz,
+                       std::span<const uint16_t> block_indices) & {
+    if (positions_xyz.size() % 3 != 0) [[unlikely]] {
+      throw std::invalid_argument{std::format(
+          "region::set_block_batch "
+          "received xyz list that contains {} elements. Must be "
+          "multiple of 3, otherwise contains incomplete i32[3] coordinates",
+          positions_xyz.size())};
+    }
+
+    if (block_indices.size() * 3 != positions_xyz.size()) [[unlikely]] {
+      throw std::invalid_argument{
+          std::format("region::set_block_batch received {} positions but {} "
+                      "block indices. Must be same",
+                      positions_xyz.size() / 3, block_indices.size())};
+    }
+    const size_t num_entries = block_indices.size();
+
+    auto err_ptr = unique_error{mc_schem_region_set_block_by_index_batch(
+        this, positions_xyz.data(), block_indices.data(), num_entries)};
+    if (err_ptr) [[unlikely]] {
+      throw std::runtime_error{std::format(
+          "Failed to insert blocks by batch: {}", err_ptr->message())};
+    }
+  }
+  /// Insert many blocks in once
+  void set_block_batch(std::span<const int32_t[3]> positions,
+                       std::span<const uint16_t> block_indices) & {
+    std::span<const int32_t> pos{
+        reinterpret_cast<const int32_t*>(positions.data()),
+        positions.size() * 3};
+    this->set_block_batch(pos, block_indices);
+  }
+  /// Insert many blocks in once
+  void set_block_batch(std::span<const std::array<int32_t, 3>> positions,
+                       std::span<const uint16_t> block_indices) & {
+    std::span<const int32_t> pos{
+        reinterpret_cast<const int32_t*>(positions.data()),
+        positions.size() * 3};
+    this->set_block_batch(pos, block_indices);
   }
 
   /// Drop palette entries that no block refers to and renumber the remaining

@@ -14,14 +14,13 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-
 use crate::block::Block;
 use crate::c_ffi::{
     mirror_InvalidBlockInfo, mirror_MushroomStateUpdateOption, mirror_MushroomStatistic,
     rust_string_receiver,
 };
 use crate::error::Error;
-use crate::region::{Array3DVariant, BlockEntity, HasPalette, WorldSlice};
+use crate::region::{Array3DVariant, BlockEntity, HasPalette, Sparse3DArray, WorldSlice};
 use crate::schem::mushroom::MushroomStateUpdateOption;
 use crate::{Entity, PendingTick, Region};
 use std::ffi::{c_char, c_void, CStr};
@@ -431,6 +430,90 @@ pub unsafe extern "C" fn mc_schem_region_set_block_by_block(
 ) -> bool {
     let result = (*region).set_block([x, y, z], &*blk);
     result.is_ok()
+}
+
+// error* mc_schem_region_set_block_by_index_batch(region*, const int32_t* pos_xyz,const uint16_t*
+// block_idx,size_t num_entries);
+#[no_mangle]
+pub unsafe extern "C" fn mc_schem_region_set_block_by_index_batch(
+    region: *mut Region,
+    pos_xyz_list: *const i32,
+    idx_list: *const u16,
+    num_entries: usize,
+) -> *mut Error {
+    let region = region.as_mut_unchecked();
+    let pos_xyz_list = &*slice_from_raw_parts(pos_xyz_list as *const [i32; 3], num_entries);
+    let idx_list = &*slice_from_raw_parts(idx_list, num_entries);
+
+    let mut tuples: Vec<(usize, u16)> = Vec::with_capacity(num_entries);
+    let mut num_zero: usize = 0;
+    for i in 0..num_entries {
+        let pos = pos_xyz_list[i];
+        let block_idx = idx_list[i];
+        if !region.contains_coord(pos) {
+            let err = Error::BlockPosOutOfRange {
+                tag_path: "ffi function mc_schem_region_set_block_by_index_batch".to_string(),
+                pos,
+                upper_bound: region.shape(),
+                lower_bound: [0, 0, 0],
+            };
+            return Box::into_raw(Box::new(err));
+        }
+        if block_idx as usize >= region.palette.len() {
+            let err = Error::BlockIndexOutOfRange {
+                tag_path: "ffi function mc_schem_region_set_block_by_index_batch".to_string(),
+                index: block_idx as i32,
+                range: [0, region.palette.len() as i32],
+            };
+            return Box::into_raw(Box::new(err));
+        }
+        if block_idx == 0 {
+            num_zero += 1;
+        }
+        let [x, y, z] = pos;
+        let idx_1d = Sparse3DArray::coordinate_3d_to_1d(
+            &[y as usize, z as usize, x as usize],
+            &region.array_yzx.shape(),
+        );
+        tuples.push((idx_1d, block_idx));
+    }
+    debug_assert!(tuples.len() == num_entries);
+
+    tuples.sort_by(|a, b| a.0.cmp(&b.0));
+
+    // check for duplicates
+    if num_entries >= 2 {
+        let mut previous_pos_1d = tuples[0].0;
+        for i in 1..num_entries {
+            let cur_pos_1d = tuples[i].0;
+            if previous_pos_1d == cur_pos_1d {
+                let [y, z, x] =
+                    Sparse3DArray::coordinate_1d_to_3d(cur_pos_1d, &region.array_yzx.shape());
+
+                let err = Error::DuplicatedIndexInBatchInsertion {
+                    position: [x as i32, y as i32, z as i32],
+                };
+                return Box::into_raw(Box::new(err));
+            }
+            previous_pos_1d = cur_pos_1d;
+        }
+    }
+
+    if let Array3DVariant::Sparse(sparse_arr) = &mut region.array_yzx {
+        sparse_arr.insert_batch_from_iter(tuples.into_iter(), Some(num_zero));
+
+        return null_mut();
+    }
+
+    let shape = region.array_yzx.shape();
+    if let Array3DVariant::Dense(dense_arr) = &mut region.array_yzx {
+        for (pos_1d, index) in tuples {
+            let [y, z, x] = Sparse3DArray::coordinate_1d_to_3d(pos_1d, &shape);
+            dense_arr[[y, z, x]] = index;
+        }
+    }
+
+    null_mut()
 }
 
 // error* mc_schem_region_shrink_palette(region*);

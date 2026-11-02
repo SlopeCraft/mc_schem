@@ -100,16 +100,30 @@ int main(int argc, char** argv) {
     auto reg_batch_insert = reg->clone();
     auto reg_sequential_insert = std::move(reg);
 
-    const auto begin = std::chrono::high_resolution_clock::now();
-    for (const auto& pos : poses) {
-      reg_sequential_insert->set_block(pos, 2);
+    {
+      const auto begin = std::chrono::high_resolution_clock::now();
+      for (const auto& pos : poses) {
+        reg_sequential_insert->set_block(pos, 2);
+      }
+      const auto end = std::chrono::high_resolution_clock::now();
+      const auto us =
+          std::chrono::duration_cast<std::chrono::microseconds>(end - begin)
+              .count();
+      std::println("Insert {} elements by set_block takes {} ms", poses.size(),
+                   static_cast<double>(us) / 1000);
     }
-    const auto end = std::chrono::high_resolution_clock::now();
-    const auto us =
-        std::chrono::duration_cast<std::chrono::microseconds>(end - begin)
-            .count();
-    std::println("Insert {} elements by set_block takes {} ms", poses.size(),
-                 static_cast<double>(us) / 1000);
+    {
+      std::vector<uint16_t> indices;
+      indices.resize(N_times_second, 2);
+      const auto begin = std::chrono::high_resolution_clock::now();
+      reg_batch_insert->set_block_batch(poses, indices);
+      const auto end = std::chrono::high_resolution_clock::now();
+      const auto us =
+          std::chrono::duration_cast<std::chrono::microseconds>(end - begin)
+              .count();
+      std::println("Insert {} elements by set_block takes {} ms", poses.size(),
+                   static_cast<double>(us) / 1000);
+    }
   }
 
   return 0;

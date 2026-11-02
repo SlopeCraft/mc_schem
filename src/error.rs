@@ -174,6 +174,9 @@ pub enum Error {
         former: (Item, String),
         latter: (Item, String),
     },
+    DuplicatedIndexInBatchInsertion {
+        position: [i32; 3],
+    },
     CustomError(String),
 }
 
@@ -256,7 +259,10 @@ impl Display for Error {
             => write!(f, "The y range of dimension {dimension_id} is {}, but y range of chunk ({exception_chunk_x}, {exception_chunk_z}) is {}", format_range(dimension_y_range), format_range(exception_value)),
             Error::MultipleItemsInOneSlot { slot, former, latter }
             => write!(f, "Found multiple items in slot {slot} when parsing inventory, the former is {:?}, defined at {}, the latter is {:?}, defined at {}", former.0, former.1, latter.0, latter.1),
-            Error::CustomError(s)
+            Error::DuplicatedIndexInBatchInsertion {
+                position
+            } => write!(f,"Found more than 1 entries trying to insert block in [{},{},{}]",position[0],position[1],position[2]),
+                Error::CustomError(s)
             => write!(f, "Custom error : \"{s}\"")
         }
     }

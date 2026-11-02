@@ -307,6 +307,38 @@ impl Sparse3DArray {
 
         ret
     }
+    /// This function doesn't check if block index is in range. Use with caution!
+    pub fn insert_batch_from_iter<T: IntoIterator<Item = (usize, u16)>>(
+        &mut self,
+        tuples_iter: T,
+        num_zero_estimate: Option<usize>,
+    ) {
+        let mut tree = BTreeMap::from_iter(tuples_iter);
+        let mut num_zero: usize = 0;
+        if let Some(est) = num_zero_estimate {
+            num_zero = est;
+        } else {
+            for idx in tree.values() {
+                if *idx == 0 {
+                    num_zero += 1;
+                }
+            }
+        }
+        let mut zeros_pos: Vec<usize> = Vec::with_capacity(num_zero);
+        for (pos_1d, idx) in &tree {
+            if *idx == 0 {
+                zeros_pos.push(*pos_1d);
+            }
+        }
+
+        self.elements.append(&mut tree);
+
+        for pos in &zeros_pos {
+            let removed = self.elements.remove(pos);
+            debug_assert!(removed.is_some());
+            debug_assert!(removed.unwrap() == 0);
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

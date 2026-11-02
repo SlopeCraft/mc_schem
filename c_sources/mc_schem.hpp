@@ -343,6 +343,20 @@ struct alignas(8) mirror_invalid_block_info {
   [[maybe_unused]] uint8_t reserved[42]{};
 };
 static_assert(sizeof(mirror_invalid_block_info) == 64);
+
+struct alignas(8) mirror_region_setblock_by_index_batch_info {
+  /// Must be list of coordinates like [x0,y0,z0,x1,y1,z1,...]. Must have
+  /// `3*num_entries` elements. Mustn't contains duplicates
+  const int32_t* positions_xyz{nullptr};
+  /// Should have `num_entries` elements, must be less than palette_size.
+  const uint16_t* block_indices{nullptr};
+  /// Number of blocks to be inserted
+  size_t num_entries{0};
+
+  [[maybe_unused]] uint8_t reserved[40]{};
+};
+static_assert(sizeof(mirror_region_setblock_by_index_batch_info) == 64);
+
 // Version and ABI anchors
 extern "C" {
 
@@ -556,9 +570,8 @@ bool mc_schem_region_set_block_by_block(region*, int32_t x, int32_t y,
 // `3*num_entries` elements. pos_xyz mustn't contains duplicates, block_idx
 // must be less than palette_size. If found error, returns unique_error and
 // do nothing. region is still valid even this operation failed.
-error* mc_schem_region_set_block_by_index_batch(region*, const int32_t* pos_xyz,
-                                                const uint16_t* block_idx,
-                                                size_t num_entries);
+error* mc_schem_region_set_block_by_index_batch(
+    region*, const mirror_region_setblock_by_index_batch_info* info);
 // Complex operations for region
 ////////////////////////////////////////////////////////////////////////
 [[nodiscard]] error* mc_schem_region_shrink_palette(region*);
@@ -1623,8 +1636,15 @@ class region {
     }
     const size_t num_entries = block_indices.size();
 
-    auto err_ptr = unique_error{mc_schem_region_set_block_by_index_batch(
-        this, positions_xyz.data(), block_indices.data(), num_entries)};
+    const auto info = mirror_region_setblock_by_index_batch_info{
+        .positions_xyz = positions_xyz.data(),
+        .block_indices = block_indices.data(),
+        .num_entries = num_entries,
+        .reserved{},
+    };
+
+    auto err_ptr =
+        unique_error{mc_schem_region_set_block_by_index_batch(this, &info)};
     if (err_ptr) [[unlikely]] {
       throw std::runtime_error{std::format(
           "Failed to insert blocks by batch: {}", err_ptr->message())};

@@ -249,6 +249,17 @@ struct mirror_InvalidBlockInfo {
 }
 const_assert!(size_of::<mirror_InvalidBlockInfo>() == 64);
 
+#[repr(C, align(8))]
+#[allow(non_camel_case_types)]
+struct mirror_region_setblock_by_index_batch_info {
+    pub positions_xyz: *const i32,
+    pub block_indicies: *const u16,
+    pub num_entries: usize,
+
+    _reserved: [u8; 40],
+}
+const_assert!(size_of::<mirror_region_setblock_by_index_batch_info>() == 64);
+
 /*
 
 #[repr(C, align(8))]

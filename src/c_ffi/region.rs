@@ -17,7 +17,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::block::Block;
 use crate::c_ffi::{
     mirror_InvalidBlockInfo, mirror_MushroomStateUpdateOption, mirror_MushroomStatistic,
-    rust_string_receiver,
+    mirror_region_setblock_by_index_batch_info, rust_string_receiver,
 };
 use crate::error::Error;
 use crate::region::{Array3DVariant, BlockEntity, HasPalette, Sparse3DArray, WorldSlice};
@@ -437,18 +437,20 @@ pub unsafe extern "C" fn mc_schem_region_set_block_by_block(
 #[no_mangle]
 pub unsafe extern "C" fn mc_schem_region_set_block_by_index_batch(
     region: *mut Region,
-    pos_xyz_list: *const i32,
-    idx_list: *const u16,
-    num_entries: usize,
+    info: *const mirror_region_setblock_by_index_batch_info,
 ) -> *mut Error {
+    let num_entries = info.as_ref_unchecked().num_entries;
     if num_entries <= 0 {
         // This is required. If num_entries is 0, idx_list is probably nullptr, and slice becomes UB
         return null_mut();
     }
 
     let region = region.as_mut_unchecked();
-    let pos_xyz_list = &*slice_from_raw_parts(pos_xyz_list as *const [i32; 3], num_entries);
-    let idx_list = &*slice_from_raw_parts(idx_list, num_entries);
+    let pos_xyz_list = &*slice_from_raw_parts(
+        info.as_ref_unchecked().positions_xyz as *const [i32; 3],
+        num_entries,
+    );
+    let idx_list = &*slice_from_raw_parts(info.as_ref_unchecked().block_indicies, num_entries);
 
     let mut tuples: Vec<(usize, u16)> = Vec::with_capacity(num_entries);
     let mut num_zero: usize = 0;

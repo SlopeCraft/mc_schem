@@ -864,9 +864,7 @@ template <class E>
   }
   if constexpr (std::is_same_v<E, block_id_parse_error>) {
     throw std::runtime_error{
-        std::format("Failed to parse block id with "
-                    "error code {}",
-                    static_cast<int>(e))};
+        std::format("Failed to parse block id because {}", e)};
   }
   // std::unreachable();
 }
@@ -889,15 +887,6 @@ T unwrap(std::expected<T, E> exp) {
     return;
   }
 }
-
-// template <class exp_void>
-//   requires std::is_same_v<exp_void,
-//                           std::expected<void, typename exp_void::error_type>>
-// void unwrap(exp_void exp) {
-//   if (not exp.has_value()) {
-//     ::mc_schem::internal::auto_throw(std::move(exp.error()));
-//   }
-// }
 
 /// Hashmap of nbt tags
 /// Note: sizeof is fake. Never construct from C/C++, only construct,

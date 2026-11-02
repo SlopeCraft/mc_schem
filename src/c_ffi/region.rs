@@ -441,6 +441,11 @@ pub unsafe extern "C" fn mc_schem_region_set_block_by_index_batch(
     idx_list: *const u16,
     num_entries: usize,
 ) -> *mut Error {
+    if num_entries <= 0 {
+        // This is required. If num_entries is 0, idx_list is probably nullptr, and slice becomes UB
+        return null_mut();
+    }
+
     let region = region.as_mut_unchecked();
     let pos_xyz_list = &*slice_from_raw_parts(pos_xyz_list as *const [i32; 3], num_entries);
     let idx_list = &*slice_from_raw_parts(idx_list, num_entries);

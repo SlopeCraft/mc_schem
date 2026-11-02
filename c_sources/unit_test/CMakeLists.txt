@@ -28,3 +28,4 @@ add_test(NAME mc_schem-schematic COMMAND test-schematic "${CMAKE_SOURCE_DIR}/tes
 
 add_executable(sparse-region-batch-insert sparse-region-batch-insert.cpp)
 target_link_libraries(sparse-region-batch-insert PRIVATE mc_schem)
+add_test(NAME mc_schem-sparse-region-batch-insert COMMAND sparse-region-batch-insert)

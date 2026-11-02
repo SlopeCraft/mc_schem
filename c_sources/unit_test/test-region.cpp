@@ -69,6 +69,7 @@ mc_schem::unique_block make_block(const std::string& full_id) {
 ///   mc_schem_region_fill_with, mc_schem_region_convert_to_sparse,
 ///   mc_schem_region_convert_to_dense, mc_schem_region_total_blocks,
 ///   mc_schem_region_visit_blocks, mc_schem_region_update_mushroom_state,
+///   mc_schem_region_set_block_by_index_batch,
 ///   mc_schem_region_stat_blocks
 /// The dense view sections are compiled with MC_SCHEM_HAS_mdspan and/or
 /// MC_SCHEM_HAS_boost, and cover
@@ -584,6 +585,64 @@ int main(int argc, char** argv) {
     MC_SCHEM_CHECK(shrunk.has_value());
     MC_SCHEM_CHECK(shaped->palette_size() == 1);
     MC_SCHEM_CHECK(shaped->palette(0)->is_air());
+  }
+
+  // mc_schem_region_set_block_by_index_batch: the corner cases. Only the
+  // resulting content is checked, never whether a zero index is stored
+  // explicitly or dropped, both are allowed
+  {
+    auto r = region::create(2, 2, 2);
+    MC_SCHEM_CHECK(r);
+    auto stone = make_block("minecraft:stone");
+    const uint16_t stone_idx = r->find_or_append_to_palette(*stone);
+
+    // Filling nothing at all is a no-op and must not throw
+    r->set_block_batch(std::span<const int32_t>{},
+                       std::span<const uint16_t>{});
+    MC_SCHEM_CHECK(r->is_dense());
+    MC_SCHEM_CHECK(r->total_blocks(false) == 0);
+
+    // A dense region, filled by a batch of coordinates in xyz order
+    r->set_block({0, 0, 0}, stone_idx);
+    const std::array<int32_t, 9> positions{1, 0, 0, 0, 1, 0, 1, 1, 0};
+    const std::array<uint16_t, 3> indices{stone_idx, stone_idx, stone_idx};
+    r->set_block_batch(std::span<const int32_t>{positions},
+                       std::span<const uint16_t>{indices});
+
+    MC_SCHEM_CHECK(r->is_dense());
+    MC_SCHEM_CHECK(r->total_blocks(false) == 4);
+    MC_SCHEM_CHECK(r->block_index_at({0, 0, 0}).value() == stone_idx);
+    MC_SCHEM_CHECK(r->block_index_at({1, 0, 0}).value() == stone_idx);
+    MC_SCHEM_CHECK(r->block_index_at({0, 1, 0}).value() == stone_idx);
+    MC_SCHEM_CHECK(r->block_index_at({1, 1, 0}).value() == stone_idx);
+    // the cells that were not part of the batch are untouched
+    MC_SCHEM_CHECK(r->block_index_at({0, 0, 1}).value() == 0);
+    MC_SCHEM_CHECK(r->block_index_at({1, 1, 1}).value() == 0);
+
+    // Every index is zero: those cells fall back to palette entry 0
+    const std::array<int32_t, 6> zero_positions{0, 0, 0, 1, 1, 0};
+    const std::array<uint16_t, 2> zero_indices{0, 0};
+    r->set_block_batch(std::span<const int32_t>{zero_positions},
+                       std::span<const uint16_t>{zero_indices});
+    MC_SCHEM_CHECK(r->block_index_at({0, 0, 0}).value() == 0);
+    MC_SCHEM_CHECK(r->block_index_at({1, 1, 0}).value() == 0);
+    MC_SCHEM_CHECK(r->block_index_at({1, 0, 0}).value() == stone_idx);
+    MC_SCHEM_CHECK(r->block_index_at({0, 1, 0}).value() == stone_idx);
+    MC_SCHEM_CHECK(r->total_blocks(false) == 2);
+
+    // The same on the sparse storage, where a zero is the interesting case
+    auto sparse = r->clone();
+    MC_SCHEM_CHECK(sparse);
+    sparse->convert_to_sparse();
+    MC_SCHEM_CHECK(sparse->is_sparse());
+
+    const std::array<int32_t, 6> sparse_zero_positions{1, 0, 0, 0, 1, 0};
+    sparse->set_block_batch(std::span<const int32_t>{sparse_zero_positions},
+                            std::span<const uint16_t>{zero_indices});
+    MC_SCHEM_CHECK(sparse->is_sparse());
+    MC_SCHEM_CHECK(sparse->block_index_at({1, 0, 0}).value() == 0);
+    MC_SCHEM_CHECK(sparse->block_index_at({0, 1, 0}).value() == 0);
+    MC_SCHEM_CHECK(sparse->total_blocks(false) == 0);
   }
 
   // A region read from a real litematica file. The fixture is only a source of

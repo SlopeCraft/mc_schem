@@ -61,7 +61,7 @@ int main(int argc, char** argv) {
           R"({id:"minecraft:creeper",Pos:[0.5d,0.25d,0.5d],Rotation:[0.0f,0.0f],ignited:1b,powered:1b})"));
 
       auto entity_exp = entity::create(std::move(tags));
-      return std::move(*entity_exp);
+      return unwrap(std::move(entity_exp));
     }();
     // Add our little cute
     region->add_entity(std::move(entity));

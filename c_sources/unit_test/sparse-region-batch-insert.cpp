@@ -20,9 +20,11 @@ mc_schem is a rust library to generate, load, manipulate and save minecraft
 #include <vector>
 #include <array>
 #include <chrono>
+#include <print>
+#include <iostream>
+#include <charconv>
 
 #include <mc_schem.hpp>
-#include "utils.hpp"
 
 using namespace mc_schem;
 
@@ -34,8 +36,15 @@ struct hasher {
 };
 
 int main(int argc, char** argv) {
-  const size_t N_items_first = 10000;
-  const size_t N_times_second = 10000000;
+  if (argc <= 3) {
+    std::println(std::cerr,
+                 "Must provide 2 unsigned integer parameters: "
+                 "N_first and N_second");
+    return 1;
+  }
+
+  const size_t N_first = std::stoull(argv[1]);
+  const size_t N_second = std::stoull(argv[2]);
   const std::array shape{1000, 128, 1000};
 
   std::mt19937 mt{std::random_device{}()};
@@ -87,7 +96,7 @@ int main(int argc, char** argv) {
   };
   // first fill
   {
-    auto poses = make_nodup_coordinates(N_items_first, mt);
+    auto poses = make_nodup_coordinates(N_first, mt);
 
     for (const auto& pos : poses) {
       reg->set_block(pos, 1);
@@ -96,7 +105,7 @@ int main(int argc, char** argv) {
 
   // second fill
   {
-    const auto poses = make_nodup_coordinates(N_times_second, mt);
+    const auto poses = make_nodup_coordinates(N_second, mt);
     auto reg_batch_insert = reg->clone();
     auto reg_sequential_insert = std::move(reg);
 
@@ -109,20 +118,20 @@ int main(int argc, char** argv) {
       const auto us =
           std::chrono::duration_cast<std::chrono::microseconds>(end - begin)
               .count();
-      std::println("Insert {} elements by set_block takes {} ms", poses.size(),
-                   static_cast<double>(us) / 1000);
+      std::println("Insert {} elements by set_block loop takes {} ms",
+                   poses.size(), static_cast<double>(us) / 1000);
     }
     {
       std::vector<uint16_t> indices;
-      indices.resize(N_times_second, 2);
+      indices.resize(N_second, 2);
       const auto begin = std::chrono::high_resolution_clock::now();
       reg_batch_insert->set_block_batch(poses, indices);
       const auto end = std::chrono::high_resolution_clock::now();
       const auto us =
           std::chrono::duration_cast<std::chrono::microseconds>(end - begin)
               .count();
-      std::println("Insert {} elements by set_block takes {} ms", poses.size(),
-                   static_cast<double>(us) / 1000);
+      std::println("Insert {} elements by set_block_batch takes {} ms",
+                   poses.size(), static_cast<double>(us) / 1000);
     }
   }
 

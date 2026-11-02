@@ -60,3 +60,9 @@ A rust library to generate, load, manipulate and save minecraft schematic files.
    )
    FetchContent_MakeAvailable(mc_schem)
    ```
+
+## Examples
+
+1. Creeper [Rust](./examples/creeper.rs) [C++](./examples/creeper.cpp)
+
+   ![](./docs/images/creeper.jpg)

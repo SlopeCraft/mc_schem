@@ -486,7 +486,7 @@ pub unsafe extern "C" fn mc_schem_region_set_block_by_index_batch(
     }
     debug_assert!(tuples.len() == num_entries);
 
-    tuples.sort_by(|a, b| a.0.cmp(&b.0));
+    tuples.sort_unstable_by(|a, b| a.0.cmp(&b.0));
 
     // check for duplicates
     if num_entries >= 2 {

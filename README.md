@@ -47,7 +47,7 @@ A rust library to generate, load, manipulate and save minecraft schematic files.
 3. Use with cmake
 
     ```cmake
-    find_package(mc_schem 1.4.0 CONFIG REQUIRED)
+    find_package(mc_schem 1.4.1 CONFIG REQUIRED)
     target_link_libraries(<your target> PRIVATE mc_schem::mc_schem)
     ```
    FetchContent is also supported:
@@ -55,7 +55,7 @@ A rust library to generate, load, manipulate and save minecraft schematic files.
    include(FetchContent)
    FetchContent_Declare(mc_schem
      GIT_REPOSITORY https://github.com/SlopeCraft/mc_schem
-     GIT_TAG v1.4.0
+     GIT_TAG v1.4.1
      OVERRIDE_FIND_PACKAGE
    )
    FetchContent_MakeAvailable(mc_schem)

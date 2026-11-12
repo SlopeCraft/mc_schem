@@ -96,11 +96,20 @@ fn block_id_parse() {
 
 #[test]
 fn block_bits_required() {
+    // Special: require at least 2 bits per block. This is tested from 1.12.2 to 26.3
+    assert_eq!(schem::litematica::block_required_bits(0), 2);
+    assert_eq!(schem::litematica::block_required_bits(1), 2);
+    assert_eq!(schem::litematica::block_required_bits(2), 2);
+    assert_eq!(schem::litematica::block_required_bits(3), 2);
     for palette_size in 0..258 {
         let bits = schem::litematica::block_required_bits(palette_size);
-        assert!(bits > 0);
+        assert!(bits >= 2);
         println!("{} blocks requires {} bit(s)", palette_size, bits);
     }
+
+    assert_eq!(schem::litematica::block_required_bits(1023), 10);
+    assert_eq!(schem::litematica::block_required_bits(1024), 10);
+    assert_eq!(schem::litematica::block_required_bits(1025), 11);
 }
 
 #[test]

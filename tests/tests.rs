@@ -1144,24 +1144,20 @@ fn test_region_sparse() {
 #[test]
 fn test_update_mushroom_state() {
     let mut region = Region::with_shape([10, 1, 1]);
-    region
-        .set_block(
-            [0, 0, 0],
-            &Block::from_id("minecraft:red_mushroom_block").unwrap(),
-        )
-        .unwrap();
-    region
-        .set_block(
-            [1, 0, 0],
-            &Block::from_id("minecraft:brown_mushroom_block").unwrap(),
-        )
-        .unwrap();
-    region
-        .set_block(
-            [2, 0, 0],
-            &Block::from_id("minecraft:mushroom_stem").unwrap(),
-        )
-        .unwrap();
+
+    let idx_red =
+        region.find_or_append_to_palette(&Block::from_id("minecraft:red_mushroom_block").unwrap());
+    let idx_brown = region
+        .find_or_append_to_palette(&Block::from_id("minecraft:brown_mushroom_block").unwrap());
+    let idx_stem =
+        region.find_or_append_to_palette(&Block::from_id("minecraft:mushroom_stem").unwrap());
+
+    region.set_block_id([0, 0, 0], idx_red).unwrap();
+    region.set_block_id([1, 0, 0], idx_red).unwrap();
+    region.set_block_id([2, 0, 0], idx_brown).unwrap();
+    region.set_block_id([3, 0, 0], idx_brown).unwrap();
+    region.set_block_id([4, 0, 0], idx_stem).unwrap();
+    region.set_block_id([5, 0, 0], idx_stem).unwrap();
 
     let mut option = MushroomStateUpdateOption::default();
     option.canonicalize_block_id = true;
@@ -1173,9 +1169,9 @@ fn test_update_mushroom_state() {
     for mut region in [dense, sparse] {
         let stat = region.update_mushroom_state(&option);
         println!("Stat: {:?}", stat);
-        assert_eq!(stat.mushroom_total_num, 3);
-        assert_eq!(stat.mushroom_corrected_num, 3);
-        assert_eq!(stat.palette_growth, 3);
+        assert_eq!(stat.mushroom_total_num, 6);
+        assert_eq!(stat.mushroom_corrected_num, 6);
+        assert_eq!(stat.palette_growth, 6);
 
         println!("New palette:");
         for blk in &region.palette {

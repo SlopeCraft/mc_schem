@@ -189,8 +189,11 @@ impl<'palette> MushroomMap<'palette> {
         ret
     }
 
-    pub fn is_mushroom(&self, element_idx: u16) -> bool {
-        self.element_index_to_block.contains_key(&element_idx)
+    pub fn is_same_mushroom_kind(&self, element_idx: u16, expected_kind: MushroomType) -> bool {
+        if let Some((kind, _)) = self.element_index_to_block.get(&element_idx) {
+            return *kind == expected_kind;
+        }
+        false
     }
 
     /// like operator[]. Returns index of this block. If it doesn't exist, insert.
@@ -254,9 +257,11 @@ impl Default for MushroomStateUpdateOption {
 
 impl Region {
     /// Update block-state of mushroom blocks (full block, not small mushroom). In real game,
-    /// contacting mushroom blocks have stoma texture on contacting face. This should be done by
-    /// updating block state. This function updates block index and palette for every mushroom block
-    /// (if need change), just like Minecraft does.
+    /// contacting mushroom blocks (of same kind) have stoma texture on contacting face. This should
+    /// be done by updating block state. This function updates block index and palette for every
+    /// mushroom block (if need change), just like Minecraft does.
+    /// This function will do nothing for 1.12-, because mushroom block state is not updated
+    /// before 1.13
     pub fn update_mushroom_state(
         &mut self,
         option: &MushroomStateUpdateOption,
@@ -297,29 +302,35 @@ impl Region {
                         }
 
                         // Has mushroom block on West, set West side to stoma (false)
-                        if (x > 0) && mushroom_map.is_mushroom(dense_arr[[y, z, x - 1]]) {
+                        if (x > 0)
+                            && mushroom_map.is_same_mushroom_kind(dense_arr[[y, z, x - 1]], kind)
+                        {
                             state.set_outside(Direction::West, false);
                         }
                         if (x + 1 < shape_yzx[2])
-                            && mushroom_map.is_mushroom(dense_arr[[y, z, x + 1]])
+                            && mushroom_map.is_same_mushroom_kind(dense_arr[[y, z, x + 1]], kind)
                         {
                             state.set_outside(Direction::East, false);
                         }
                         // Has mushroom block on West, set West side to stoma (false)
-                        if (y > 0) && mushroom_map.is_mushroom(dense_arr[[y - 1, z, x]]) {
+                        if (y > 0)
+                            && mushroom_map.is_same_mushroom_kind(dense_arr[[y - 1, z, x]], kind)
+                        {
                             state.set_outside(Direction::Down, false);
                         }
                         if (y + 1 < shape_yzx[0])
-                            && mushroom_map.is_mushroom(dense_arr[[y + 1, z, x]])
+                            && mushroom_map.is_same_mushroom_kind(dense_arr[[y + 1, z, x]], kind)
                         {
                             state.set_outside(Direction::Up, false);
                         }
                         // Has mushroom block on West, set West side to stoma (false)
-                        if (z > 0) && mushroom_map.is_mushroom(dense_arr[[y, z - 1, x]]) {
+                        if (z > 0)
+                            && mushroom_map.is_same_mushroom_kind(dense_arr[[y, z - 1, x]], kind)
+                        {
                             state.set_outside(Direction::North, false);
                         }
                         if (z + 1 < shape_yzx[1])
-                            && mushroom_map.is_mushroom(dense_arr[[y, z + 1, x]])
+                            && mushroom_map.is_same_mushroom_kind(dense_arr[[y, z + 1, x]], kind)
                         {
                             state.set_outside(Direction::South, false);
                         }
@@ -349,30 +360,38 @@ impl Region {
             sparse_arr.visit_non_zero(&mut mushroom_collector);
             stat.mushroom_total_num = mushroom_table.len() as u64;
 
+            // Vanilla minecraft only updates mushroom for same kind
+            let is_same_mushroom_kind_on_pos =
+                |pos: &[usize; 3], expected_kind: MushroomType| -> bool {
+                    if let Some((kind, _)) = mushroom_table.get(pos) {
+                        return *kind == expected_kind;
+                    }
+                    false
+                };
             //Second loop: visit all mushroom blocks, compute correct state, write into region. mushroom_table is not updated because borrowing rule.
             for (pos, (kind, original_mush_state)) in mushroom_table.iter() {
                 let [y, z, x] = *pos;
                 let mut state = *original_mush_state;
-
                 // Has mushroom block on West, set West side to stoma (false)
-                if (x > 0) && mushroom_table.contains_key(&[y, z, x - 1]) {
+                if (x > 0) && is_same_mushroom_kind_on_pos(&[y, z, x - 1], *kind) {
+                    //is_same_mushroom_kind_on_pos(, *kind)
                     state.set_outside(Direction::West, false);
                 }
-                if (x + 1 < shape_yzx[2]) && mushroom_table.contains_key(&[y, z, x + 1]) {
+                if (x + 1 < shape_yzx[2]) && is_same_mushroom_kind_on_pos(&[y, z, x + 1], *kind) {
                     state.set_outside(Direction::East, false);
                 }
                 // Has mushroom block on West, set West side to stoma (false)
-                if (y > 0) && mushroom_table.contains_key(&[y - 1, z, x]) {
+                if (y > 0) && is_same_mushroom_kind_on_pos(&[y - 1, z, x], *kind) {
                     state.set_outside(Direction::Down, false);
                 }
-                if (y + 1 < shape_yzx[0]) && mushroom_table.contains_key(&[y + 1, z, x]) {
+                if (y + 1 < shape_yzx[0]) && is_same_mushroom_kind_on_pos(&[y + 1, z, x], *kind) {
                     state.set_outside(Direction::Up, false);
                 }
                 // Has mushroom block on West, set West side to stoma (false)
-                if (z > 0) && mushroom_table.contains_key(&[y, z - 1, x]) {
+                if (z > 0) && is_same_mushroom_kind_on_pos(&[y, z - 1, x], *kind) {
                     state.set_outside(Direction::North, false);
                 }
-                if (z + 1 < shape_yzx[1]) && mushroom_table.contains_key(&[y, z + 1, x]) {
+                if (z + 1 < shape_yzx[1]) && is_same_mushroom_kind_on_pos(&[y, z + 1, x], *kind) {
                     state.set_outside(Direction::South, false);
                 }
                 if state != *original_mush_state {
